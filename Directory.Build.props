@@ -29,8 +29,8 @@
     <PackageId>$(MSBuildProjectName)</PackageId>
     <Authors>Loco Contributors</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/yourusername/loco</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/yourusername/loco.git</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/shizukutanaka/Loco</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/shizukutanaka/Loco.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>automation;workflow;enterprise;security</PackageTags>
     

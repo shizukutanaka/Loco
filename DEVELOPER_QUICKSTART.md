@@ -370,9 +370,7 @@ public async Task DisasterRecovery_ShouldCreateAndRestoreBackup()
 
 - Documentation: `/docs`
 - API Reference: `/api/docs`
-- GitHub Issues: `github.com/yourusername/loco/issues`
-- Community Forum: `forum.loco.dev`
-- Enterprise Support: `support@loco.dev`
+- GitHub Issues: `https://github.com/shizukutanaka/Loco/issues`
 
 ---
 

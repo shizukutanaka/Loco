@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "0.0.1",
   "name": "Loco Automation Platform",
   "description": "Cross-platform automation platform for Windows, Linux, and macOS",
   "main": "src/Loco.Cli/Program.cs",
@@ -9,11 +9,11 @@
     "publish-win": "dotnet publish -c Release -r win-x64",
     "publish-linux": "dotnet publish -c Release -r linux-x64",
     "publish-mac": "dotnet publish -c Release -r osx-x64",
-    "docker": "docker build -t loco:1.1.0 ."
+    "docker": "docker build -t loco:0.0.1 ."
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/loco/loco"
+    "url": "https://github.com/shizukutanaka/Loco"
   },
   "keywords": [
     "automation",

@@ -30,7 +30,7 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/loco.git
+git clone https://github.com/shizukutanaka/Loco.git
 cd loco
 
 # Build the project

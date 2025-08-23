@@ -38,7 +38,7 @@ Loco follows Clean Architecture principles with clear separation of concerns:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/loco/loco.git
+git clone https://github.com/shizukutanaka/Loco.git
 cd loco
 ```
 
