@@ -1,0 +1,258 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  NODE_VERSION: '18.x'
+  DOCKER_REGISTRY: docker.io
+  DOCKER_IMAGE: shizukutanaka/loco
+
+jobs:
+  # Code quality checks
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      - name: Restore dependencies
+        run: dotnet restore
+      
+      - name: Code formatting check
+        run: dotnet format --verify-no-changes
+      
+      - name: Security scan
+        run: |
+          dotnet tool install --global security-scan
+          security-scan ./src
+      
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # Build and test
+  build-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.nuget/packages
+            ~/.npm
+          key: ${{ runner.os }}-deps-${{ hashFiles('**/*.csproj', '**/package-lock.json') }}
+      
+      - name: Restore dependencies
+        run: dotnet restore
+      
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+      
+      - name: Test
+        run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.cobertura.xml
+          flags: unittests
+          name: codecov-${{ matrix.os }}
+
+  # Build Docker images
+  docker:
+    needs: [quality, build-test]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Deploy to Kubernetes
+  deploy:
+    needs: docker
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'staging' || 'production' }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+      
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+      
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > /tmp/kubeconfig
+          echo "KUBECONFIG=/tmp/kubeconfig" >> $GITHUB_ENV
+      
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install loco ./helm/loco \
+            --namespace loco-system \
+            --create-namespace \
+            --set image.tag=${{ github.sha }} \
+            --set image.pullPolicy=Always \
+            --wait \
+            --timeout 10m
+
+  # Release
+  release:
+    needs: [docker, deploy]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      - name: Build release artifacts
+        run: |
+          # Windows
+          dotnet publish src/Loco.Cli -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o ./dist/win-x64
+          
+          # Linux
+          dotnet publish src/Loco.Cli -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o ./dist/linux-x64
+          
+          # macOS
+          dotnet publish src/Loco.Cli -c Release -r osx-x64 --self-contained -p:PublishSingleFile=true -o ./dist/osx-x64
+          
+          # ARM64
+          dotnet publish src/Loco.Cli -c Release -r linux-arm64 --self-contained -p:PublishSingleFile=true -o ./dist/linux-arm64
+      
+      - name: Create archives
+        run: |
+          cd dist
+          tar czf loco-linux-x64.tar.gz -C linux-x64 .
+          tar czf loco-osx-x64.tar.gz -C osx-x64 .
+          tar czf loco-linux-arm64.tar.gz -C linux-arm64 .
+          zip -r loco-win-x64.zip win-x64/*
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Publish to NuGet
+        run: |
+          dotnet pack src/Loco.Core -c Release
+          dotnet nuget push src/Loco.Core/bin/Release/*.nupkg \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --source https://api.nuget.org/v3/index.json
+      
+      - name: Update Homebrew Formula
+        if: success()
+        run: |
+          # Update Homebrew formula
+          echo "Homebrew formula update would go here"
+      
+      - name: Update Chocolatey Package
+        if: success()
+        run: |
+          # Update Chocolatey package
+          echo "Chocolatey package update would go here"
+
+  # Performance benchmarks
+  benchmark:
+    needs: build-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      - name: Run benchmarks
+        run: |
+          dotnet run -c Release --project tests/Loco.Benchmarks
+      
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'benchmarkdotnet'
+          output-file-path: BenchmarkDotNet.Artifacts/results/Loco.Benchmarks-report-full-compressed.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true

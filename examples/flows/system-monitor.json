@@ -1,0 +1,49 @@
+{
+  "id": "system-monitor",
+  "name": "System Health Monitor",
+  "description": "Monitor system resources and alert when thresholds are exceeded",
+  "triggers": [
+    {
+      "type": "Timer",
+      "interval": "00:01:00"
+    }
+  ],
+  "conditions": [
+    {
+      "type": "Or",
+      "conditions": [
+        {
+          "type": "SystemMetric",
+          "metric": "cpuUsage",
+          "operator": "greaterThan",
+          "value": 80
+        },
+        {
+          "type": "SystemMetric",
+          "metric": "memoryUsage",
+          "operator": "greaterThan",
+          "value": 85
+        },
+        {
+          "type": "SystemMetric",
+          "metric": "diskUsage",
+          "operator": "greaterThan",
+          "value": 90
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "Notification",
+      "title": "System Alert",
+      "message": "System resources are running high",
+      "priority": "high"
+    },
+    {
+      "type": "Log",
+      "level": "warning",
+      "message": "System threshold exceeded: CPU={cpu}%, Memory={memory}%, Disk={disk}%"
+    }
+  ]
+}

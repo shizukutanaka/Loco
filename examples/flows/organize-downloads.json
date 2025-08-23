@@ -1,0 +1,47 @@
+{
+  "id": "organize-downloads",
+  "name": "Organize Downloads",
+  "description": "Automatically organize files in Downloads folder by type",
+  "triggers": [
+    {
+      "type": "FileWatcher",
+      "path": "%USERPROFILE%\\Downloads",
+      "pattern": "*.*",
+      "events": ["created", "modified"]
+    }
+  ],
+  "conditions": [
+    {
+      "type": "FileSize",
+      "operator": "greaterThan",
+      "value": 0
+    }
+  ],
+  "actions": [
+    {
+      "type": "MoveFile",
+      "rules": [
+        {
+          "extensions": [".jpg", ".jpeg", ".png", ".gif", ".bmp"],
+          "targetFolder": "Images"
+        },
+        {
+          "extensions": [".pdf", ".doc", ".docx", ".txt", ".rtf"],
+          "targetFolder": "Documents"
+        },
+        {
+          "extensions": [".mp4", ".avi", ".mkv", ".mov", ".wmv"],
+          "targetFolder": "Videos"
+        },
+        {
+          "extensions": [".mp3", ".wav", ".flac", ".aac", ".wma"],
+          "targetFolder": "Music"
+        },
+        {
+          "extensions": [".zip", ".rar", ".7z", ".tar", ".gz"],
+          "targetFolder": "Archives"
+        }
+      ]
+    }
+  ]
+}

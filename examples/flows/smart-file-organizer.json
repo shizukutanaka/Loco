@@ -1,0 +1,91 @@
+{
+  "id": "smart-file-organizer",
+  "name": "スマートファイル整理",
+  "description": "AIがファイル内容を理解して、適切なフォルダに自動整理",
+  "enabled": true,
+  "trigger": {
+    "type": "fileSystem",
+    "parameters": {
+      "path": "%USERPROFILE%\\Downloads",
+      "filter": "*.*",
+      "events": ["created"],
+      "debounceMs": 5000
+    }
+  },
+  "conditions": [
+    {
+      "type": "fileExists",
+      "parameters": {
+        "path": "${triggerContext.fullPath}"
+      }
+    },
+    {
+      "type": "greaterThan",
+      "parameters": {
+        "left": "${fileSize}",
+        "right": 0
+      }
+    }
+  ],
+  "actions": [
+    {
+      "type": "file",
+      "parameters": {
+        "operation": "read",
+        "path": "${triggerContext.fullPath}"
+      },
+      "continueOnError": true
+    },
+    {
+      "type": "llmQuery",
+      "parameters": {
+        "prompt": "このファイルの内容を分析して、最適な分類を1つ選んでください。選択肢：Documents, Images, Videos, Music, Archives, Code, Data, Other\n\nファイル名: ${triggerContext.name}\nファイル拡張子: ${fileExtension}\nファイルサイズ: ${fileSize} bytes\n最初の100文字: ${fileContent.substring(0,100)}\n\n分類を1単語で答えてください:",
+        "modelId": "local-classifier",
+        "maxTokens": 10,
+        "temperature": 0.3
+      }
+    },
+    {
+      "type": "file",
+      "parameters": {
+        "operation": "move",
+        "path": "${triggerContext.fullPath}",
+        "destination": "%USERPROFILE%\\Downloads\\${llmResponse}\\${triggerContext.name}"
+      }
+    },
+    {
+      "type": "log",
+      "parameters": {
+        "level": "Information",
+        "message": "File ${triggerContext.name} moved to ${llmResponse} folder based on AI classification"
+      }
+    },
+    {
+      "type": "notification",
+      "parameters": {
+        "title": "ファイル整理完了",
+        "message": "${triggerContext.name} を ${llmResponse} フォルダに移動しました",
+        "priority": "low"
+      }
+    }
+  ],
+  "variables": {
+    "fileExtension": "${triggerContext.name.split('.').pop()}",
+    "fileSize": "${triggerContext.size}"
+  },
+  "permissions": {
+    "fileSystem": true,
+    "llm": true,
+    "notification": true,
+    "allowedPaths": [
+      "%USERPROFILE%\\Downloads"
+    ]
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "author": "Loco AI",
+    "tags": ["file", "organizer", "llm", "smart"],
+    "source": "naturalLanguage",
+    "naturalLanguageInput": "ダウンロードフォルダに新しいファイルが来たら、AIが内容を理解して適切なフォルダに整理してください"
+  }
+}

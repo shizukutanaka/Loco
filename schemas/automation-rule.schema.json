@@ -1,0 +1,185 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Loco Automation Rule Schema",
+  "description": "JSON Schema for Loco automation rules with LLM support",
+  "type": "object",
+  "required": ["id", "name", "trigger", "actions"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the rule",
+      "pattern": "^[a-zA-Z0-9-_]+$"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name for the rule"
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed description of what the rule does"
+    },
+    "enabled": {
+      "type": "boolean",
+      "description": "Whether the rule is enabled",
+      "default": true
+    },
+    "trigger": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["time", "interval", "fileSystem", "webhook", "systemEvent", "application", "notification"]
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Type-specific parameters for the trigger"
+        },
+        "delay": {
+          "type": "integer",
+          "description": "Delay in milliseconds before trigger activation"
+        },
+        "priority": {
+          "type": "integer",
+          "description": "Priority level (1-10)",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 5
+        }
+      }
+    },
+    "conditions": {
+      "type": "array",
+      "description": "Conditions that must be met for actions to execute",
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["equals", "notEquals", "contains", "regex", "greaterThan", "lessThan", "fileExists", "processRunning", "systemMetric", "and", "or"]
+          },
+          "operator": {
+            "type": "string"
+          },
+          "value": {},
+          "parameters": {
+            "type": "object"
+          },
+          "negate": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      }
+    },
+    "actions": {
+      "type": "array",
+      "description": "Actions to execute when triggered",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["notification", "httpRequest", "file", "tts", "launchApp", "llmQuery", "log", "shell", "email", "backup"]
+          },
+          "parameters": {
+            "type": "object",
+            "description": "Type-specific parameters for the action"
+          },
+          "timeout": {
+            "type": "integer",
+            "description": "Timeout in milliseconds"
+          },
+          "retryCount": {
+            "type": "integer",
+            "description": "Number of retries on failure",
+            "minimum": 0,
+            "default": 0
+          },
+          "continueOnError": {
+            "type": "boolean",
+            "description": "Continue to next action if this fails",
+            "default": false
+          }
+        }
+      }
+    },
+    "variables": {
+      "type": "object",
+      "description": "Variables that can be used in actions",
+      "additionalProperties": true
+    },
+    "permissions": {
+      "type": "object",
+      "description": "Required permissions for the rule",
+      "properties": {
+        "network": {
+          "type": "boolean",
+          "default": false
+        },
+        "fileSystem": {
+          "type": "boolean",
+          "default": false
+        },
+        "shell": {
+          "type": "boolean",
+          "default": false
+        },
+        "llm": {
+          "type": "boolean",
+          "default": false
+        },
+        "notification": {
+          "type": "boolean",
+          "default": true
+        },
+        "allowedDomains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowedPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Rule metadata",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "author": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "source": {
+          "type": "string",
+          "enum": ["manual", "naturalLanguage", "template", "import"]
+        }
+      }
+    }
+  }
+}

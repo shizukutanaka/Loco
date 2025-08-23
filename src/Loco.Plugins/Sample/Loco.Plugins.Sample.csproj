@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Loco.Core\Loco.Core.csproj" />
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <PropertyGroup>
+      <PluginOutputDir>$(SolutionDir)src\Loco.Cli\bin\$(Configuration)\$(TargetFramework)\plugins\$(ProjectName)\</PluginOutputDir>
+    </PropertyGroup>
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginOutputDir)" />
+    <Copy SourceFiles="$(ProjectDir)manifest.json" DestinationFolder="$(PluginOutputDir)" />
+  </Target>
+
+  <ItemGroup>
+    <PackageReference Include="SecurityCodeScan" Version="$(SecurityCodeScanVersion)">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

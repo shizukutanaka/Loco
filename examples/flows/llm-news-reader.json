@@ -1,0 +1,74 @@
+{
+  "id": "llm-news-reader",
+  "name": "AI ニュース読み上げ",
+  "description": "毎朝7時にAIがニュースを要約して読み上げる",
+  "enabled": true,
+  "trigger": {
+    "type": "time",
+    "parameters": {
+      "hour": 7,
+      "minute": 0,
+      "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    }
+  },
+  "conditions": [
+    {
+      "type": "systemMetric",
+      "parameters": {
+        "metric": "networkStatus"
+      },
+      "value": true
+    }
+  ],
+  "actions": [
+    {
+      "type": "httpRequest",
+      "parameters": {
+        "url": "https://newsapi.org/v2/top-headlines?country=jp&apiKey=${NEWS_API_KEY}",
+        "method": "GET"
+      },
+      "timeout": 10000
+    },
+    {
+      "type": "llmQuery",
+      "parameters": {
+        "prompt": "以下のニュースを日本語で簡潔に要約してください。朝の挨拶も含めて、聞きやすい文章にしてください：\n${responseBody}",
+        "modelId": "local-japanese-model",
+        "maxTokens": 500,
+        "temperature": 0.7
+      }
+    },
+    {
+      "type": "tts",
+      "parameters": {
+        "text": "${llmResponse}",
+        "voice": "Microsoft Haruka Desktop",
+        "rate": 0,
+        "volume": 80
+      }
+    },
+    {
+      "type": "notification",
+      "parameters": {
+        "title": "朝のニュース",
+        "message": "本日のニュース読み上げが完了しました",
+        "priority": "normal"
+      }
+    }
+  ],
+  "variables": {
+    "NEWS_API_KEY": "your-api-key-here"
+  },
+  "permissions": {
+    "network": true,
+    "llm": true,
+    "notification": true,
+    "allowedDomains": ["newsapi.org"]
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "author": "Loco AI",
+    "tags": ["news", "llm", "tts", "morning"],
+    "source": "naturalLanguage"
+  }
+}

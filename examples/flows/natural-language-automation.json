@@ -1,0 +1,57 @@
+{
+  "id": "natural-language-automation",
+  "name": "Natural Language Command Processor",
+  "description": "Process natural language commands to create automations",
+  "trigger": {
+    "type": "webhook",
+    "parameters": {
+      "port": 8080
+    }
+  },
+  "conditions": [
+    {
+      "type": "contains",
+      "parameters": {
+        "field": "body",
+        "value": "command"
+      }
+    }
+  ],
+  "actions": [
+    {
+      "type": "llmQuery",
+      "parameters": {
+        "prompt": "Convert this natural language command to automation DSL: ${body}",
+        "modelId": "local-model-1",
+        "maxTokens": 1000,
+        "temperature": 0.3
+      }
+    },
+    {
+      "type": "file",
+      "parameters": {
+        "operation": "write",
+        "path": "%APPDATA%\\Loco\\flows\\generated-${timestamp}.json",
+        "content": "${llmResponse}"
+      }
+    },
+    {
+      "type": "notification",
+      "parameters": {
+        "title": "Automation Created",
+        "message": "New automation rule created from: ${body}"
+      }
+    }
+  ],
+  "permissions": {
+    "network": true,
+    "llm": true,
+    "fileSystem": true,
+    "notification": true,
+    "allowedPaths": ["%APPDATA%\\Loco\\flows"]
+  },
+  "metadata": {
+    "author": "Loco System",
+    "tags": ["natural-language", "ai", "automation-generation"]
+  }
+}

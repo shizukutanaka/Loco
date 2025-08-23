@@ -1,0 +1,87 @@
+{
+  "version": "1.1.0",
+  "name": "Loco Automation Platform",
+  "description": "Cross-platform automation platform for Windows, Linux, and macOS",
+  "main": "src/Loco.Cli/Program.cs",
+  "scripts": {
+    "build": "dotnet build",
+    "test": "dotnet test",
+    "publish-win": "dotnet publish -c Release -r win-x64",
+    "publish-linux": "dotnet publish -c Release -r linux-x64",
+    "publish-mac": "dotnet publish -c Release -r osx-x64",
+    "docker": "docker build -t loco:1.1.0 ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/loco/loco"
+  },
+  "keywords": [
+    "automation",
+    "workflow",
+    "cross-platform",
+    "task-scheduler",
+    "file-watcher"
+  ],
+  "author": "Loco Team",
+  "license": "MIT",
+  "platforms": {
+    "windows": {
+      "x64": true,
+      "arm64": true
+    },
+    "linux": {
+      "x64": true,
+      "arm64": true,
+      "arm": true
+    },
+    "macos": {
+      "x64": true,
+      "arm64": true
+    }
+  },
+  "requirements": {
+    "dotnet": "8.0",
+    "minimum": {
+      "cpu": "1 core",
+      "memory": "256MB",
+      "disk": "100MB"
+    },
+    "recommended": {
+      "cpu": "2+ cores",
+      "memory": "1GB",
+      "disk": "500MB"
+    }
+  },
+  "features": [
+    "Flow execution engine",
+    "Time-based triggers",
+    "File system monitoring",
+    "Application launcher",
+    "HTTP requests",
+    "Notifications",
+    "Cross-platform support",
+    "Docker support",
+    "Memory optimization",
+    "Caching system"
+  ],
+  "changelog": {
+    "1.1.0": {
+      "date": "2024-08-14",
+      "changes": [
+        "Added Linux and macOS support",
+        "Implemented platform abstraction layer",
+        "Added Docker support",
+        "ARM architecture support",
+        "Improved performance"
+      ]
+    },
+    "1.0.0": {
+      "date": "2024-08-13",
+      "changes": [
+        "Initial release",
+        "Windows support",
+        "Core features implementation"
+      ]
+    }
+  }
+}

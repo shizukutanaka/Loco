@@ -1,0 +1,150 @@
+# Build outputs
+bin/
+obj/
+out/
+output/
+publish/
+release/
+*.dll
+*.exe
+*.pdb
+*.msi
+*.msix
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.vspscc
+*.vssscc
+.vscode/
+
+# Rider
+.idea/
+*.sln.iml
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Next.js
+.next/
+out/
+dist/
+
+# Testing
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+*.bak
+*.swp
+*~
+
+# Logs
+*.log
+logs/
+
+# User-specific files
+*.rsuser
+*.dbmdl
+*.jfm
+
+# Backup files
+*.bak
+*.old
+backup/
+
+# Build artifacts
+*.zip
+*.tar.gz
+*.7z
+
+# Local configuration
+appsettings.Development.json
+appsettings.Local.json
+launchSettings.json
+
+# Claude specific
+.claude/
+*.claude.json
+
+# Production files to exclude
+IMPLEMENTATION_*.md
+IMPROVEMENT_*.md
+PRODUCTION_*.md
+NATIONAL_*.md
+PROGRESS_*.md
+PROJECT_*.md
+*_SUMMARY*.md
+*_READY*.md
+*_REPORT*.md
+improvement*.json
+
+# Test and development scripts
+*-test.bat
+*-test.ps1
+test-*.bat
+test-*.ps1
+cleanup*.bat
+cleanup*.ps1
+final-*.ps1
+quick-*.bat

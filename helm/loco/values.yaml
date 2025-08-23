@@ -1,0 +1,347 @@
+# Default values for Loco
+# This is a YAML-formatted file.
+
+# Global configuration
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: ""
+
+# Image configuration
+image:
+  registry: docker.io
+  repository: shizukutanaka/loco
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Service account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Deployment configuration
+replicaCount: 3
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Resources
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Service configuration
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 8080
+  annotations: {}
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+  hosts:
+    - host: loco.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: loco-tls
+      hosts:
+        - loco.example.com
+
+# Gateway configuration
+gateway:
+  enabled: true
+  replicas: 2
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  config:
+    rateLimit:
+      enabled: true
+      requestsPerMinute: 100
+    circuitBreaker:
+      enabled: true
+      threshold: 5
+      timeout: 30
+    jwt:
+      secret: "" # Will be auto-generated if not provided
+      expiration: 3600
+
+# Dashboard configuration
+dashboard:
+  enabled: true
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  config:
+    refreshInterval: 5
+    historyRetention: 7d
+    anomalyDetection:
+      enabled: true
+      sensitivity: medium
+
+# Database configuration
+postgresql:
+  enabled: true
+  auth:
+    database: loco
+    username: loco
+    password: "" # Will be auto-generated if not provided
+  persistence:
+    enabled: true
+    size: 10Gi
+  metrics:
+    enabled: true
+
+# Cache configuration
+redis:
+  enabled: true
+  auth:
+    enabled: true
+    password: "" # Will be auto-generated if not provided
+  master:
+    persistence:
+      enabled: true
+      size: 5Gi
+  replica:
+    replicaCount: 2
+
+# Message queue configuration
+rabbitmq:
+  enabled: true
+  auth:
+    username: loco
+    password: "" # Will be auto-generated if not provided
+  persistence:
+    enabled: true
+    size: 5Gi
+  metrics:
+    enabled: true
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+  grafana:
+    enabled: true
+    dashboards:
+      enabled: true
+  jaeger:
+    enabled: true
+    agent:
+      enabled: true
+
+# Security configuration
+security:
+  podSecurityPolicy:
+    enabled: true
+  networkPolicy:
+    enabled: true
+    ingress:
+      - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+    egress:
+      - to:
+        - namespaceSelector: {}
+  rbac:
+    create: true
+    rules: []
+
+# Persistence configuration
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  mountPath: /data
+
+# ConfigMap configuration
+configMap:
+  create: true
+  data:
+    LOG_LEVEL: info
+    ENABLE_TELEMETRY: "true"
+    ENABLE_AI_OPTIMIZATION: "true"
+    ENABLE_AUTO_SCALING: "true"
+
+# Secret configuration
+secret:
+  create: true
+  data: {}
+    # Add sensitive configuration here
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - loco
+          topologyKey: kubernetes.io/hostname
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Liveness probe
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Readiness probe
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Startup probe
+startupProbe:
+  httpGet:
+    path: /startup
+    port: http
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 30
+
+# Extra environment variables
+extraEnvVars: []
+  # - name: EXTRA_VAR
+  #   value: "extra_value"
+
+# Extra volumes
+extraVolumes: []
+  # - name: extra-volume
+  #   configMap:
+  #     name: extra-configmap
+
+# Extra volume mounts
+extraVolumeMounts: []
+  # - name: extra-volume
+  #   mountPath: /extra
+
+# Init containers
+initContainers: []
+  # - name: init-db
+  #   image: busybox:1.35
+  #   command: ['sh', '-c', 'until nc -z postgresql 5432; do sleep 1; done']
+
+# Sidecar containers
+sidecarContainers: []
+  # - name: logging-agent
+  #   image: fluent/fluent-bit:2.0
+  #   volumeMounts:
+  #     - name: logs
+  #       mountPath: /var/log
+
+# Service mesh configuration
+serviceMesh:
+  istio:
+    enabled: false
+    virtualService:
+      enabled: true
+      timeout: 30s
+      retries:
+        attempts: 3
+        perTryTimeout: 10s
+    destinationRule:
+      enabled: true
+      trafficPolicy:
+        connectionPool:
+          tcp:
+            maxConnections: 100
+        loadBalancer:
+          simple: ROUND_ROBIN
+
+# Backup configuration
+backup:
+  enabled: false
+  schedule: "0 2 * * *"
+  retention: 30
+  s3:
+    enabled: false
+    bucket: ""
+    endpoint: ""
+    accessKey: ""
+    secretKey: ""
+
+# Feature flags
+features:
+  aiOptimization: true
+  realtimeDashboard: true
+  kubernetesIntegration: true
+  apiGateway: true
+  distributedTracing: false
+  eventSourcing: false
+  graphqlApi: false
+  serverlessFunctions: false

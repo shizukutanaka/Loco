@@ -1,0 +1,20 @@
+{
+  "Id": "Loco.Plugins.Sample",
+  "Name": "Sample Plugin",
+  "Version": "1.0.0",
+  "Author": "Cascade",
+  "Description": "A sample plugin to demonstrate functionality.",
+  "EntryPoint": "Loco.Plugins.Sample.dll",
+  "Permissions": {
+    "FileSystem": true,
+    "AllowedPaths": [
+      "logs"
+    ],
+    "Network": false,
+    "AllowedDomains": [],
+    "Process": false,
+    "Llm": false
+  },
+  "Dependencies": [],
+  "Configuration": {}
+}

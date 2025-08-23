@@ -1,0 +1,41 @@
+<Project>
+  <PropertyGroup>
+    <!-- Version Information -->
+    <Version>0.0.1</Version>
+    <AssemblyVersion>0.0.1.0</AssemblyVersion>
+    <FileVersion>0.0.1.0</FileVersion>
+    <InformationalVersion>0.0.1-alpha</InformationalVersion>
+    
+    <!-- Product Information -->
+    <Product>Loco</Product>
+    <Company>Loco Project</Company>
+    <Copyright>Copyright (c) 2024 Loco Project</Copyright>
+    <Description>Enterprise-grade automation platform with national-level security</Description>
+    
+    <!-- Build Configuration -->
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningLevel>5</WarningLevel>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>CS1591;CS1701;CS1702;CS1705;CS8618;CS8601;CS8602;CS8603;CS8604;CS8625;CS8629;CS8632</NoWarn>
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <Deterministic>true</Deterministic>
+    
+    <!-- Package Information -->
+    <PackageId>$(MSBuildProjectName)</PackageId>
+    <Authors>Loco Contributors</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/yourusername/loco</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/yourusername/loco.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>automation;workflow;enterprise;security</PackageTags>
+    
+    <!-- Centralized package version management -->
+    <SecurityCodeScanVersion>3.5.4</SecurityCodeScanVersion>
+    <SystemTextJsonVersion>8.0.*</SystemTextJsonVersion>
+  </PropertyGroup>
+</Project>

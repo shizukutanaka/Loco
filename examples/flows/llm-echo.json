@@ -1,0 +1,29 @@
+{
+  "id": "llm-echo",
+  "name": "LLM Echo",
+  "description": "Minimal flow to test llmQuery end-to-end",
+  "enabled": true,
+  "trigger": {
+    "type": "application",
+    "parameters": {}
+  },
+  "actions": [
+    {
+      "type": "llmQuery",
+      "parameters": {
+        "prompt": "Reply with the single word: OK",
+        "modelId": "local-echo",
+        "maxTokens": 8,
+        "temperature": 0
+      }
+    }
+  ],
+  "variables": {},
+  "permissions": {
+    "llm": true
+  },
+  "metadata": {
+    "author": "Loco",
+    "tags": ["llm", "echo", "smoke"]
+  }
+}

@@ -1,0 +1,355 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_SKIP_WORKLOAD_INSTALLATION: true
+  DOTNET_PRINT_TELEMETRY_MESSAGE: false
+  DOTNET_GENERATE_ASPNET_CERTIFICATE: false
+  DOTNET_MULTILEVEL_LOOKUP: 0
+  NUGET_XMLDOC_MODE: skip
+  POWERSHELL_TELEMETRY_OPTOUT: true
+  GIT_TERMINAL_PROMPT: 0
+  POWERSHELL_UPDATECHECK: Off
+  MSBUILDDISABLENODEREUSE: 1
+  CI: true
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+            artifact: loco-linux
+          - os: windows-latest
+            rid: win-x64
+            artifact: loco-windows
+          - os: macos-latest
+            rid: osx-x64
+            artifact: loco-macos
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+
+    - name: Restore
+      run: dotnet restore --nologo
+
+    - name: Vulnerability Scan
+      run: dotnet list package --vulnerable --include-transitive
+
+    - name: Build
+      run: dotnet build --configuration Release --no-restore -p:TreatWarningsAsErrors=true --nologo
+
+    - name: Test
+      run: dotnet test -c Release --no-build --nologo --verbosity normal
+
+    - name: Verify Plugins Path precedence (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      timeout-minutes: 5
+      env:
+        TRANSCRIPT_PATH: ${{ runner.temp }}\verify-plugins-path-transcript.txt
+        DOTNET_CLI_HOME: ${{ runner.temp }}\dotnet-cli-home
+        NUGET_CERT_REVOCATION_MODE: offline
+      run: |
+        Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+        New-Item -ItemType Directory -Force -Path "$env:DOTNET_CLI_HOME" | Out-Null
+        try {
+          Start-Transcript -Path "$env:TRANSCRIPT_PATH" -Force | Out-Null
+          $ps = $null
+          try { $ps = (Get-Command pwsh -ErrorAction SilentlyContinue) } catch {}
+          if (-not $ps) { try { $ps = (Get-Command powershell.exe -ErrorAction SilentlyContinue) } catch {} }
+          $file = if ($ps) { $ps.Source } else { 'pwsh' }
+          $scriptPath = Join-Path $PWD.Path 'tools\verify-plugins-path.ps1'
+          $argList = @('-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File', $scriptPath,'-VerboseMode','-PerCommandTimeoutSec','45','-IdleTimeoutSec','40')
+          $p = Start-Process -FilePath $file -ArgumentList $argList -WorkingDirectory $PWD.Path -NoNewWindow -PassThru -WindowStyle Hidden
+          $ok = $p.WaitForExit(240000)
+          if (-not $ok) {
+            try { Start-Process -FilePath 'taskkill' -ArgumentList "/PID $($p.Id) /T /F" -NoNewWindow -Wait } catch {}
+            throw 'Watchdog timeout: verify-plugins-path.ps1 exceeded 240s'
+          }
+          if ($p.ExitCode -ne 0) { throw "verify-plugins-path.ps1 failed with exit $($p.ExitCode)" }
+        }
+        finally {
+          try { Stop-Transcript | Out-Null } catch { }
+        }
+
+    - name: Upload verification transcript (on failure or cancellation)
+      if: (failure() || cancelled()) && matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: verify-plugins-path-transcript
+        path: ${{ runner.temp }}\verify-plugins-path-transcript.txt
+        if-no-files-found: warn
+
+    - name: Snapshot processes (on failure or cancellation)
+      if: (failure() || cancelled()) && matrix.os == 'windows-latest'
+      shell: pwsh
+      env:
+        PROCS_SNAPSHOT: ${{ runner.temp }}\processes.txt
+      run: |
+        Get-Date | Out-File $env:PROCS_SNAPSHOT
+        try {
+          Get-CimInstance Win32_Process |
+            Select-Object ProcessId,ParentProcessId,Name,CommandLine |
+            Sort-Object ProcessId |
+            Format-Table -AutoSize |
+            Out-String -Width 4096 |
+            Out-File -Append $env:PROCS_SNAPSHOT
+        } catch {
+          Get-Process | Sort-Object Id | Format-Table Id,Name,Path -AutoSize | Out-String -Width 4096 | Out-File -Append $env:PROCS_SNAPSHOT
+        }
+
+    - name: Upload process snapshot (on failure or cancellation)
+      if: (failure() || cancelled()) && matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: verify-plugins-path-processes
+        path: ${{ runner.temp }}\processes.txt
+        if-no-files-found: warn
+
+    - name: Publish
+      run: dotnet publish src/Loco.Cli/Loco.Cli.csproj -c Release -r ${{ matrix.rid }} -o ./output --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true -p:TrimMode=partial -p:EnableCompressionInSingleFile=true --nologo
+
+    - name: Create Archive (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      run: |
+        Compress-Archive -Path .\output\* -DestinationPath "loco-${{ matrix.rid }}.zip" -Force
+
+    - name: Create Archive (Non-Windows)
+      if: matrix.os != 'windows-latest'
+      shell: bash
+      run: |
+        tar czf "loco-${{ matrix.rid }}.tar.gz" -C output .
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact }}
+        path: |
+          loco-*.zip
+          loco-*.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    timeout-minutes: 30
+    
+    steps:
+    - name: Download Artifacts
+      uses: actions/download-artifact@v4
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        files: |
+          **/loco-*.zip
+          **/loco-*.tar.gz
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 30
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Check Docker credentials
+      id: docker_creds
+      shell: bash
+      env:
+        HAS_USER: ${{ secrets.DOCKER_USERNAME != '' }}
+        HAS_PASS: ${{ secrets.DOCKER_PASSWORD != '' }}
+      run: |
+        if [[ "$HAS_USER" == "true" && "$HAS_PASS" == "true" ]]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "ok=false" >> "$GITHUB_OUTPUT"; fi
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      if: steps.docker_creds.outputs.ok == 'true'
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Build and push
+      uses: docker/build-push-action@v5
+      if: steps.docker_creds.outputs.ok == 'true'
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: |
+          shizukutanaka/loco:latest
+          shizukutanaka/loco:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  publish-chocolatey:
+    name: Publish to Chocolatey
+    needs: release
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    timeout-minutes: 30
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: loco-windows
+          path: ./output
+
+      - name: Set version
+        id: version
+        shell: pwsh
+        run: |
+          $v = '${{ github.ref_name }}'
+          if ($v.StartsWith('v')) { $v = $v.Substring(1) }
+          echo "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Update nuspec
+        run: |
+          $nuspec = ".\chocolatey\loco.nuspec"
+          $xml = [xml](Get-Content $nuspec)
+          $xml.package.metadata.version = "${{ steps.version.outputs.version }}"
+          $xml.Save($nuspec)
+
+      - name: Pack
+        run: choco pack .\chocolatey\loco.nuspec --out ./
+
+      - name: Check Chocolatey API key
+        id: choco_check
+        shell: pwsh
+        env:
+          HAS_CHOCO: ${{ secrets.CHOCO_API_KEY != '' }}
+        run: |
+          if ($env:HAS_CHOCO -eq 'true') { 'ok=true' >> $env:GITHUB_OUTPUT } else { 'ok=false' >> $env:GITHUB_OUTPUT }
+
+      - name: Push
+        if: steps.choco_check.outputs.ok == 'true'
+        run: choco push .\*.nupkg --source https://push.chocolatey.org/ --api-key ${{ secrets.CHOCO_API_KEY }}
+
+  publish-winget:
+    name: Publish to Winget
+    needs: release
+    runs-on: windows-latest
+    # Gate by tag only; check secret presence at step-level to satisfy linter
+    if: startsWith(github.ref, 'refs/tags/v')
+    timeout-minutes: 30
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: loco-windows
+          path: ./output
+
+      - name: Check Winget token
+        id: winget_check
+        shell: pwsh
+        env:
+          HAS_WINGET: ${{ secrets.WINGET_TOKEN != '' }}
+        run: |
+          if ($env:HAS_WINGET -eq 'true') { 'ok=true' >> $env:GITHUB_OUTPUT } else { 'ok=false' >> $env:GITHUB_OUTPUT }
+
+      - name: Extract Windows artifact
+        if: steps.winget_check.outputs.ok == 'true'
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem -Path .\output -Filter 'loco-*.zip' | Select-Object -First 1
+          if (-not $zip) { throw "Windows artifact zip not found in .\output" }
+          Expand-Archive -Path $zip.FullName -DestinationPath .\output -Force
+
+      - name: Checkout winget-pkgs
+        if: steps.winget_check.outputs.ok == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/winget-pkgs
+          token: ${{ secrets.WINGET_TOKEN }}
+
+      - name: Create and submit manifest
+        if: steps.winget_check.outputs.ok == 'true'
+        uses: vedantmgoyal2009/winget-releaser@v2
+        with:
+          path: .\output\Loco.Cli.exe
+          identifier: ShizukuTakahashi.Loco
+
+  load-test:
+    name: Load Test
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration Release --no-restore -p:TreatWarningsAsErrors=true
+
+    - name: Start Web API
+      run: dotnet run --project src/Loco.Web/Loco.Web.csproj --configuration Release &
+
+    - name: Wait for API to be ready
+      run: |
+        echo "Waiting for API to be ready..."
+        timeout 30s bash -c \
+          'until curl -s -f -o /dev/null http://localhost:8080/api/flows; \
+          do echo "...still waiting"; sleep 2; done'
+
+    - name: ZAP Scan
+      uses: zaproxy/action-baseline@v0.10.0
+      with:
+        target: 'http://localhost:8080'
+        cmd_options: '-a'
+
+    - name: Run k6 load test
+      uses: k6io/run@v1.4.0
+      with:
+        script: tests/Loco.LoadTests/k6-script.js
+
