@@ -36,6 +36,6 @@
     
     <!-- Centralized package version management -->
     <SecurityCodeScanVersion>3.5.4</SecurityCodeScanVersion>
-    <SystemTextJsonVersion>8.0.*</SystemTextJsonVersion>
+    <SystemTextJsonVersion>9.0.0</SystemTextJsonVersion>
   </PropertyGroup>
 </Project>

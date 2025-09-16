@@ -1,5 +1,6 @@
 using Loco.Core.Interfaces;
 using Loco.Core.Models;
+using Loco.Core.Triggers;
 
 namespace Loco.Core.Factories;
 

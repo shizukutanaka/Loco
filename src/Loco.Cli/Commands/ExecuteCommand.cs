@@ -13,6 +13,8 @@ using Loco.Core.Plugins;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Loco.Core.ErrorHandling;
+using Loco.Core.Validation;
 
 namespace Loco.Cli.Commands;
 
@@ -48,20 +50,39 @@ public class ExecuteCommand : Command
 
     internal static async Task HandleAsync(IHost host, ILogger<ExecuteCommand> logger, IAutomationService automationService, IAutomationRuleEngine ruleEngine, IRuleManipulationService ruleService, PluginManager pluginManager, IOptions<LlmConfiguration> llmOptions, string file, string modelIdArg, int timeoutSeconds, string? inputsJson)
     {
+        var errorHandler = host.Services.GetService<ErrorHandler>() ?? new ErrorHandler(logger);
+
         try
         {
-            if (!File.Exists(file))
+            // Validate file path
+            var configValidator = new ConfigurationValidator(logger);
+            var pathValidation = configValidator.ValidatePath(file, PathValidationType.FileMustExist);
+
+            if (!pathValidation.IsValid)
             {
-                logger.LogError("Flow file not found: {File}", Path.GetFullPath(file));
+                foreach (var error in pathValidation.Errors)
+                {
+                    logger.LogError("{Field}: {Message}", error.Field, error.Message);
+                }
                 return;
             }
 
-            await pluginManager.LoadPluginsAsync();
+            // Load plugins with retry
+            await errorHandler.HandleWithRetryAsync(
+                async () => await pluginManager.LoadPluginsAsync(),
+                maxAttempts: 3,
+                delay: TimeSpan.FromSeconds(1)
+            );
 
             // Ensure automation service is started (loads any saved rules and readies the engine)
             var appLifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
             var stopToken = appLifetime.ApplicationStopping;
-            await automationService.StartAsync(stopToken);
+
+            await errorHandler.HandleWithRetryAsync(
+                async () => await automationService.StartAsync(stopToken),
+                maxAttempts: 2,
+                delay: TimeSpan.FromSeconds(2)
+            );
 
             var ruleJson = await File.ReadAllTextAsync(file, stopToken);
             var effectiveModelId = modelIdArg ?? llmOptions.Value.Model;
@@ -71,25 +92,43 @@ public class ExecuteCommand : Command
                 ruleJson = ruleService.InjectModelId(ruleJson, effectiveModelId, logger);
             }
 
+            // Enhanced validation
             var validationResult = await automationService.ValidateRuleJsonAsync(ruleJson, stopToken);
             if (!validationResult.IsValid)
             {
                 var errors = validationResult.Errors is null ? "unknown error" : string.Join(", ", validationResult.Errors);
                 logger.LogError("Flow validation failed: {Errors}", errors);
+
+                // Log detailed validation errors
+                if (validationResult.Errors != null)
+                {
+                    foreach (var error in validationResult.Errors)
+                    {
+                        logger.LogError("  - {Error}", error);
+                    }
+                }
                 return;
             }
 
-            var added = await automationService.AddRuleFromJsonAsync(ruleJson, stopToken);
+            var added = await errorHandler.HandleWithRetryAsync(
+                async () => await automationService.AddRuleFromJsonAsync(ruleJson, stopToken),
+                maxAttempts: 2
+            );
+
             if (!added)
             {
-                logger.LogError("Failed to add flow to the engine.");
-                return;
+                throw new InvalidOperationException("Failed to add flow to the engine after retries.");
             }
 
-            var rule = JsonSerializer.Deserialize<AutomationDsl.Rule>(ruleJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            if (rule == null)
+            AutomationDsl.Rule rule;
+            try
             {
-                logger.LogError("Failed to deserialize rule to trigger.");
+                rule = JsonSerializer.Deserialize<AutomationDsl.Rule>(ruleJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                    ?? throw new JsonException("Deserialization resulted in null rule");
+            }
+            catch (JsonException ex)
+            {
+                logger.LogError(ex, "Failed to deserialize rule. Check JSON format.");
                 return;
             }
 
@@ -102,27 +141,64 @@ public class ExecuteCommand : Command
                 {
                     inputs = JsonSerializer.Deserialize<Dictionary<string, object>>(inputsJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
                              ?? new Dictionary<string, object>();
+
+                    logger.LogDebug("Parsed {Count} input parameters", inputs.Count);
                 }
-                catch (Exception ex)
+                catch (JsonException ex)
                 {
-                    logger.LogError(ex, "Failed to parse --inputs-json. Provide a JSON object.");
+                    logger.LogError(ex, "Failed to parse --inputs-json. Provide a valid JSON object.");
+                    logger.LogInformation("Example: --inputs-json '{\"key\":\"value\"}'");
                     return;
                 }
             }
 
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(stopToken);
-            linkedCts.CancelAfter(TimeSpan.FromSeconds(Math.Max(1, timeoutSeconds)));
-            await ruleEngine.TriggerRuleAsync(rule.Id, inputs, linkedCts.Token);
+            var timeout = TimeSpan.FromSeconds(Math.Max(1, timeoutSeconds));
+            linkedCts.CancelAfter(timeout);
 
-            logger.LogInformation("Flow execution finished.");
+            logger.LogInformation("Executing with timeout: {Timeout}s", timeoutSeconds);
+
+            try
+            {
+                await ruleEngine.TriggerRuleAsync(rule.Id, inputs, linkedCts.Token);
+                logger.LogInformation("Flow execution completed successfully.");
+            }
+            catch (OperationCanceledException) when (linkedCts.IsCancellationRequested && !stopToken.IsCancellationRequested)
+            {
+                logger.LogWarning("Flow execution timed out after {Timeout} seconds.", timeoutSeconds);
+                throw new TimeoutException($"Flow execution exceeded timeout of {timeoutSeconds} seconds");
+            }
         }
-        catch (OperationCanceledException)
+        catch (TimeoutException tex)
         {
-            logger.LogWarning("Flow execution timed out after {Timeout} seconds.", timeoutSeconds);
+            var result = await errorHandler.HandleAsync(tex, new ErrorContext
+            {
+                AdditionalData = new Dictionary<string, object>
+                {
+                    ["File"] = file,
+                    ["Timeout"] = timeoutSeconds
+                }
+            });
+
+            logger.LogWarning(result.UserMessage);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "An error occurred during flow execution.");
+            var result = await errorHandler.HandleAsync(ex, new ErrorContext
+            {
+                AdditionalData = new Dictionary<string, object>
+                {
+                    ["File"] = file,
+                    ["Command"] = "execute"
+                }
+            });
+
+            if (!result.Handled)
+            {
+                throw;
+            }
+
+            logger.LogError("Error ID: {ErrorId}", result.ErrorId);
         }
     }
 }

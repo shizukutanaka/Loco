@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using Loco.Core.Middleware;
 
 namespace Loco.Core.RateLimiting
 {
@@ -16,25 +17,6 @@ namespace Loco.Core.RateLimiting
         RateLimitStatus GetStatus(string key);
     }
 
-    public class RateLimitResult
-    {
-        public bool IsAllowed { get; set; }
-        public int Remaining { get; set; }
-        public DateTime ResetTime { get; set; }
-        public int Limit { get; set; }
-        public string Key { get; set; }
-        public TimeSpan RetryAfter { get; set; }
-    }
-
-    public class RateLimitStatus
-    {
-        public string Key { get; set; }
-        public int Count { get; set; }
-        public int Limit { get; set; }
-        public DateTime WindowStart { get; set; }
-        public DateTime WindowEnd { get; set; }
-        public bool IsThrottled { get; set; }
-    }
 
     public class AdvancedRateLimitService : IRateLimitService
     {
@@ -379,4 +361,5 @@ namespace Loco.Core.RateLimiting
         LeakyBucket,
         FixedWindow
     }
+
 }

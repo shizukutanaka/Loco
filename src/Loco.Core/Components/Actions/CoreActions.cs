@@ -1,12 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Loco.Core.Models;
 using Loco.Core.Platform;
 
 namespace Loco.Core.Components.Actions;
@@ -283,51 +284,38 @@ public class NotificationAction : ComponentBase, IAction
 }
 
 /// <summary>
-/// Text-to-speech action - Cross-platform
+/// Simple logging action
 /// </summary>
-public class TextToSpeechAction : ComponentBase, IAction
+public class LogAction : ComponentBase, IAction
 {
-    private readonly ILogger<TextToSpeechAction> _logger;
-    private readonly IPlatformService _platformService;
-    
-    public TextToSpeechAction(ILogger<TextToSpeechAction> logger = null, IPlatformService platformService = null)
-        : base("tts.speak", "Text to Speech", "Converts text to speech", ComponentType.Action)
+    private readonly ILogger<LogAction> _logger;
+
+    public LogAction(ILogger<LogAction> logger = null)
+        : base("log", "Log Action", "Logs messages at different levels", ComponentType.Action)
     {
         _logger = logger;
-        _platformService = platformService ?? PlatformServiceFactory.Create(logger);
     }
-    
-    public async Task<ActionResult> ExecuteAsync(ActionContext context, CancellationToken cancellationToken = default)
+
+    public Task<ActionResult> ExecuteAsync(ActionContext context, CancellationToken cancellationToken = default)
     {
-        try
+        var message = context.Parameters.GetValueOrDefault("message")?.ToString() ?? "No message";
+        var level = context.Parameters.GetValueOrDefault("level")?.ToString() ?? "Info";
+
+        switch (level.ToLower())
         {
-            var text = GetConfig<string>("text", "");
-            var rate = GetConfig<int>("rate", 0);
-            var volume = GetConfig<int>("volume", 100);
-            
-            // Replace variables in text
-            foreach (var kvp in context.Variables)
-            {
-                text = text.Replace($"${{{kvp.Key}}}", kvp.Value?.ToString() ?? "");
-            }
-            
-            var success = await _platformService.TextToSpeechAsync(text, rate, volume);
-            
-            if (success)
-            {
-                _logger?.LogInformation($"Spoke text: {text}");
-                return ActionResult.Ok();
-            }
-            else
-            {
-                return ActionResult.Fail("Text-to-speech failed");
-            }
+            case "error":
+                _logger?.LogError("[Rule:{ExecutionId}] {Message}", context.ExecutionId, message);
+                break;
+            case "warn":
+            case "warning":
+                _logger?.LogWarning("[Rule:{ExecutionId}] {Message}", context.ExecutionId, message);
+                break;
+            default:
+                _logger?.LogInformation("[Rule:{ExecutionId}] {Message}", context.ExecutionId, message);
+                break;
         }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Text-to-speech failed");
-            return ActionResult.Fail(ex.Message);
-        }
+
+        return Task.FromResult(new ActionResult { Success = true, Message = "Logged successfully" });
     }
 }
 

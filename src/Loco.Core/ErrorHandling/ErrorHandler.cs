@@ -9,7 +9,12 @@ using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.ErrorHandling
 {
-    public class ErrorHandler
+    public interface IErrorHandler
+    {
+        Task<ErrorResult> HandleAsync(Exception exception, ErrorContext context = null, [CallerMemberName] string caller = "", [CallerFilePath] string filePath = "", [CallerLineNumber] int lineNumber = 0);
+    }
+
+    public class ErrorHandler : IErrorHandler
     {
         private readonly ILogger<ErrorHandler> _logger;
         private readonly List<IErrorProcessor> _processors = new();

@@ -16,6 +16,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Loco.Core.Utilities;
+using Loco.Core.ErrorHandling;
+using Loco.Core.Validation;
 
 namespace Loco.Cli;
 
@@ -62,6 +64,7 @@ public class Program
 
 
         rootCommand.AddCommand(new TestPluginCommand());
+        rootCommand.AddCommand(new TestCommand());
 
         var langOption = new Option<string>(new[] { "--lang", "-l" }, "言語コード (例: ja, en, fr)");
         rootCommand.AddGlobalOption(langOption);
@@ -147,6 +150,17 @@ public class Program
                 services.AddSingleton<IRuleManipulationService, RuleManipulationService>();
 
                 services.AddSingleton<FlowComposerBuilder>();
+
+                // Error handling and validation
+                services.AddSingleton<ErrorHandler>();
+                services.AddSingleton<IFlowValidator, FlowValidator>();
+                services.AddSingleton<IConfigurationValidator, ConfigurationValidator>();
+                services.AddSingleton<IGlobalErrorHandler>(sp =>
+                {
+                    var logger = sp.GetRequiredService<ILogger<GlobalErrorHandler>>();
+                    var isDevelopment = configuration["LOCO_ENVIRONMENT"] == "Development";
+                    return new GlobalErrorHandler(logger, isDevelopment);
+                });
 
                 services.AddScoped<IUnitOfWork>(sp =>
                 {

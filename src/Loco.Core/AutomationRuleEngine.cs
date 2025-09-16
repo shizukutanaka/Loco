@@ -7,12 +7,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
-using Loco.Core.Actions;
+using Loco.Core.Components.Actions;
 using Loco.Core.Models;
 using Loco.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Loco.Core.Triggers;
 using Loco.Core.Interfaces;
+using Loco.Core.Factories;
 
 namespace Loco.Core;
 
@@ -28,7 +29,6 @@ public class AutomationRuleEngine : IAutomationRuleEngine, IDisposable
     private readonly IServiceProvider _serviceProvider;
     private readonly Dictionary<string, Type> _actionTypes = new();
     private readonly SandboxExecutor _sandboxExecutor;
-    private readonly LlmModelManager _modelManager;
     private readonly NaturalLanguageToDslConverter _nlConverter;
     private readonly ITriggerFactory _triggerFactory;
     private readonly SemaphoreSlim _executionLock = new(5); // Max 5 concurrent executions
@@ -39,14 +39,12 @@ public class AutomationRuleEngine : IAutomationRuleEngine, IDisposable
         ILogger<AutomationRuleEngine> logger,
         IServiceProvider serviceProvider,
         SandboxExecutor sandboxExecutor,
-        LlmModelManager modelManager,
         NaturalLanguageToDslConverter nlConverter,
         ITriggerFactory triggerFactory)
     {
         _logger = logger;
         _serviceProvider = serviceProvider;
         _sandboxExecutor = sandboxExecutor;
-        _modelManager = modelManager;
         _nlConverter = nlConverter;
         _triggerFactory = triggerFactory;
         InitializeBuiltInActionTypes();
@@ -537,9 +535,9 @@ public class AutomationRuleEngine : IAutomationRuleEngine, IDisposable
                         }
                         catch { /* best-effort watchdog */ }
                     });
-                    // Hard timeout guard so actions that ignore cancellation cannot hang
-                    var effectiveTimeoutMs = actionDef.TimeoutMs ?? 30000;
-                    var completedTask = await Task.WhenAny(execTask, Task.Delay(effectiveTimeoutMs + 500, CancellationToken.None)).ConfigureAwait(false);
+                    // Hard timeout guard
+                    var timeoutMs = actionDef.TimeoutMs ?? 10000; // Reduce default from 30s to 10s for faster feedback
+                    var completedTask = await Task.WhenAny(execTask, Task.Delay(timeoutMs + 200, CancellationToken.None)).ConfigureAwait(false);
                     if (completedTask != execTask)
                     {
                         try
@@ -548,11 +546,11 @@ public class AutomationRuleEngine : IAutomationRuleEngine, IDisposable
                             linkedCts.Cancel();
                         }
                         catch { /* best-effort cancel */ }
-                        _logger.LogError("[Exec:{ExecId}] Action type={ActionType} timed out after {TimeoutMs} ms", context.ExecutionId, actionType.Name, effectiveTimeoutMs);
+                        _logger.LogError("[Exec:{ExecId}] Action type={ActionType} timed out after {TimeoutMs} ms", context.ExecutionId, actionType.Name, timeoutMs);
                         return new ActionResult
                         {
                             Success = false,
-                            Message = $"Action {actionType.Name} timed out after {effectiveTimeoutMs} ms"
+                            Message = $"Action {actionType.Name} timed out after {timeoutMs} ms"
                         };
                     }
                     var actionResult = await execTask.ConfigureAwait(false);
@@ -578,8 +576,8 @@ public class AutomationRuleEngine : IAutomationRuleEngine, IDisposable
                     }
                     catch { /* best-effort watchdog */ }
                 });
-                // Hard timeout guard so actions that ignore cancellation cannot hang
-                var fastTimeoutMs = actionDef.TimeoutMs ?? 30000;
+                // Hard timeout guard
+                var fastTimeoutMs = actionDef.TimeoutMs ?? 10000;
                 var fastCompleted = await Task.WhenAny(fastTask, Task.Delay(fastTimeoutMs + 500, CancellationToken.None)).ConfigureAwait(false);
                 if (fastCompleted != fastTask)
                 {
