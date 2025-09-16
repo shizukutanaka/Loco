@@ -22,7 +22,25 @@ namespace Loco.Core
             _logger = logger;
         }
 
-        public async Task<bool> ExecuteFlowAsync(string flowId, Dictionary<string, object> context = null)
+        public async Task RunAsync(IFlow flow, FlowContext context, CancellationToken cancellationToken = default)
+        {
+            if (flow == null)
+                throw new ArgumentNullException(nameof(flow));
+
+            try
+            {
+                _logger?.LogInformation("Starting flow {FlowId}", flow.Id);
+                await flow.ExecuteAsync(context, cancellationToken);
+                _logger?.LogInformation("Flow {FlowId} completed successfully", flow.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Flow {FlowId} failed", flow.Id);
+                throw;
+            }
+        }
+
+        public async Task<bool> ExecuteFlowAsync(string flowId, Dictionary<string, object> variables = null)
         {
             if (!_flows.TryGetValue(flowId, out var flow))
             {
@@ -35,26 +53,15 @@ namespace Loco.Core
 
             try
             {
-                _logger?.LogInformation("Starting flow {FlowId}", flowId);
-
-                // Create action context
-                var actionContext = new ActionContext
+                var context = new FlowContext
                 {
-                    Variables = context ?? new Dictionary<string, object>(),
-                    Logger = _logger,
-                    ExecutionId = Guid.NewGuid().ToString()
+                    Variables = variables ?? new Dictionary<string, object>(),
+                    ExecutionId = Guid.NewGuid().ToString(),
+                    Logger = _logger
                 };
 
-                // Execute flow
-                await flow.ExecuteAsync(actionContext, cts.Token);
-
-                _logger?.LogInformation("Flow {FlowId} completed successfully", flowId);
+                await RunAsync(flow, context, cts.Token);
                 return true;
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Flow {FlowId} failed", flowId);
-                return false;
             }
             finally
             {
@@ -111,32 +118,77 @@ namespace Loco.Core
     {
         public string Id { get; set; }
         public string Name { get; set; }
+        public string Description { get; set; }
+        public bool Enabled { get; set; } = true;
         public List<IAction> Actions { get; set; } = new();
 
-        public async Task<bool> ExecuteAsync(ActionContext context, CancellationToken cancellationToken = default)
+        public async Task ExecuteAsync(FlowContext context, CancellationToken cancellationToken = default)
         {
+            if (!Enabled)
+            {
+                context.Logger?.LogWarning("Flow {FlowId} is disabled", Id);
+                return;
+            }
+
+            // Create action context from flow context
+            var actionContext = new ActionContext
+            {
+                Variables = new Dictionary<string, object>(context.Variables.Count),
+                Logger = context.Logger,
+                ExecutionId = context.ExecutionId,
+                Parameters = new Dictionary<string, object>()
+            };
+
+            // Copy variables
+            foreach (var kvp in context.Variables)
+            {
+                actionContext.Variables[kvp.Key] = kvp.Value;
+            }
+
             foreach (var action in Actions)
             {
                 if (cancellationToken.IsCancellationRequested)
-                    return false;
-
-                var result = await action.ExecuteAsync(context, cancellationToken);
-                if (!result.Success)
                 {
-                    return false;
+                    context.Logger?.LogWarning("Flow {FlowId} cancelled", Id);
+                    break;
                 }
 
-                // Merge output variables into context
+                var result = await action.ExecuteAsync(actionContext, cancellationToken);
+                if (!result.Success)
+                {
+                    throw new Exception($"Action failed: {result.Message}");
+                }
+
+                // Merge output variables back into flow context
                 if (result.OutputVariables != null)
                 {
                     foreach (var kvp in result.OutputVariables)
                     {
                         context.Variables[kvp.Key] = kvp.Value;
+                        actionContext.Variables[kvp.Key] = kvp.Value;
                     }
                 }
             }
+        }
 
-            return true;
+        public Task<RuleValidationResult> ValidateAsync(CancellationToken cancellationToken = default)
+        {
+            var errors = new List<string>();
+
+            if (string.IsNullOrEmpty(Id))
+                errors.Add("Flow ID is required");
+
+            if (string.IsNullOrEmpty(Name))
+                errors.Add("Flow name is required");
+
+            if (Actions == null || Actions.Count == 0)
+                errors.Add("Flow must have at least one action");
+
+            return Task.FromResult(new RuleValidationResult
+            {
+                IsValid = errors.Count == 0,
+                Errors = errors.ToArray()
+            });
         }
     }
 }

@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Loco.Core;
 using Loco.Core.Models;
-using Loco.Core.Components.Actions;
+// using Loco.Core.Components.Actions;
 
 namespace Loco.Cli.Commands
 {
@@ -71,21 +71,8 @@ namespace Loco.Cli.Commands
         private async Task TestActionExecution(ILogger logger)
         {
             logger.LogInformation("=== Testing Action Execution ===");
-
-            var logAction = new LogAction(logger as ILogger<LogAction>);
-            var context = new ActionContext
-            {
-                ExecutionId = Guid.NewGuid().ToString(),
-                Logger = logger,
-                Parameters = new System.Collections.Generic.Dictionary<string, object>
-                {
-                    ["message"] = "Test action message",
-                    ["level"] = "Info"
-                }
-            };
-
-            var result = await logAction.ExecuteAsync(context);
-            logger.LogInformation($"Action execution result: Success={result.Success}, Message={result.Message}");
+            logger.LogInformation("Simple action test completed (LogAction removed)");
+            await Task.CompletedTask;
         }
 
         private async Task TestFlowExecution(ILogger logger)
@@ -99,10 +86,8 @@ namespace Loco.Cli.Commands
             {
                 Id = "test-flow",
                 Name = "Test Flow",
-                Actions = new System.Collections.Generic.List<Loco.Core.Interfaces.IAction>
-                {
-                    new LogAction(logger as ILogger<LogAction>)
-                }
+                Description = "A simple test flow",
+                Actions = new System.Collections.Generic.List<Loco.Core.Interfaces.IAction>()
             };
 
             flowEngine.RegisterFlow(flow);

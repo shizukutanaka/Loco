@@ -36,7 +36,7 @@ namespace Loco.Core.Interfaces
         /// <summary>
         /// Enumerate currently loaded rules.
         /// </summary>
-        IEnumerable<AutomationRule> GetRules();
+        IEnumerable<IFlow> GetRules();
 
         /// <summary>
         /// Enable or disable a rule by id.

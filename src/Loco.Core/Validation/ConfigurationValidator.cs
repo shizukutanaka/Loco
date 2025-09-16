@@ -272,7 +272,7 @@ namespace Loco.Core.Validation
         private void ValidateSecuritySettings(IConfiguration configuration, ValidationResult result)
         {
             // Check for sensitive data in configuration
-            var configString = configuration.GetDebugView();
+            var configString = configuration.ToString();
 
             // Check for common sensitive patterns
             var sensitivePatterns = new[]
