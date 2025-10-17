@@ -1,0 +1,50 @@
+{
+  "name": "Network Diagnostics",
+  "description": "Network connectivity and service availability checks",
+  "version": "1.0.0",
+  "schedule": "*/15 * * * *",
+  "actions": [
+    {
+      "id": "log-start",
+      "type": "log",
+      "parameters": {
+        "message": "Starting network diagnostics"
+      }
+    },
+    {
+      "id": "dns-check",
+      "type": "network",
+      "parameters": {
+        "operation": "dns",
+        "host": "google.com",
+        "timeoutSeconds": "5"
+      }
+    },
+    {
+      "id": "ping-gateway",
+      "type": "network",
+      "parameters": {
+        "operation": "ping",
+        "host": "8.8.8.8",
+        "timeoutSeconds": "5"
+      }
+    },
+    {
+      "id": "http-check",
+      "type": "network",
+      "parameters": {
+        "operation": "https",
+        "host": "www.google.com",
+        "port": "443",
+        "timeoutSeconds": "10"
+      }
+    },
+    {
+      "id": "log-complete",
+      "type": "log",
+      "parameters": {
+        "message": "Network diagnostics completed"
+      }
+    }
+  ]
+}

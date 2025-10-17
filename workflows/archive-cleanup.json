@@ -1,0 +1,91 @@
+{
+  "id": "archive-cleanup-001",
+  "name": "Archive and Cleanup Workflow",
+  "description": "Archive old files and clean up directories",
+  "steps": [
+    {
+      "id": "get-temp-path",
+      "name": "Get temp directory path",
+      "type": "env",
+      "operation": "get",
+      "variableName": "TEMP",
+      "outputVariable": "tempPath"
+    },
+    {
+      "id": "archive-logs",
+      "name": "Archive log files",
+      "type": "archive",
+      "operation": "compress",
+      "sourcePath": "C:\\Logs",
+      "targetPath": "C:\\Archives\\logs_{timestamp}.zip",
+      "compressionLevel": "Optimal",
+      "includeSubdirectories": true,
+      "resultVariable": "archiveResult"
+    },
+    {
+      "id": "collect-archive-stats",
+      "name": "Collect archive statistics",
+      "type": "stats",
+      "operation": "collect",
+      "metricName": "archive_compression",
+      "metricValue": "{archiveResult.CompressionRatio}",
+      "category": "Archiving"
+    },
+    {
+      "id": "collect-space-saved",
+      "name": "Collect space saved metric",
+      "type": "stats",
+      "operation": "collect",
+      "metricName": "space_saved_mb",
+      "metricValue": "{archiveResult.SpaceSaved}",
+      "category": "Storage"
+    },
+    {
+      "id": "verify-archive",
+      "name": "Verify archive contents",
+      "type": "archive",
+      "operation": "list",
+      "sourcePath": "{archiveResult.TargetPath}",
+      "resultVariable": "archiveContents"
+    },
+    {
+      "id": "cache-archive-info",
+      "name": "Cache archive information",
+      "type": "cache",
+      "operation": "set",
+      "key": "archive_info_{timestamp}",
+      "value": {
+        "archive": "{archiveResult}",
+        "contents": "{archiveContents}",
+        "timestamp": "{timestamp}"
+      },
+      "expirationMinutes": 120
+    },
+    {
+      "id": "generate-report",
+      "name": "Generate archive report",
+      "type": "text",
+      "operation": "template",
+      "inputText": "Archive Report\\nFiles: {archiveContents.FileCount}\\nOriginal Size: {archiveResult.OriginalSize} bytes\\nCompressed Size: {archiveResult.CompressedSize} bytes\\nCompression Ratio: {archiveResult.CompressionRatio}\\nSpace Saved: {archiveResult.SpaceSaved} bytes\\nCreated: {timestamp}",
+      "outputVariable": "report"
+    },
+    {
+      "id": "save-report",
+      "name": "Save archive report",
+      "type": "text",
+      "operation": "write",
+      "inputText": "{report}",
+      "outputText": "C:\\Reports\\archive-report-{timestamp}.txt"
+    },
+    {
+      "id": "notify-completion",
+      "name": "Notify archive completion",
+      "type": "notification",
+      "channel": "file",
+      "recipient": "C:\\Logs\\archive-log.txt",
+      "title": "Archive Complete",
+      "message": "Archived {archiveContents.FileCount} files, saved {archiveResult.SpaceSaved} bytes",
+      "priority": "normal"
+    }
+  ]
+}

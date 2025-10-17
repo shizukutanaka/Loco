@@ -1,0 +1,79 @@
+{
+  "id": "data-proc-001",
+  "name": "Data Processing Pipeline",
+  "description": "Process and transform data files using various operations",
+  "steps": [
+    {
+      "id": "read-source-data",
+      "name": "Read source data file",
+      "type": "fileOperation",
+      "operation": "read",
+      "path": "data/input.csv",
+      "outputVariable": "rawData"
+    },
+    {
+      "id": "parse-csv-data",
+      "name": "Parse CSV data",
+      "type": "dataTransform",
+      "operation": "parse",
+      "inputVariable": "rawData",
+      "options": {
+        "format": "csv"
+      },
+      "outputVariable": "parsedData"
+    },
+    {
+      "id": "filter-data",
+      "name": "Filter relevant records",
+      "type": "dataTransform",
+      "operation": "filter",
+      "inputVariable": "parsedData",
+      "options": {
+        "condition": "greater",
+        "field": "value",
+        "value": 100
+      },
+      "outputVariable": "filteredData"
+    },
+    {
+      "id": "aggregate-results",
+      "name": "Calculate aggregates",
+      "type": "dataTransform",
+      "operation": "aggregate",
+      "inputVariable": "filteredData",
+      "options": {
+        "aggregation": "sum",
+        "field": "value"
+      },
+      "outputVariable": "aggregatedResult"
+    },
+    {
+      "id": "format-output",
+      "name": "Format output as JSON",
+      "type": "dataTransform",
+      "operation": "format",
+      "inputVariable": "aggregatedResult",
+      "options": {
+        "format": "json"
+      },
+      "outputVariable": "finalOutput"
+    },
+    {
+      "id": "save-results",
+      "name": "Save processed results",
+      "type": "fileOperation",
+      "operation": "write",
+      "path": "data/output/processed-{timestamp}.json",
+      "content": "{finalOutput}"
+    },
+    {
+      "id": "notify-completion",
+      "name": "Data processing complete",
+      "type": "notification",
+      "channel": "console",
+      "title": "Data Processing Complete",
+      "message": "Processed data saved to output/processed-{timestamp}.json",
+      "priority": "normal"
+    }
+  ]
+}

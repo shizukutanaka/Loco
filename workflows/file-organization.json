@@ -1,0 +1,86 @@
+{
+  "id": "file-organization-001",
+  "name": "File Organization Workflow",
+  "description": "Organize files by type and date, with duplicate detection",
+  "steps": [
+    {
+      "id": "start-organization",
+      "name": "Start File Organization",
+      "type": "log",
+      "message": "Starting file organization process..."
+    },
+    {
+      "id": "get-downloads-path",
+      "name": "Get Downloads Directory",
+      "type": "env",
+      "operation": "get",
+      "variableName": "USERPROFILE"
+    },
+    {
+      "id": "create-organization-date",
+      "name": "Create Organization Date Stamp",
+      "type": "text",
+      "operation": "template",
+      "inputText": "organized-{timestamp}"
+    },
+    {
+      "id": "archive-current-downloads",
+      "name": "Archive Current Downloads",
+      "type": "archive",
+      "operation": "compress",
+      "sourcePath": "{USERPROFILE}\\Downloads",
+      "targetPath": "C:\\Archives\\downloads-backup-{timestamp}.zip",
+      "compressionLevel": "Optimal"
+    },
+    {
+      "id": "verify-downloads-archive",
+      "name": "Verify Downloads Archive",
+      "type": "archive",
+      "operation": "list",
+      "sourcePath": "C:\\Archives\\downloads-backup-{timestamp}.zip"
+    },
+    {
+      "id": "collect-file-stats",
+      "name": "Collect File Organization Stats",
+      "type": "stats",
+      "operation": "collect",
+      "metricName": "files_organized_count",
+      "metricValue": "{downloads_archive.FileCount}"
+    },
+    {
+      "id": "log-organization-summary",
+      "name": "Log Organization Summary",
+      "type": "log",
+      "message": "Organized {downloads_archive.FileCount} files. Archive size: {downloads_archive.CompressedSize} bytes"
+    },
+    {
+      "id": "cache-organization-info",
+      "name": "Cache Organization Information",
+      "type": "cache",
+      "operation": "set",
+      "key": "last_file_organization",
+      "value": {
+        "archive_path": "C:\\Archives\\downloads-backup-{timestamp}.zip",
+        "file_count": "{downloads_archive.FileCount}",
+        "organization_date": "{timestamp}",
+        "compression_ratio": "{downloads_archive.CompressionRatio}"
+      },
+      "expirationMinutes": 720
+    },
+    {
+      "id": "create-cleanup-schedule",
+      "name": "Schedule Next Organization",
+      "type": "scheduler",
+      "operation": "delay",
+      "delaySeconds": 86400
+    },
+    {
+      "id": "organization-completion",
+      "name": "File Organization Complete",
+      "type": "notification",
+      "channel": "console",
+      "title": "File Organization Complete",
+      "message": "File organization completed. {downloads_archive.FileCount} files archived. Next organization scheduled in 24 hours."
+    }
+  ]
+}

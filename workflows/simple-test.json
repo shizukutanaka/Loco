@@ -1,0 +1,41 @@
+{
+  "Id": "simple-test",
+  "Name": "Simple Test Workflow",
+  "Description": "A simple workflow for testing core functionality",
+  "Steps": [
+    {
+      "Id": "1",
+      "Name": "Log Start",
+      "Type": "log",
+      "Message": "Starting simple test workflow at {timestamp}"
+    },
+    {
+      "Id": "2",
+      "Name": "Set Variable",
+      "Type": "setvariable",
+      "VariableName": "test_value",
+      "Value": "Hello Loco!"
+    },
+    {
+      "Id": "3",
+      "Name": "Write Test File",
+      "Type": "writefile",
+      "FilePath": "test_output_{timestamp}.txt",
+      "Content": "Test file created at {timestamp}\nTest value: {test_value}"
+    },
+    {
+      "Id": "4",
+      "Name": "Cache Test",
+      "Type": "cache",
+      "Operation": "set",
+      "Key": "test_execution",
+      "Value": "{timestamp}"
+    },
+    {
+      "Id": "5",
+      "Name": "Notification",
+      "Type": "notification",
+      "Message": "Simple test completed: {test_value} at {timestamp}"
+    }
+  ]
+}

@@ -1,0 +1,1422 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Loco.Core</name>
+    </assembly>
+    <members>
+        <member name="T:Loco.Core.AI.LlmIntegration">
+            <summary>
+            Universal LLM integration supporting OpenAI, Azure OpenAI, Anthropic Claude, Local models
+            </summary>
+        </member>
+        <member name="M:Loco.Core.AI.LlmIntegration.CompleteAsync(System.String,Loco.Core.AI.LlmOptions,System.Threading.CancellationToken)">
+            <summary>
+            Send prompt to LLM and get response
+            </summary>
+        </member>
+        <member name="M:Loco.Core.AI.LlmIntegration.ChatAsync(System.Collections.Generic.List{Loco.Core.AI.LlmMessage},Loco.Core.AI.LlmOptions,System.Threading.CancellationToken)">
+            <summary>
+            Chat completion with conversation history
+            </summary>
+        </member>
+        <member name="M:Loco.Core.AI.LlmIntegration.EmbedAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Generate embeddings for text
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Async.AsyncExtensions">
+            <summary>
+            High-performance async utilities and extensions
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Async.AsyncExtensions.WhenAllWithTimeout``1(System.Collections.Generic.IEnumerable{System.Threading.Tasks.Task{``0}},System.TimeSpan,System.Threading.CancellationToken)">
+            <summary>
+            Execute multiple tasks with timeout
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Async.AsyncExtensions.RetryAsync``1(System.Func{System.Threading.Tasks.Task{``0}},System.Int32,System.Nullable{System.TimeSpan},System.Double,System.Threading.CancellationToken)">
+            <summary>
+            Execute task with retry and exponential backoff
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Async.AsyncExtensions.WithCircuitBreakerAsync``1(System.Func{System.Threading.Tasks.Task{``0}},Loco.Core.Async.CircuitBreakerState,System.Threading.CancellationToken)">
+            <summary>
+            Execute with circuit breaker pattern
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Async.AsyncExtensions.CreateAsyncLazy``1(System.Func{System.Threading.Tasks.Task{``0}})">
+            <summary>
+            Async lazy initialization
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Async.AsyncExtensions.AsValueTask``1(System.Threading.Tasks.Task{``0})">
+            <summary>
+            Convert Task to ValueTask for hot path optimization
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Async.AsyncExtensions.ParallelAsync``2(System.Collections.Generic.IEnumerable{``0},System.Func{``0,System.Threading.Tasks.Task{``1}},System.Int32,System.Threading.CancellationToken)">
+            <summary>
+            Parallel processing with degree of parallelism control
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Async.AsyncExtensions.BatchAsync``1(System.Collections.Generic.IAsyncEnumerable{``0},System.Int32,System.Threading.CancellationToken)">
+            <summary>
+            Async enumerable batching
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Async.AsyncExtensions.ThrottleAsync``1(System.Collections.Generic.IAsyncEnumerable{``0},System.TimeSpan,System.Threading.CancellationToken)">
+            <summary>
+            Throttle async operations
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Async.AsyncLazy`1">
+            <summary>
+            Thread-safe async lazy initialization
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Async.CircuitBreakerState">
+            <summary>
+            Circuit breaker state management
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Async.AsyncLock">
+            <summary>
+            Async lock (SemaphoreSlim wrapper)
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Async.AsyncRateLimiter">
+            <summary>
+            Rate limiter for async operations
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Configuration.LocoConfig">
+            <summary>
+            Simple configuration for Loco - John Carmack style: direct, no nonsense
+            </summary>
+        </member>
+        <member name="T:Loco.Core.DataTransform.DataTransformer">
+            <summary>
+            Data transformation and mapping engine
+            Inspired by Make.com, Workato data manipulation capabilities
+            </summary>
+        </member>
+        <member name="M:Loco.Core.DataTransform.DataTransformer.Transform(System.Object,Loco.Core.DataTransform.TransformMapping)">
+            <summary>
+            Transform data using mapping rules
+            </summary>
+        </member>
+        <member name="M:Loco.Core.DataTransform.DataTransformer.ApplyRule(System.Collections.Generic.Dictionary{System.String,System.Object},Loco.Core.DataTransform.TransformRule)">
+            <summary>
+            Apply transformation rule
+            </summary>
+        </member>
+        <member name="M:Loco.Core.DataTransform.DataTransformer.ApplyTransformation(System.Object,Loco.Core.DataTransform.DataTransformation)">
+            <summary>
+            Apply single transformation
+            </summary>
+        </member>
+        <member name="M:Loco.Core.DataTransform.DataTransformer.GetNestedValue(System.Collections.Generic.Dictionary{System.String,System.Object},System.String)">
+            <summary>
+            Get nested value from dictionary using dot notation
+            </summary>
+        </member>
+        <member name="M:Loco.Core.DataTransform.DataTransformer.SetNestedValue(System.Collections.Generic.Dictionary{System.String,System.Object},System.String,System.Object)">
+            <summary>
+            Set nested value in dictionary using dot notation
+            </summary>
+        </member>
+        <member name="M:Loco.Core.DataTransform.DataTransformer.ObjectToDictionary(System.Object)">
+            <summary>
+            Convert object to dictionary
+            </summary>
+        </member>
+        <member name="T:Loco.Core.DataTransform.TransformMapping">
+            <summary>
+            Data transformation mapping configuration
+            </summary>
+        </member>
+        <member name="T:Loco.Core.DataTransform.TransformRule">
+            <summary>
+            Single transformation rule
+            </summary>
+        </member>
+        <member name="T:Loco.Core.DataTransform.DataTransformation">
+            <summary>
+            Data transformation operation
+            </summary>
+        </member>
+        <member name="T:Loco.Core.DataTransform.TransformBuilder">
+            <summary>
+            Common data transformations builder
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Diagnostics.DiagnosticsCommand">
+            <summary>
+            Comprehensive diagnostics command for troubleshooting and support
+            Generates detailed system reports for production issues
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Diagnostics.DiagnosticsCommand.GenerateReportAsync(System.String)">
+            <summary>
+            Generate comprehensive diagnostics report
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Diagnostics.HealthCheckEnhanced">
+            <summary>
+            Enhanced health check system with detailed diagnostics
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Diagnostics.HealthStatus">
+            <summary>
+            Represents the health status result for diagnostic checks.
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Diagnostics.SystemDiagnostics">
+            <summary>
+            Comprehensive system diagnostics for production monitoring
+            Collects hardware, OS, network, and runtime information
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Diagnostics.SystemDiagnostics.CollectDiagnosticsAsync">
+            <summary>
+            Collect comprehensive system diagnostics
+            </summary>
+        </member>
+        <member name="T:Loco.Core.DirectoryUtils">
+            <summary>
+            Utility class for directory operations with proper error handling
+            </summary>
+        </member>
+        <member name="M:Loco.Core.DirectoryUtils.EnsureDirectoryExists(System.String)">
+            <summary>
+            Ensures a directory exists with proper error handling
+            </summary>
+        </member>
+        <member name="T:Loco.Core.ErrorMessages">
+            <summary>
+            Centralized, user-friendly error messages
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Exceptions.LocoException">
+            <summary>
+            Base exception for all Loco-specific exceptions
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Exceptions.ValidationException">
+            <summary>
+            Validation-related exceptions
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Exceptions.ConfigurationException">
+            <summary>
+            Configuration-related exceptions
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Exceptions.SecurityException">
+            <summary>
+            Security-related exceptions
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Exceptions.ResourceLimitException">
+            <summary>
+            Resource limit exceptions
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Exceptions.WorkflowException">
+            <summary>
+            Workflow execution exceptions
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Exceptions.TimeoutException">
+            <summary>
+            Timeout exceptions
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Exceptions.PluginException">
+            <summary>
+            Plugin exceptions
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Exceptions.LocoExecutionException">
+            <summary>
+            Execution-related exceptions
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Exceptions.LocoConfigurationException">
+            <summary>
+            Configuration-related exceptions with detailed context
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Exceptions.LocoValidationException">
+            <summary>
+            Validation exceptions with field details
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Exceptions.LoCoDatabaseException">
+            <summary>
+            Database operation exceptions
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Interfaces.IAutomationEngine">
+            <summary>
+            Base interface for automation engines
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Interfaces.IFlow">
+            <summary>
+            Base interface for flows
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Interfaces.IActionContext">
+            <summary>
+            Base interface for action context
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Interfaces.IAction">
+            <summary>
+            Base interface for actions
+            </summary>
+        </member>
+        <member name="T:Loco.Core.JsonFileUtils">
+            <summary>
+            Utility class for JSON file operations with proper error handling
+            </summary>
+        </member>
+        <member name="M:Loco.Core.JsonFileUtils.LoadJsonAsync``1(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Loads JSON data from file with error handling
+            </summary>
+        </member>
+        <member name="M:Loco.Core.JsonFileUtils.SaveJsonAsync``1(System.String,System.Collections.Generic.Dictionary{System.String,``0},System.Text.Json.JsonSerializerOptions,System.Threading.CancellationToken)">
+            <summary>
+            Saves JSON data to file with atomic operation
+            </summary>
+        </member>
+        <member name="M:Loco.Core.JsonFileUtils.LoadJsonFileAsync``1(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Loads JSON data from file with error handling (legacy method for compatibility)
+            </summary>
+        </member>
+        <member name="M:Loco.Core.JsonFileUtils.SaveJsonFileAsync``1(System.String,``0,System.Text.Json.JsonSerializerOptions,System.Threading.CancellationToken)">
+            <summary>
+            Saves JSON data to file with atomic operation (legacy method for compatibility)
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Logging.StructuredLogger">
+            <summary>
+            Production-grade structured logger with automatic log rotation and retention policies.
+            Thread-safe implementation for concurrent logging scenarios.
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Logging.StructuredLoggerProvider">
+            <summary>
+            Factory for creating StructuredLogger instances with consistent configuration.
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.IActionExecutor">
+            <summary>
+            Base interface for action executors
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.BaseActionExecutor">
+            <summary>
+            Base class for action executors with common functionality and input validation
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.ActionExecutorFactory">
+            <summary>
+            Factory for creating action executors
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Models.ActionExecutorFactory.CreateExecutor(System.String)">
+            <summary>
+            Creates an action executor for the specified action type
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Models.ActionExecutorFactory.GetSupportedActionTypes">
+            <summary>
+            Gets all supported action types
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Models.ActionExecutorFactory.RegisterExecutor(System.String,System.Func{Loco.Core.Models.IActionExecutor})">
+            <summary>
+            Registers a custom action executor factory
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.LogActionExecutor">
+            <summary>
+            Log action executor - handles log output actions
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.MonitorActionExecutor">
+            <summary>
+            Monitor action executor - handles system monitoring actions
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.ProcessActionExecutor">
+            <summary>
+            Process action executor - handles process execution with security controls
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.BackupActionExecutor">
+            <summary>
+            Backup action executor - handles backup operations with integrity checks
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.CleanupActionExecutor">
+            <summary>
+            Cleanup action executor - handles cleanup operations with security controls
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.NetworkActionExecutor">
+            <summary>
+            Network action executor - handles network operations
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.EmailActionExecutor">
+            <summary>
+            Email action executor - handles email operations
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.DatabaseActionExecutor">
+            <summary>
+            Database action executor - handles database operations
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.FileActionExecutor">
+            <summary>
+            File action executor - handles file system operations with security controls
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.BaseModel">
+            <summary>
+            Base class for models with common properties
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.ParameterizedModel">
+            <summary>
+            Base class for parameterized models
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.TypedModel">
+            <summary>
+            Base class for typed models
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.EngineStatus">
+            <summary>
+            Status information for the engine
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.LightTrigger">
+            <summary>
+            Simple trigger definition
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.LightAction">
+            <summary>
+            Simple action definition
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.SimpleRule">
+            <summary>
+            Simple automation rule
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.SimpleFlow">
+            <summary>
+            Simple flow definition for automation engine
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.ActionContext">
+            <summary>
+            Action context for flow execution
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.ActionResult">
+            <summary>
+            Result of action execution
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Models.LogAction">
+            <summary>
+            Simple log action for testing
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.ConnectionPool`1">
+            <summary>
+            High-performance connection pool for HTTP clients and other reusable resources
+            Reduces overhead by reusing connections and managing lifecycle
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.ConnectionPool`1.AcquireAsync(System.Nullable{System.TimeSpan})">
+            <summary>
+            Acquire connection from pool
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.ConnectionPool`1.Return(Loco.Core.Performance.PooledConnection{`0})">
+            <summary>
+            Return connection to pool
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.ConnectionPool`1.GetStatistics">
+            <summary>
+            Get pool statistics
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.ConnectionPool`1.Clear">
+            <summary>
+            Clear all pooled connections
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.PooledConnection`1">
+            <summary>
+            Pooled connection wrapper
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.PooledConnectionHandle`1">
+            <summary>
+            Handle for using pooled connection with automatic return
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.PoolStatistics">
+            <summary>
+            Pool statistics
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.HttpClientPool">
+            <summary>
+            Pre-configured HTTP client pool for optimal performance
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.MemoryOptimization">
+            <summary>
+            Memory optimization utilities using ArrayPool and Span
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.MemoryOptimization.RentArray``1(System.Int32)">
+            <summary>
+            Rent buffer from array pool
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.MemoryOptimization.GetBytes(System.ReadOnlySpan{System.Char},System.Span{System.Byte},System.Text.Encoding)">
+            <summary>
+            Convert string to bytes without allocation
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.MemoryOptimization.Split(System.ReadOnlySpan{System.Char},System.Char)">
+            <summary>
+            Split string without allocations
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.ArrayPoolRental`1">
+            <summary>
+            RAII wrapper for ArrayPool
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.SpanSplitEnumerator">
+            <summary>
+            Span-based string splitter (zero allocation)
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.ObjectPool`1">
+            <summary>
+            Object pool for reusable objects
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.PooledObject`1">
+            <summary>
+            RAII wrapper for pooled objects
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.StringBuilderPool">
+            <summary>
+            String builder pool (manual implementation without ObjectPool due to constructor constraints)
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.StringBuilderRental">
+            <summary>
+            RAII wrapper for pooled StringBuilder
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.ListPool`1">
+            <summary>
+            List pool (manual implementation without ObjectPool due to constructor constraints)
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.ListRental`1">
+            <summary>
+            RAII wrapper for pooled List
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.DictionaryPool`2">
+            <summary>
+            Dictionary pool (manual implementation without ObjectPool due to constructor constraints)
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.DictionaryRental`2">
+            <summary>
+            RAII wrapper for pooled Dictionary
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.BatchProcessor`1">
+            <summary>
+            High-performance batch processor with memory pooling
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.MemoryOptimizer">
+            <summary>
+            Proactive memory optimizer for enterprise-grade memory management
+            Monitors GC, triggers optimizations, and prevents memory leaks
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.MemoryOptimizer.GetCurrentUsage">
+            <summary>
+            Get current memory usage
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.MemoryOptimizer.OptimizeAsync">
+            <summary>
+            Force garbage collection and memory optimization
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.MemoryOptimizer.GetTrend(System.Int32)">
+            <summary>
+            Get memory usage trend
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.MemoryOptimizer.GetPressureLevel">
+            <summary>
+            Check if memory is under pressure
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.MemoryUsage">
+            <summary>
+            Current memory usage snapshot
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.OptimizationResult">
+            <summary>
+            Result of memory optimization
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.MemoryTrend">
+            <summary>
+            Memory usage trend over time
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.MemoryPressureLevel">
+            <summary>
+            Memory pressure level
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.PerformanceProfiler">
+            <summary>
+            Production-grade performance profiler for monitoring and optimization.
+            Tracks execution times, memory usage, and provides performance insights.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.PerformanceProfiler.Profile(System.String)">
+            <summary>
+            Creates a timed operation for profiling.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.PerformanceProfiler.RecordOperation(System.String,System.TimeSpan,System.Int64)">
+            <summary>
+            Records an operation execution.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.PerformanceProfiler.GetMetrics(System.String)">
+            <summary>
+            Gets metrics for a specific operation.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.PerformanceProfiler.GetAllMetrics">
+            <summary>
+            Gets all operation metrics.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.PerformanceProfiler.GetSummary">
+            <summary>
+            Gets performance summary.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.PerformanceProfiler.GenerateReport">
+            <summary>
+            Generates and logs performance report.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.PerformanceProfiler.Reset">
+            <summary>
+            Resets all metrics.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.PerformanceProfiler.GetSlowestOperations(System.Int32)">
+            <summary>
+            Gets top N slowest operations.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Performance.PerformanceProfiler.GetOperationsExceedingThreshold(System.TimeSpan)">
+            <summary>
+            Gets operations exceeding threshold.
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.PerformanceProfiler.ProfiledOperation">
+            <summary>
+            Profiled operation scope.
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.OperationMetrics">
+            <summary>
+            Metrics for a single operation.
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Performance.PerformanceSummary">
+            <summary>
+            Overall performance summary.
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Resilience.BulkheadPolicy">
+            <summary>
+            Bulkhead isolation pattern to prevent resource exhaustion
+            Limits concurrent operations to prevent cascading failures
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Resilience.BulkheadPolicy.ExecuteAsync``1(System.Func{System.Threading.Tasks.Task{``0}},System.String,System.Nullable{System.TimeSpan},System.Threading.CancellationToken)">
+            <summary>
+            Execute action within bulkhead constraints
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Resilience.BulkheadPolicy.ExecuteAsync(System.Func{System.Threading.Tasks.Task},System.String,System.Nullable{System.TimeSpan},System.Threading.CancellationToken)">
+            <summary>
+            Execute action within bulkhead constraints (void version)
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Resilience.BulkheadPolicy.GetStatistics">
+            <summary>
+            Get current bulkhead statistics
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Resilience.BulkheadPolicy.GetOperationMetrics(System.String)">
+            <summary>
+            Get metrics for specific operation
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Resilience.BulkheadPolicy.ResetStatistics">
+            <summary>
+            Reset statistics
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Resilience.BulkheadRejectedException">
+            <summary>
+            Exception thrown when bulkhead rejects an operation
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Resilience.BulkheadStatistics">
+            <summary>
+            Statistics about bulkhead usage
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Resilience.ExecutionMetrics">
+            <summary>
+            Execution metrics for monitoring
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Resilience.BulkheadPool">
+            <summary>
+            Bulkhead pool for managing multiple bulkheads by name
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Resilience.BulkheadPool.GetBulkhead(System.String)">
+            <summary>
+            Get or create bulkhead for operation category
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Resilience.BulkheadPool.ExecuteAsync``1(System.String,System.Func{System.Threading.Tasks.Task{``0}},System.String,System.Threading.CancellationToken)">
+            <summary>
+            Execute action within named bulkhead
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Resilience.BulkheadPool.GetAllStatistics">
+            <summary>
+            Get statistics for all bulkheads
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Resilience.CircuitBreaker">
+            <summary>
+            Circuit breaker pattern implementation for fault tolerance
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Resilience.ErrorRecoveryManager">
+            <summary>
+            Production-grade error recovery manager with retry logic, circuit breaker, and fallback strategies.
+            Implements resilience patterns for government-level reliability.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Resilience.ErrorRecoveryManager.ExecuteWithResilienceAsync``1(System.String,System.Func{System.Threading.Tasks.Task{``0}},Loco.Core.Resilience.ResilienceOptions,System.Threading.CancellationToken)">
+            <summary>
+            Executes an operation with retry logic and circuit breaker protection.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Resilience.ErrorRecoveryManager.ExecuteWithFallbackAsync``1(System.String,System.Func{System.Threading.Tasks.Task{``0}},System.Func{System.Threading.Tasks.Task{``0}},Loco.Core.Resilience.ResilienceOptions,System.Threading.CancellationToken)">
+            <summary>
+            Executes operation with fallback on failure.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Resilience.ErrorRecoveryManager.GetStatistics(System.String)">
+            <summary>
+            Gets resilience statistics for an operation.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Resilience.ErrorRecoveryManager.ResetCircuitBreaker(System.String)">
+            <summary>
+            Resets circuit breaker for an operation.
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Resilience.ResilienceOptions">
+            <summary>
+            Resilience options for error recovery.
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Resilience.CircuitBreakerState">
+            <summary>
+            Circuit breaker state tracking.
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Resilience.RetryStats">
+            <summary>
+            Retry statistics tracking.
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Resilience.ResilienceStatistics">
+            <summary>
+            Resilience statistics for monitoring.
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Resilience.RetryPolicy">
+            <summary>
+            Advanced retry policy for error handling
+            Supports exponential backoff, jitter, and conditional retries
+            Inspired by Polly library and enterprise automation patterns
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Resilience.RetryPolicy.ExecuteAsync``1(System.Func{System.Threading.Tasks.Task{``0}},System.String)">
+            <summary>
+            Execute action with retry logic
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Resilience.RetryPolicy.ExecuteAsync(System.Func{System.Threading.Tasks.Task},System.String)">
+            <summary>
+            Execute action with retry logic (void return)
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Resilience.RetryPolicy.Execute``1(System.Func{``0},System.String)">
+            <summary>
+            Execute synchronous action with retry logic
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Resilience.RetryPolicy.ShouldRetry(System.Exception,System.Int32)">
+            <summary>
+            Check if exception should trigger retry
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Resilience.RetryPolicy.CalculateDelay(System.Int32)">
+            <summary>
+            Calculate retry delay with backoff strategy
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Resilience.RetryPolicyConfig">
+            <summary>
+            Retry policy configuration
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Resilience.BackoffStrategy">
+            <summary>
+            Backoff strategy for retry delays
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Resilience.RetryException">
+            <summary>
+            Retry exception containing all retry attempts
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Resilience.RetryPolicyBuilder">
+            <summary>
+            Retry policy builder for fluent configuration
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Scheduling.CronScheduler">
+            <summary>
+            Production-grade cron-like scheduler with enterprise features
+            Supports standard cron syntax with second precision
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Scheduling.CronScheduler.ScheduleTask(System.String,System.String,System.Func{System.Threading.Tasks.Task},System.String,System.Boolean)">
+            <summary>
+            Schedule task with cron expression
+            Format: second minute hour day month dayOfWeek
+            Example: "0 */5 * * * *" = every 5 minutes
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Scheduling.CronScheduler.RemoveTask(System.String)">
+            <summary>
+            Remove scheduled task
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Scheduling.CronScheduler.SetTaskEnabled(System.String,System.Boolean)">
+            <summary>
+            Enable/disable task
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Scheduling.CronScheduler.GetScheduledTasks">
+            <summary>
+            Get all scheduled tasks
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Scheduling.CronScheduler.GetStatistics">
+            <summary>
+            Get task statistics
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Scheduling.CronExpression">
+            <summary>
+            Cron expression parser and matcher
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Security.AccessControlManager">
+            <summary>
+            Production-grade access control manager for file system and resource access.
+            Implements whitelist/blacklist path validation and operation auditing.
+            Thread-safe for concurrent access control checks.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Security.AccessControlManager.ValidateAccess(System.String,Loco.Core.Security.AccessType)">
+            <summary>
+            Validates if access to the specified path is allowed.
+            Returns detailed result with reasons for denial if applicable.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Security.AccessControlManager.AddAllowedPath(System.String)">
+            <summary>
+            Adds a path to the allowed paths list dynamically.
+            Requires administrative privileges check in production.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Security.AccessControlManager.AddForbiddenPath(System.String)">
+            <summary>
+            Adds a path to the forbidden paths list dynamically.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Security.AccessControlManager.GetAccessStatistics">
+            <summary>
+            Gets access statistics for monitoring and auditing.
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Security.AccessType">
+            <summary>
+            Type of file system access being requested.
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Security.AccessControlResult">
+            <summary>
+            Result of an access control validation check.
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Security.AccessStatistics">
+            <summary>
+            Statistics about access control operations.
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Security.CryptographicService">
+            <summary>
+            Provides cryptographic operations for sensitive data protection
+            Government-grade encryption and secure key management
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Security.CryptographicService.Encrypt(System.String,System.String)">
+            <summary>
+            Encrypt sensitive data using AES-256-GCM with derived key
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Security.CryptographicService.Decrypt(Loco.Core.Security.EncryptedData,System.String)">
+            <summary>
+            Decrypt data encrypted with Encrypt method
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Security.CryptographicService.GenerateSecureRandomBytes(System.Int32)">
+            <summary>
+            Generate cryptographically secure random bytes
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Security.CryptographicService.GenerateSecureToken(System.Int32)">
+            <summary>
+            Generate secure random token for API keys, session tokens, etc.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Security.CryptographicService.HashPassword(System.String)">
+            <summary>
+            Hash password with secure salt using PBKDF2
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Security.CryptographicService.VerifyPassword(System.String,Loco.Core.Security.HashedPassword)">
+            <summary>
+            Verify password against hashed password
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Security.CryptographicService.ConstantTimeEquals(System.Byte[],System.Byte[])">
+            <summary>
+            Constant-time comparison to prevent timing attacks
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Security.CryptographicService.SecureWipe(System.Byte[])">
+            <summary>
+            Securely wipe sensitive data from memory
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Security.CryptographicService.ComputeHash(System.Byte[])">
+            <summary>
+            Compute SHA-256 hash of data
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Security.CryptographicService.ComputeHash(System.String)">
+            <summary>
+            Compute SHA-256 hash of string
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Security.EncryptedData">
+            <summary>
+            Represents encrypted data with all necessary components
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Security.HashedPassword">
+            <summary>
+            Represents a hashed password with salt
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Security.RateLimiter">
+            <summary>
+            Token bucket rate limiter for preventing abuse and DoS attacks
+            Thread-safe, high-performance implementation for production use
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Security.RateLimiter.AllowRequest(System.String)">
+            <summary>
+            Check if request is allowed under rate limit
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Security.RateLimiter.GetStatus(System.String)">
+            <summary>
+            Get rate limit status without consuming a token
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Security.RateLimiter.Reset(System.String)">
+            <summary>
+            Reset rate limit for specific identifier (admin operation)
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Security.RateLimiter.GetStatistics">
+            <summary>
+            Get statistics about all rate limiters
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Security.TokenBucket">
+            <summary>
+            Token bucket implementation for rate limiting
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Security.RateLimitResult">
+            <summary>
+            Result of a rate limit check
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Security.RateLimitStatus">
+            <summary>
+            Current status of rate limit for an identifier
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Security.RateLimiterStatistics">
+            <summary>
+            Statistics about the rate limiter
+            </summary>
+        </member>
+        <member name="T:Loco.Core.SimpleCacheStore">
+            <summary>
+            Lightweight persistent key-value cache with simple file-based storage.
+            </summary>
+        </member>
+        <member name="T:Loco.Core.SimpleLightEngine">
+            <summary>
+            Lightweight automation engine with basic rule and flow execution support.
+            Implements IAutomationEngine interface for consistency.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.SimpleLightEngine.ScheduleRule(System.String,System.TimeSpan)">
+            <summary>
+            Schedule a rule to run at specified interval
+            </summary>
+        </member>
+        <member name="M:Loco.Core.SimpleLightEngine.ScheduleRuleOnce(System.String,System.DateTime)">
+            <summary>
+            Schedule a rule to run once at specified time
+            </summary>
+        </member>
+        <member name="M:Loco.Core.SimpleLightEngine.CancelScheduledRule(System.String)">
+            <summary>
+            Cancel scheduled rule
+            </summary>
+        </member>
+        <member name="T:Loco.Core.SimpleScheduler">
+            <summary>
+            Lightweight interval-based scheduler for SimpleLightEngine
+            </summary>
+        </member>
+        <member name="M:Loco.Core.SimpleScheduler.ScheduleInterval(System.String,System.TimeSpan,System.Func{System.Threading.Tasks.Task})">
+            <summary>
+            Schedule a job to run at specified interval
+            </summary>
+        </member>
+        <member name="M:Loco.Core.SimpleScheduler.ScheduleOnce(System.String,System.DateTime,System.Func{System.Threading.Tasks.Task})">
+            <summary>
+            Schedule a job to run once at specified time
+            </summary>
+        </member>
+        <member name="M:Loco.Core.SimpleScheduler.RemoveJob(System.String)">
+            <summary>
+            Remove a scheduled job
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Storage.EncryptedStorage">
+            <summary>
+            Encrypted storage for sensitive configuration and credentials
+            Government-grade encryption for data at rest
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Storage.EncryptedStorage.StoreAsync``1(System.String,``0)">
+            <summary>
+            Store encrypted data
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Storage.EncryptedStorage.RetrieveAsync``1(System.String)">
+            <summary>
+            Retrieve and decrypt data
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Storage.EncryptedStorage.Exists(System.String)">
+            <summary>
+            Check if key exists
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Storage.EncryptedStorage.DeleteAsync(System.String)">
+            <summary>
+            Delete encrypted data
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Storage.EncryptedStorage.ListKeysAsync">
+            <summary>
+            List all stored keys
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Storage.EncryptedStorage.GetMetadataAsync(System.String)">
+            <summary>
+            Get metadata about stored entry
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Storage.StorageEntry">
+            <summary>
+            Storage entry with encrypted data
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Storage.StorageMetadata">
+            <summary>
+            Metadata about stored entry
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Storage.EncryptedStorageException">
+            <summary>
+            Exception for encrypted storage operations
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Storage.CredentialStore">
+            <summary>
+            Credential store for sensitive authentication data
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Storage.CredentialStore.StoreCredentialAsync(System.String,System.String,System.String)">
+            <summary>
+            Store credential
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Storage.CredentialStore.GetCredentialAsync(System.String)">
+            <summary>
+            Retrieve credential
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Storage.CredentialStore.DeleteCredentialAsync(System.String)">
+            <summary>
+            Delete credential
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Storage.CredentialStore.ListCredentialsAsync">
+            <summary>
+            List all credential identifiers
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Storage.StoredCredential">
+            <summary>
+            Stored credential
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Utilities.CommonUtilities">
+            <summary>
+            Common utility functions
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.GenerateId(System.Int32)">
+            <summary>
+            Generate unique ID
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.GenerateSecureRandom(System.Int32)">
+            <summary>
+            Generate secure random string
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.CalculateFileHashAsync(System.String)">
+            <summary>
+            Calculate file hash (SHA256)
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.CalculateHash(System.String)">
+            <summary>
+            Calculate string hash
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.SafeDelete(System.String)">
+            <summary>
+            Safely delete file (no exception if not exists)
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.EnsureDirectory(System.String)">
+            <summary>
+            Safely create directory
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.FormatFileSize(System.Int64)">
+            <summary>
+            Get file size in human-readable format
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.FormatDuration(System.TimeSpan)">
+            <summary>
+            Format duration in human-readable format
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.DeepClone``1(``0)">
+            <summary>
+            Deep clone object using JSON serialization
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.RetryAsync``1(System.Func{System.Threading.Tasks.Task{``0}},System.Int32,System.Int32,System.Double)">
+            <summary>
+            Retry operation with exponential backoff
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.Batch``1(System.Collections.Generic.IEnumerable{``0},System.Int32)">
+            <summary>
+            Batch items into groups
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.Truncate(System.String,System.Int32,System.String)">
+            <summary>
+            Truncate string with ellipsis
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.GetTimestamp">
+            <summary>
+            Get timestamp in ISO 8601 format
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.ParseTimestamp(System.String)">
+            <summary>
+            Parse ISO 8601 timestamp
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.IsRunningInDocker">
+            <summary>
+            Check if running in Docker
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.GetEnvironmentName">
+            <summary>
+            Get environment name (Development, Staging, Production)
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.IsDevelopment">
+            <summary>
+            Is development environment
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.IsProduction">
+            <summary>
+            Is production environment
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.ToQueryString(System.Collections.Generic.Dictionary{System.String,System.String})">
+            <summary>
+            Convert dictionary to query string
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.ParseQueryString(System.String)">
+            <summary>
+            Parse query string to dictionary
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.WithTimeoutAsync``1(System.Func{System.Threading.Tasks.Task{``0}},System.TimeSpan)">
+            <summary>
+            Execute action with timeout
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.CombinePaths(System.String[])">
+            <summary>
+            Combine paths safely
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.GetRelativePath(System.String,System.String)">
+            <summary>
+            Get relative path
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.MeasureAsync``1(System.Func{System.Threading.Tasks.Task{``0}})">
+            <summary>
+            Measure execution time
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.ToHexString(System.Byte[])">
+            <summary>
+            Convert bytes to hex string
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.FromHexString(System.String)">
+            <summary>
+            Convert hex string to bytes
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.GetVersion">
+            <summary>
+            Get application version
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.Coalesce``1(``0[])">
+            <summary>
+            Coalesce (return first non-null)
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Utilities.CommonUtilities.Swap``1(``0@,``0@)">
+            <summary>
+            Swap two values
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Validation.ConfigurationSchemaValidator">
+            <summary>
+            Comprehensive configuration validator with schema validation
+            Ensures production-grade configuration safety
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Validation.ConfigurationSchemaValidator.ValidateConfiguration(System.String)">
+            <summary>
+            Validate configuration file comprehensively
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Validation.ValidationReport">
+            <summary>
+            Configuration validation report
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Validation.ValidationIssue">
+            <summary>
+            Validation issue
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Validation.IssueSeverity">
+            <summary>
+            Issue severity
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Validation.ConfigurationValidator">
+            <summary>
+            Validates Loco configuration for production readiness
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Validation.InputValidator">
+            <summary>
+            Production-grade input validation for government-level security requirements.
+            Validates all user inputs to prevent injection attacks, path traversal, and malicious operations.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Validation.InputValidator.ValidatePath(System.String)">
+            <summary>
+            Validates a file path for safety.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Validation.InputValidator.ValidateFilename(System.String)">
+            <summary>
+            Validates a filename for safety.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Validation.InputValidator.ValidateIdentifier(System.String)">
+            <summary>
+            Validates an identifier (workflow ID, rule ID, etc.).
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Validation.InputValidator.ValidateCommand(System.String)">
+            <summary>
+            Validates a command string for injection attempts.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Validation.InputValidator.ValidateJson(System.String)">
+            <summary>
+            Validates a JSON string for basic structure.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Validation.InputValidator.ValidateTimeout(System.Int32)">
+            <summary>
+            Validates a timeout value.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Validation.InputValidator.ValidateMemoryLimit(System.Int32)">
+            <summary>
+            Validates a memory limit value.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Validation.InputValidator.ValidateConcurrentLimit(System.Int32)">
+            <summary>
+            Validates a concurrent execution limit.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Validation.InputValidator.SanitizeForLog(System.String)">
+            <summary>
+            Sanitizes a string for safe display in logs.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Validation.InputValidator.ValidateEmail(System.String)">
+            <summary>
+            Validates an email address format.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Validation.InputValidator.ValidatePort(System.Int32)">
+            <summary>
+            Validates a port number.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Validation.InputValidator.ValidateUrl(System.String)">
+            <summary>
+            Validates a URL.
+            </summary>
+        </member>
+        <member name="T:Loco.Core.Validation.ValidationResult">
+            <summary>
+            Validation result with success/failure status and message.
+            </summary>
+        </member>
+    </members>
+</doc>

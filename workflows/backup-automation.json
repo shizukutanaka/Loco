@@ -1,0 +1,73 @@
+{
+  "id": "backup-auto-001",
+  "name": "Automated Backup Workflow",
+  "description": "Backup important files and verify integrity",
+  "steps": [
+    {
+      "id": "get-timestamp",
+      "name": "Generate timestamp",
+      "type": "setVariable",
+      "variableName": "backupTime",
+      "variableValue": "{timestamp}"
+    },
+    {
+      "id": "check-source-exists",
+      "name": "Verify source directory exists",
+      "type": "monitor",
+      "monitorType": "file",
+      "target": "C:\\ImportantData",
+      "alertVariable": "sourceStatus"
+    },
+    {
+      "id": "create-backup-folder",
+      "name": "Create backup folder",
+      "type": "command",
+      "command": "cmd.exe",
+      "arguments": "/c mkdir C:\\Backups\\backup_{backupTime}",
+      "outputVariable": "mkdirResult"
+    },
+    {
+      "id": "copy-files",
+      "name": "Copy files to backup",
+      "type": "command",
+      "command": "robocopy",
+      "arguments": "C:\\ImportantData C:\\Backups\\backup_{backupTime} /E /Z /R:2 /W:5",
+      "timeoutSeconds": 300,
+      "outputVariable": "copyResult",
+      "exitCodeVariable": "copyExitCode"
+    },
+    {
+      "id": "verify-backup-size",
+      "name": "Verify backup size",
+      "type": "monitor",
+      "monitorType": "file",
+      "target": "C:\\Backups\\backup_{backupTime}",
+      "alertVariable": "backupStatus"
+    },
+    {
+      "id": "create-backup-log",
+      "name": "Create backup log entry",
+      "type": "config",
+      "operation": "update",
+      "configPath": "C:\\Backups\\backup-log.json",
+      "key": "backup_{backupTime}",
+      "value": {
+        "timestamp": "{backupTime}",
+        "sourceSize": "{sourceStatus.size_mb}",
+        "backupSize": "{backupStatus.size_mb}",
+        "exitCode": "{copyExitCode}",
+        "status": "completed"
+      }
+    },
+    {
+      "id": "send-notification",
+      "name": "Send backup completion notification",
+      "type": "notification",
+      "channel": "file",
+      "recipient": "C:\\Backups\\notifications.log",
+      "title": "Backup Completed",
+      "message": "Backup completed at {backupTime}. Size: {backupStatus.size_mb}MB",
+      "priority": "normal"
+    }
+  ]
+}

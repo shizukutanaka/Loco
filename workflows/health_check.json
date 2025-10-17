@@ -1,0 +1,20 @@
+{
+  "name": "System Health Check",
+  "description": "Comprehensive system monitoring",
+  "steps": [
+    {
+      "type": "log",
+      "message": "Starting system health check"
+    },
+    {
+      "type": "process",
+      "command": "powershell",
+      "arguments": "-Command \"Get-ComputerInfo | Select-Object TotalPhysicalMemory,CsProcessors\"",
+      "resultVariable": "systemInfo"
+    },
+    {
+      "type": "log",
+      "message": "Health check completed"
+    }
+  ]
+}

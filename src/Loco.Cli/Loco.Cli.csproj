@@ -5,6 +5,19 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
+    <NoWarn>$(NoWarn);1591;CS1998</NoWarn>
+    <AssemblyTitle>Loco CLI - Enterprise Automation Platform</AssemblyTitle>
+    <AssemblyDescription>Command-line interface for the Loco automation platform with comprehensive flow management capabilities.</AssemblyDescription>
+    <AssemblyCompany>Loco Automation</AssemblyCompany>
+    <AssemblyProduct>Loco Platform</AssemblyProduct>
+    <Copyright>Copyright © 2024 Loco Automation</Copyright>
+    <AssemblyVersion>1.0.0</AssemblyVersion>
+    <FileVersion>1.0.0</FileVersion>
+    <PackageVersion>1.0.0</PackageVersion>
+    <JsonSerializerIsReflectionEnabled>true</JsonSerializerIsReflectionEnabled>
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,20 +25,15 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
     <PackageReference Include="System.CommandLine.Hosting" Version="0.4.0-alpha.22272.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Loco.Core\Loco.Core.csproj" />
-    <ProjectReference Include="..\Loco.Automation\Loco.Automation.csproj" />
-    <ProjectReference Include="..\Loco.Llm\Loco.Llm.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="SecurityCodeScan" Version="$(SecurityCodeScanVersion)">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-  </ItemGroup>
 
   <ItemGroup>
     <Content Include="appsettings.json">

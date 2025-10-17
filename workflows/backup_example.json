@@ -1,0 +1,20 @@
+{
+  "name": "Document Backup",
+  "description": "Backup important documents with timestamp",
+  "steps": [
+    {
+      "type": "log",
+      "message": "Starting document backup"
+    },
+    {
+      "type": "file",
+      "action": "copy",
+      "source": "C:\\Users\\%USERNAME%\\Documents",
+      "target": "C:\\Backup\\Documents_{{timestamp}}"
+    },
+    {
+      "type": "log",
+      "message": "Backup completed successfully"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Website Monitor",
+  "description": "Monitor website availability",
+  "steps": [
+    {
+      "type": "log",
+      "message": "Checking website status"
+    },
+    {
+      "type": "http",
+      "method": "GET",
+      "url": "https://httpbin.org/status/200",
+      "timeout": 10,
+      "resultVariable": "response"
+    },
+    {
+      "type": "log",
+      "message": "Website status: {{response.statusCode}}"
+    }
+  ]
+}

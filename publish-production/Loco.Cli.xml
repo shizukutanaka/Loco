@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Loco.Cli</name>
+    </assembly>
+    <members>
+        <member name="T:Loco.Cli.ErrorMessages">
+            <summary>
+            Centralized error message management with user-friendly explanations and solutions.
+            Provides multi-language support for English and Japanese.
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.ErrorMessages.GetErrorMessage(System.String,System.Boolean,System.Object[])">
+            <summary>
+            Gets formatted error message with solution in both English and Japanese.
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.ErrorMessages.DisplayError(System.String,System.Object[])">
+            <summary>
+            Displays formatted error message to console with appropriate colors.
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.ErrorMessages.DisplaySuccess(System.String,System.String)">
+            <summary>
+            Gets success message in both languages.
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.ErrorMessages.DisplayInfo(System.String,System.String)">
+            <summary>
+            Gets info message in both languages.
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.ErrorMessages.DisplayWarning(System.String,System.String)">
+            <summary>
+            Gets warning message in both languages.
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.InteractiveMode">
+            <summary>
+            Interactive mode for Loco CLI with command history, auto-completion, and command validation.
+            Provides user-friendly interface for exploring and executing commands.
+            Production-grade implementation with error recovery and context-aware help.
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.InteractiveMode.RunAsync">
+            <summary>
+            Starts interactive mode loop.
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.InteractiveMode.GetCommandSuggestions(System.String)">
+            <summary>
+            Provides command suggestions based on Levenshtein distance.
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.InteractiveMode.LevenshteinDistance(System.String,System.String)">
+            <summary>
+            Calculates Levenshtein distance for command suggestion.
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.SetupWizard">
+            <summary>
+            Interactive setup wizard for first-time users
+            Guides users through configuration based on their needs
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.SetupWizard.RunAsync">
+            <summary>
+            Run the setup wizard
+            </summary>
+        </member>
+    </members>
+</doc>

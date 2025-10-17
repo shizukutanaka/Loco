@@ -1,0 +1,64 @@
+{
+  "name": "Daily Maintenance",
+  "description": "Automated daily system maintenance tasks",
+  "version": "1.0.0",
+  "schedule": "0 2 * * *",
+  "actions": [
+    {
+      "id": "log-start",
+      "type": "log",
+      "parameters": {
+        "message": "Starting daily maintenance workflow"
+      }
+    },
+    {
+      "id": "cleanup-temp",
+      "type": "cleanup",
+      "parameters": {
+        "target": "temp",
+        "olderThanDays": "7"
+      }
+    },
+    {
+      "id": "cleanup-logs",
+      "type": "cleanup",
+      "parameters": {
+        "target": "logs",
+        "olderThanDays": "30"
+      }
+    },
+    {
+      "id": "cleanup-cache",
+      "type": "cleanup",
+      "parameters": {
+        "target": "cache",
+        "olderThanDays": "14"
+      }
+    },
+    {
+      "id": "backup-config",
+      "type": "backup",
+      "parameters": {
+        "source": "./config",
+        "destination": "./backups/config",
+        "verify": "true"
+      }
+    },
+    {
+      "id": "check-disk-space",
+      "type": "monitor",
+      "parameters": {
+        "type": "disk",
+        "path": "C:",
+        "threshold": "5"
+      }
+    },
+    {
+      "id": "log-complete",
+      "type": "log",
+      "parameters": {
+        "message": "Daily maintenance completed successfully"
+      }
+    }
+  ]
+}

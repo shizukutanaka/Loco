@@ -1,0 +1,40 @@
+{
+  "id": "backup-001",
+  "name": "Simple Backup Workflow",
+  "description": "Create backup of important files and verify the backup",
+  "steps": [
+    {
+      "id": "create-backup-dir",
+      "name": "Create backup directory",
+      "type": "fileOperation",
+      "operation": "createDirectory",
+      "path": "backups/{timestamp}",
+      "createParents": true
+    },
+    {
+      "id": "backup-files",
+      "name": "Copy important files",
+      "type": "fileOperation",
+      "operation": "copy",
+      "source": "important-files/",
+      "destination": "backups/{timestamp}/files/"
+    },
+    {
+      "id": "verify-backup",
+      "name": "Verify backup integrity",
+      "type": "command",
+      "command": "dir",
+      "arguments": ["backups/{timestamp}"],
+      "captureOutput": true
+    },
+    {
+      "id": "notify-completion",
+      "name": "Send backup notification",
+      "type": "notification",
+      "channel": "console",
+      "title": "Backup Complete",
+      "message": "Backup created successfully at {timestamp}",
+      "priority": "normal"
+    }
+  ]
+}

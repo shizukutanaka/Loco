@@ -1,0 +1,78 @@
+{
+  "id": "network-monitor-001",
+  "name": "Network Connectivity Monitor",
+  "description": "Monitor network connectivity and collect performance statistics",
+  "steps": [
+    {
+      "id": "ping-google",
+      "name": "Ping Google DNS",
+      "type": "network",
+      "operation": "ping",
+      "target": "8.8.8.8",
+      "timeoutMs": 5000,
+      "resultVariable": "googlePing"
+    },
+    {
+      "id": "ping-cloudflare",
+      "name": "Ping Cloudflare DNS",
+      "type": "network",
+      "operation": "ping",
+      "target": "1.1.1.1",
+      "timeoutMs": 5000,
+      "resultVariable": "cloudflarePing"
+    },
+    {
+      "id": "check-http-port",
+      "name": "Check HTTP port",
+      "type": "network",
+      "operation": "portCheck",
+      "target": "google.com",
+      "port": 80,
+      "timeoutMs": 10000,
+      "resultVariable": "httpCheck"
+    },
+    {
+      "id": "check-https-port",
+      "name": "Check HTTPS port",
+      "type": "network",
+      "operation": "portCheck",
+      "target": "google.com",
+      "port": 443,
+      "timeoutMs": 10000,
+      "resultVariable": "httpsCheck"
+    },
+    {
+      "id": "collect-network-stats",
+      "name": "Collect network statistics",
+      "type": "stats",
+      "operation": "collect",
+      "metricName": "network_latency",
+      "metricValue": "{googlePing.RoundtripTime}",
+      "category": "Network"
+    },
+    {
+      "id": "cache-results",
+      "name": "Cache network test results",
+      "type": "cache",
+      "operation": "set",
+      "key": "network_status_{timestamp}",
+      "value": {
+        "google": "{googlePing}",
+        "cloudflare": "{cloudflarePing}",
+        "http": "{httpCheck}",
+        "https": "{httpsCheck}",
+        "timestamp": "{timestamp}"
+      },
+      "expirationMinutes": 30
+    },
+    {
+      "id": "notify-status",
+      "name": "Notify network status",
+      "type": "notification",
+      "channel": "console",
+      "title": "Network Status",
+      "message": "Google: {googlePing.RoundtripTime}ms, HTTP: {httpCheck.Status}, HTTPS: {httpsCheck.Status}",
+      "priority": "normal"
+    }
+  ]
+}

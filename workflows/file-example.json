@@ -1,0 +1,5 @@
+{
+  "id": "file-ops-001",
+  "name": "File Operations Example",
+  "description": "Demonstrates file operations: create, read, copy, delete"
+}

@@ -1,0 +1,61 @@
+{
+  "id": "scheduled-backup-001",
+  "name": "Scheduled Daily Backup",
+  "description": "Automatically backup files daily at 2 AM",
+  "steps": [
+    {
+      "id": "schedule-daily",
+      "name": "Wait for 2 AM daily backup time",
+      "type": "schedule",
+      "scheduleType": "daily",
+      "timeOfDay": "02:00",
+      "executeImmediately": false
+    },
+    {
+      "id": "check-source",
+      "name": "Check if source directory exists",
+      "type": "fileOperation",
+      "operation": "exists",
+      "path": "C:\\Important",
+      "outputVariable": "sourceExists"
+    },
+    {
+      "id": "create-backup-dir",
+      "name": "Create timestamped backup directory",
+      "type": "fileOperation",
+      "operation": "createDirectory",
+      "path": "C:\\Backups\\{timestamp}",
+      "createParents": true
+    },
+    {
+      "id": "backup-files",
+      "name": "Copy files to backup",
+      "type": "fileOperation",
+      "operation": "copy",
+      "source": "C:\\Important",
+      "destination": "C:\\Backups\\{timestamp}\\Important"
+    },
+    {
+      "id": "verify-backup",
+      "name": "Verify backup completed",
+      "type": "fileOperation",
+      "operation": "exists",
+      "path": "C:\\Backups\\{timestamp}\\Important",
+      "outputVariable": "backupExists"
+    },
+    {
+      "id": "log-backup-status",
+      "name": "Log backup completion",
+      "type": "log",
+      "message": "Daily backup completed at {timestamp}. Source exists: {sourceExists}, Backup exists: {backupExists}"
+    },
+    {
+      "id": "cleanup-old-backups",
+      "name": "Clean up backups older than 30 days",
+      "type": "command",
+      "command": "forfiles",
+      "arguments": ["/p", "C:\\Backups", "/m", "*.*", "/d", "-30", "/c", "cmd /c rd /s /q @path"],
+      "continueOnError": true
+    }
+  ]
+}

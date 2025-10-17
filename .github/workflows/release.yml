@@ -1,0 +1,92 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Get version from tag
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Test
+      run: dotnet test --configuration Release --no-build --verbosity normal
+
+    - name: Publish Linux x64
+      run: dotnet publish src/Loco.Cli/Loco.Cli.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true -o ./publish/linux-x64
+
+    - name: Publish Windows x64
+      run: dotnet publish src/Loco.Cli/Loco.Cli.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true -o ./publish/win-x64
+
+    - name: Publish macOS x64
+      run: dotnet publish src/Loco.Cli/Loco.Cli.csproj -c Release -r osx-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true -o ./publish/osx-x64
+
+    - name: Publish macOS ARM64
+      run: dotnet publish src/Loco.Cli/Loco.Cli.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true -o ./publish/osx-arm64
+
+    - name: Create archives
+      run: |
+        cd publish
+        tar -czf loco-linux-x64-v${{ steps.get_version.outputs.VERSION }}.tar.gz -C linux-x64 .
+        cd win-x64 && zip -r ../loco-windows-x64-v${{ steps.get_version.outputs.VERSION }}.zip . && cd ..
+        tar -czf loco-macos-x64-v${{ steps.get_version.outputs.VERSION }}.tar.gz -C osx-x64 .
+        tar -czf loco-macos-arm64-v${{ steps.get_version.outputs.VERSION }}.tar.gz -C osx-arm64 .
+
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        if [ -f CHANGELOG.md ]; then
+          echo "NOTES<<EOF" >> $GITHUB_OUTPUT
+          awk '/## \[Unreleased\]/,/## \[.*\]/{if (!/## \[(Unreleased|.*)\]/) print}' CHANGELOG.md | head -n 50 >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        else
+          echo "NOTES=Release v${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          publish/loco-linux-x64-v${{ steps.get_version.outputs.VERSION }}.tar.gz
+          publish/loco-windows-x64-v${{ steps.get_version.outputs.VERSION }}.zip
+          publish/loco-macos-x64-v${{ steps.get_version.outputs.VERSION }}.tar.gz
+          publish/loco-macos-arm64-v${{ steps.get_version.outputs.VERSION }}.tar.gz
+        body: ${{ steps.release_notes.outputs.NOTES }}
+        draft: false
+        prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Publish to NuGet (if configured)
+      if: ${{ !contains(github.ref, 'alpha') && !contains(github.ref, 'beta') }}
+      run: |
+        dotnet pack src/Loco.Core/Loco.Core.csproj -c Release -o ./nupkg -p:PackageVersion=${{ steps.get_version.outputs.VERSION }}
+        if [ ! -z "${{ secrets.NUGET_API_KEY }}" ]; then
+          dotnet nuget push ./nupkg/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        else
+          echo "NuGet API key not configured, skipping NuGet publish"
+        fi
+      continue-on-error: true

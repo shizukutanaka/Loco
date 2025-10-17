@@ -1,0 +1,66 @@
+{
+  "id": "env-setup-001",
+  "name": "Environment Setup and Check",
+  "description": "Setup environment variables and verify system configuration",
+  "steps": [
+    {
+      "id": "check-system-env",
+      "name": "Check system environment",
+      "type": "env",
+      "operation": "get",
+      "variableName": "PATH",
+      "outputVariable": "systemPath"
+    },
+    {
+      "id": "check-user-profile",
+      "name": "Check user profile",
+      "type": "env",
+      "operation": "get",
+      "variableName": "USERPROFILE",
+      "outputVariable": "userProfile"
+    },
+    {
+      "id": "set-app-config",
+      "name": "Set application config path",
+      "type": "env",
+      "operation": "set",
+      "variableName": "LOCO_CONFIG_PATH",
+      "value": "{userProfile}\\AppData\\Local\\Loco",
+      "outputVariable": "configSet"
+    },
+    {
+      "id": "verify-config",
+      "name": "Verify config was set",
+      "type": "env",
+      "operation": "exists",
+      "variableName": "LOCO_CONFIG_PATH",
+      "outputVariable": "configExists"
+    },
+    {
+      "id": "check-temp-dir",
+      "name": "Check temp directory",
+      "type": "env",
+      "operation": "get",
+      "variableName": "TEMP",
+      "outputVariable": "tempDir"
+    },
+    {
+      "id": "validate-paths",
+      "name": "Validate all paths exist",
+      "type": "condition",
+      "leftValue": "{configExists}",
+      "operator": "equals",
+      "rightValue": "true",
+      "resultVariable": "setupValid"
+    },
+    {
+      "id": "log-environment-status",
+      "name": "Log environment setup status",
+      "type": "notification",
+      "channel": "console",
+      "title": "Environment Setup Complete",
+      "message": "Config path: {LOCO_CONFIG_PATH}, Temp: {tempDir}, Valid: {setupValid}",
+      "priority": "normal"
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "id": "log-analysis-001",
+  "name": "Log File Analysis",
+  "description": "Analyze log files for errors and generate reports",
+  "steps": [
+    {
+      "id": "read-log-file",
+      "name": "Read log file",
+      "type": "fileOperation",
+      "operation": "read",
+      "path": "application.log",
+      "outputVariable": "logContent"
+    },
+    {
+      "id": "check-file-exists",
+      "name": "Check if log file exists",
+      "type": "condition",
+      "leftValue": "{logContent}",
+      "operator": "notempty",
+      "resultVariable": "logExists"
+    },
+    {
+      "id": "extract-errors",
+      "name": "Extract error lines",
+      "type": "text",
+      "operation": "extract",
+      "inputText": "{logContent}",
+      "pattern": ".*ERROR.*",
+      "outputVariable": "errorLines"
+    },
+    {
+      "id": "count-errors",
+      "name": "Count total errors",
+      "type": "text",
+      "operation": "length",
+      "inputText": "{errorLines}",
+      "outputVariable": "errorCount"
+    },
+    {
+      "id": "check-error-threshold",
+      "name": "Check if errors exceed threshold",
+      "type": "condition",
+      "leftValue": "{errorCount}",
+      "operator": "greater",
+      "rightValue": "5",
+      "resultVariable": "tooManyErrors"
+    },
+    {
+      "id": "format-report",
+      "name": "Format analysis report",
+      "type": "text",
+      "operation": "format",
+      "template": "Log Analysis Report\\nFile: application.log\\nErrors Found: {errorCount}\\nAlert Level: {tooManyErrors}\\nGenerated: {timestamp}",
+      "outputVariable": "report"
+    },
+    {
+      "id": "save-report",
+      "name": "Save analysis report",
+      "type": "fileOperation",
+      "operation": "write",
+      "path": "log-analysis-{timestamp}.txt",
+      "content": "{report}"
+    },
+    {
+      "id": "alert-if-many-errors",
+      "name": "Alert if too many errors",
+      "type": "notification",
+      "channel": "console",
+      "title": "Log Analysis Alert",
+      "message": "Found {errorCount} errors in log file. Threshold exceeded: {tooManyErrors}",
+      "priority": "high"
+    }
+  ]
+}

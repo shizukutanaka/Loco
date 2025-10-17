@@ -1,0 +1,49 @@
+{
+  "id": "sys-health-001",
+  "name": "System Health Check",
+  "description": "Check system health: disk space, memory, processes",
+  "steps": [
+    {
+      "id": "check-system-info",
+      "name": "Get system information",
+      "type": "systemInfo",
+      "infoType": "all",
+      "outputVariable": "systemInfo"
+    },
+    {
+      "id": "check-disk-space",
+      "name": "Check disk space",
+      "type": "command",
+      "command": "wmic",
+      "arguments": ["logicaldisk", "get", "size,freespace,caption"],
+      "captureOutput": true,
+      "outputVariable": "diskInfo"
+    },
+    {
+      "id": "validate-health",
+      "name": "Validate system health",
+      "type": "dataTransform",
+      "operation": "validate",
+      "inputVariable": "systemInfo",
+      "rules": ["notNull", "notEmpty"],
+      "outputVariable": "healthStatus"
+    },
+    {
+      "id": "log-results",
+      "name": "Log health check results",
+      "type": "fileOperation",
+      "operation": "write",
+      "path": "health-reports/health-{timestamp}.log",
+      "content": "System Health Report\nTimestamp: {timestamp}\nSystem Info: {systemInfo}\nDisk Info: {diskInfo}\nHealth Status: {healthStatus}"
+    },
+    {
+      "id": "notify-status",
+      "name": "Send health notification",
+      "type": "notification",
+      "channel": "console",
+      "title": "System Health Check",
+      "message": "Health check completed. Status: {healthStatus}",
+      "priority": "normal"
+    }
+  ]
+}

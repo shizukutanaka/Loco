@@ -1,0 +1,69 @@
+{
+  "id": "data-validation-001",
+  "name": "Data Validation Workflow",
+  "description": "Validate incoming data with comprehensive checks",
+  "steps": [
+    {
+      "id": "validate-email",
+      "name": "Validate email format",
+      "type": "validation",
+      "inputValue": "{userEmail}",
+      "validationType": "email",
+      "resultVariable": "emailValidation",
+      "errorVariable": "emailError"
+    },
+    {
+      "id": "validate-age",
+      "name": "Validate age range",
+      "type": "validation",
+      "inputValue": "{userAge}",
+      "validationType": "range",
+      "minValue": 18,
+      "maxValue": 120,
+      "resultVariable": "ageValidation",
+      "errorVariable": "ageError"
+    },
+    {
+      "id": "validate-password",
+      "name": "Validate password strength",
+      "type": "validation",
+      "inputValue": "{userPassword}",
+      "validationType": "regex",
+      "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
+      "resultVariable": "passwordValidation",
+      "errorVariable": "passwordError"
+    },
+    {
+      "id": "check-all-valid",
+      "name": "Check if all validations passed",
+      "type": "condition",
+      "leftValue": "{emailValidation.IsValid}",
+      "operator": "equals",
+      "rightValue": "true",
+      "resultVariable": "isValid"
+    },
+    {
+      "id": "cache-validation-result",
+      "name": "Cache validation result",
+      "type": "cache",
+      "operation": "set",
+      "key": "validation_{userEmail}",
+      "value": {
+        "email": "{emailValidation}",
+        "age": "{ageValidation}",
+        "password": "{passwordValidation}",
+        "timestamp": "{timestamp}"
+      },
+      "expirationMinutes": 30
+    },
+    {
+      "id": "notify-result",
+      "name": "Notify validation result",
+      "type": "notification",
+      "channel": "console",
+      "title": "Validation Complete",
+      "message": "Email: {emailValidation.IsValid}, Age: {ageValidation.IsValid}, Password: {passwordValidation.IsValid}",
+      "priority": "normal"
+    }
+  ]
+}

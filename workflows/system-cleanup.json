@@ -1,0 +1,87 @@
+{
+  "id": "system-cleanup-001",
+  "name": "System Cleanup Workflow",
+  "description": "Automated system cleanup and maintenance tasks",
+  "steps": [
+    {
+      "id": "start-cleanup",
+      "name": "Start System Cleanup",
+      "type": "log",
+      "message": "Starting system cleanup and maintenance..."
+    },
+    {
+      "id": "get-temp-path",
+      "name": "Get Temp Directory",
+      "type": "env",
+      "operation": "get",
+      "variableName": "TEMP"
+    },
+    {
+      "id": "check-disk-space-before",
+      "name": "Check Disk Space Before Cleanup",
+      "type": "monitor",
+      "monitorType": "disk",
+      "target": "C:"
+    },
+    {
+      "id": "collect-pre-cleanup-stats",
+      "name": "Collect Pre-Cleanup Stats",
+      "type": "stats",
+      "operation": "collect",
+      "metricName": "disk_space_before_cleanup",
+      "metricValue": "{disk_info.FreeSpaceGB}"
+    },
+    {
+      "id": "delay-for-safety",
+      "name": "Safety Delay",
+      "type": "delay",
+      "duration": "00:00:02"
+    },
+    {
+      "id": "archive-temp-files",
+      "name": "Archive Temp Files Before Cleanup",
+      "type": "archive",
+      "operation": "compress",
+      "sourcePath": "{TEMP}",
+      "targetPath": "C:\\Archives\\temp-backup-{timestamp}.zip"
+    },
+    {
+      "id": "log-temp-archive",
+      "name": "Log Temp Archive",
+      "type": "log",
+      "message": "Temp files archived to C:\\Archives\\temp-backup-{timestamp}.zip"
+    },
+    {
+      "id": "check-disk-space-after",
+      "name": "Check Disk Space After Operations",
+      "type": "monitor",
+      "monitorType": "disk",
+      "target": "C:"
+    },
+    {
+      "id": "collect-post-cleanup-stats",
+      "name": "Collect Post-Cleanup Stats",
+      "type": "stats",
+      "operation": "collect",
+      "metricName": "disk_space_after_cleanup",
+      "metricValue": "{disk_info_final.FreeSpaceGB}"
+    },
+    {
+      "id": "cache-cleanup-results",
+      "name": "Cache Cleanup Results",
+      "type": "cache",
+      "operation": "set",
+      "key": "last_cleanup_results",
+      "value": "{cleanup_summary}",
+      "expirationMinutes": 1440
+    },
+    {
+      "id": "completion-message",
+      "name": "Cleanup Completion",
+      "type": "notification",
+      "channel": "console",
+      "title": "System Cleanup Complete",
+      "message": "System cleanup completed. Archive created: temp-backup-{timestamp}.zip"
+    }
+  ]
+}

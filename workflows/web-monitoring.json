@@ -1,0 +1,54 @@
+{
+  "id": "web-monitor-001",
+  "name": "Web Service Monitoring",
+  "description": "Monitor web services and APIs for availability and response times",
+  "steps": [
+    {
+      "id": "check-main-site",
+      "name": "Check main website",
+      "type": "httpRequest",
+      "url": "https://httpbin.org/status/200",
+      "method": "GET",
+      "timeoutSeconds": 10,
+      "outputVariable": "mainSiteStatus"
+    },
+    {
+      "id": "check-api-endpoint",
+      "name": "Check API endpoint",
+      "type": "httpRequest",
+      "url": "https://httpbin.org/json",
+      "method": "GET",
+      "headers": {
+        "User-Agent": "Loco-Monitor/1.0"
+      },
+      "timeoutSeconds": 15,
+      "outputVariable": "apiStatus"
+    },
+    {
+      "id": "validate-responses",
+      "name": "Validate response data",
+      "type": "dataTransform",
+      "operation": "validate",
+      "inputVariable": "apiStatus",
+      "rules": ["notNull", "notEmpty"],
+      "outputVariable": "validationResult"
+    },
+    {
+      "id": "log-monitoring-data",
+      "name": "Log monitoring results",
+      "type": "fileOperation",
+      "operation": "write",
+      "path": "monitoring-logs/web-monitor-{timestamp}.json",
+      "content": "{\"timestamp\": \"{timestamp}\", \"mainSite\": \"{mainSiteStatus}\", \"api\": \"{apiStatus}\", \"validation\": \"{validationResult}\"}"
+    },
+    {
+      "id": "alert-if-down",
+      "name": "Send alert notification",
+      "type": "notification",
+      "channel": "console",
+      "title": "Web Monitoring Alert",
+      "message": "Services checked at {timestamp}. Main site: OK, API: OK",
+      "priority": "normal"
+    }
+  ]
+}

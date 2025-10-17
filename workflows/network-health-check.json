@@ -1,0 +1,109 @@
+{
+  "id": "network-health-001",
+  "name": "Network Health Check",
+  "description": "Comprehensive network connectivity and performance testing",
+  "steps": [
+    {
+      "id": "start-network-check",
+      "name": "Start Network Health Check",
+      "type": "log",
+      "message": "Starting comprehensive network health check..."
+    },
+    {
+      "id": "ping-google-dns",
+      "name": "Ping Google DNS",
+      "type": "network",
+      "operation": "ping",
+      "target": "8.8.8.8",
+      "timeoutMs": 5000
+    },
+    {
+      "id": "ping-cloudflare-dns",
+      "name": "Ping Cloudflare DNS",
+      "type": "network",
+      "operation": "ping",
+      "target": "1.1.1.1",
+      "timeoutMs": 5000
+    },
+    {
+      "id": "check-http-connectivity",
+      "name": "Check HTTP Connectivity",
+      "type": "network",
+      "operation": "portCheck",
+      "target": "google.com",
+      "port": 80,
+      "timeoutMs": 10000
+    },
+    {
+      "id": "check-https-connectivity",
+      "name": "Check HTTPS Connectivity",
+      "type": "network",
+      "operation": "portCheck",
+      "target": "google.com",
+      "port": 443,
+      "timeoutMs": 10000
+    },
+    {
+      "id": "test-dns-resolution",
+      "name": "Test DNS Resolution",
+      "type": "network",
+      "operation": "dnsResolve",
+      "target": "google.com",
+      "timeoutMs": 5000
+    },
+    {
+      "id": "collect-latency-stats",
+      "name": "Collect Network Latency Stats",
+      "type": "stats",
+      "operation": "collect",
+      "metricName": "network_latency_ms",
+      "metricValue": "{google_ping.RoundtripTime}"
+    },
+    {
+      "id": "collect-connectivity-stats",
+      "name": "Collect Connectivity Stats",
+      "type": "stats",
+      "operation": "collect",
+      "metricName": "connectivity_success_rate",
+      "metricValue": "{connectivity_summary.SuccessRate}"
+    },
+    {
+      "id": "cache-network-status",
+      "name": "Cache Network Status",
+      "type": "cache",
+      "operation": "set",
+      "key": "network_health_status",
+      "value": {
+        "google_dns": "{google_ping}",
+        "cloudflare_dns": "{cloudflare_ping}",
+        "http_check": "{http_connectivity}",
+        "https_check": "{https_connectivity}",
+        "dns_resolution": "{dns_test}",
+        "timestamp": "{timestamp}"
+      },
+      "expirationMinutes": 15
+    },
+    {
+      "id": "network-health-condition",
+      "name": "Check Overall Network Health",
+      "type": "condition",
+      "leftValue": "{google_ping.Success}",
+      "operator": "equals",
+      "rightValue": "true"
+    },
+    {
+      "id": "health-status-notification",
+      "name": "Network Health Status Notification",
+      "type": "notification",
+      "channel": "console",
+      "title": "Network Health Check Complete",
+      "message": "Google DNS: {google_ping.RoundtripTime}ms, HTTPS: {https_connectivity.Status}, DNS Resolution: {dns_test.Success}"
+    },
+    {
+      "id": "completion-log",
+      "name": "Health Check Completion",
+      "type": "log",
+      "message": "Network health check completed. Overall status cached for 15 minutes."
+    }
+  ]
+}

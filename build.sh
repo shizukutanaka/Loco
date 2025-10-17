@@ -77,36 +77,99 @@ fi
 
 # --- Target: publish ---
 if [[ "$TARGET" == "publish" ]]; then
-    echo -e "${YELLOW}[PUBLISH] Creating release package...${NC}"
+    echo -e "${YELLOW}[PUBLISH] Creating production release package...${NC}"
+
+    OUTPUT_DIR="publish-production"
+    BUILD_CONFIG="Release"
     RUNTIME=""
     case "$OS" in
         Linux) RUNTIME="linux-x64" ;;
-        macOS) 
+        macOS)
             if [[ $(uname -m) == "arm64" ]]; then RUNTIME="osx-arm64"; else RUNTIME="osx-x64"; fi ;;
         *) RUNTIME="linux-x64" ;;
     esac
-    echo "Publishing for $OS ($RUNTIME)..."
-    dotnet publish src/Loco.Cli/Loco.Cli.csproj -c Release -r $RUNTIME --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true -p:EnableCompressionInSingleFile=true -o output/$RUNTIME --nologo
-    
-    # Create launcher
-    cat > output/loco << EOF
-#!/bin/bash
-SCRIPT_DIR=\"$( cd \"$( dirname \"\${BASH_SOURCE[0]}\" )\" &> /dev/null && pwd )\"
-\"\$SCRIPT_DIR/$RUNTIME/Loco.Cli\" \"\$@\"
+
+    echo "[1/8] Cleaning previous builds..."
+    rm -rf "$OUTPUT_DIR" 2>/dev/null || true
+    rm -rf "src/Loco.Cli/bin/$BUILD_CONFIG" 2>/dev/null || true
+    rm -rf "src/Loco.Core/bin/$BUILD_CONFIG" 2>/dev/null || true
+
+    echo "[2/8] Restoring NuGet packages..."
+    dotnet restore --verbosity quiet
+
+    echo "[3/8] Building solution..."
+    dotnet build --configuration "$BUILD_CONFIG" --no-restore --verbosity quiet
+
+    echo "[4/8] Running tests..."
+    dotnet test --configuration "$BUILD_CONFIG" --no-build --verbosity quiet --logger "console;verbosity=minimal"
+
+    echo "[5/8] Publishing CLI for $RUNTIME..."
+    dotnet publish src/Loco.Cli/Loco.Cli.csproj \
+        --configuration "$BUILD_CONFIG" \
+        --runtime "$RUNTIME" \
+        --self-contained true \
+        --output "$OUTPUT_DIR" \
+        /p:PublishSingleFile=true \
+        /p:PublishReadyToRun=true \
+        /p:PublishTrimmed=false \
+        /p:IncludeNativeLibrariesForSelfExtract=true \
+        /p:DebugType=None \
+        /p:DebugSymbols=false \
+        --verbosity quiet
+
+    echo "[6/8] Creating package structure..."
+    mkdir -p "$OUTPUT_DIR/config"
+    mkdir -p "$OUTPUT_DIR/workflows"
+
+    # Copy documentation
+    cp README.md "$OUTPUT_DIR/" 2>/dev/null || true
+    cp QUICK_START.md "$OUTPUT_DIR/" 2>/dev/null || true
+    cp GETTING_STARTED.md "$OUTPUT_DIR/" 2>/dev/null || true
+    cp FAQ.md "$OUTPUT_DIR/" 2>/dev/null || true
+    cp TROUBLESHOOTING.md "$OUTPUT_DIR/" 2>/dev/null || true
+
+    # Copy installation scripts
+    cp install.sh "$OUTPUT_DIR/" 2>/dev/null || true
+    chmod +x "$OUTPUT_DIR/install.sh" 2>/dev/null || true
+
+    # Copy example workflows
+    cp workflows/*.json "$OUTPUT_DIR/workflows/" 2>/dev/null || true
+
+    # Make CLI executable
+    chmod +x "$OUTPUT_DIR/Loco.Cli" 2>/dev/null || true
+
+    echo "[7/8] Creating version information..."
+    cat > "$OUTPUT_DIR/build-info.json" << EOF
+{
+  "version": "1.0.0",
+  "buildDate": "$(date '+%Y-%m-%d %H:%M:%S')",
+  "buildConfiguration": "$BUILD_CONFIG",
+  "runtime": "$RUNTIME",
+  "features": [
+    "Self-Contained",
+    "Single-File",
+    "ReadyToRun",
+    "Production-Optimized"
+  ]
+}
 EOF
-    chmod +x output/loco
-    
-    # Copy examples and license
-    cp -r examples output/examples >/dev/null 2>&1 || true
-    cp README.md output/ >/dev/null 2>&1 || true
-    cp LICENSE output/ >/dev/null 2>&1 || true
+
+    echo "[8/8] Verifying build..."
+    "$OUTPUT_DIR/Loco.Cli" --version >/dev/null 2>&1 || {
+        echo -e "${RED}ERROR: Build verification failed${NC}"
+        exit 1
+    }
 
     echo -e "\n${GREEN}=====================================${NC}"
     echo -e "${GREEN}     Build Complete!${NC}"
     echo -e "${GREEN}=====================================${NC}"
     echo "Platform: $OS ($RUNTIME)"
-    echo "Output: ./output/"
-    echo "Run: ./output/loco --help"
+    echo "Output: $OUTPUT_DIR/"
+    echo "Executable: $OUTPUT_DIR/Loco.Cli"
+    echo ""
+    echo "Verification:"
+    echo "  ./$OUTPUT_DIR/Loco.Cli --version"
+    echo "  ./$OUTPUT_DIR/Loco.Cli health"
     exit 0
 fi
 

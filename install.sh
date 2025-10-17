@@ -1,15 +1,25 @@
 #!/bin/bash
 
 # Loco Cross-Platform Installer
-# One-line install: curl -sSL https://loco.dev/install.sh | bash
+# One-line install: curl -sSL https://raw.githubusercontent.com/shizukutanaka/Loco/main/install.sh | bash
 
-set -e
+set -euo pipefail
+IFS=$'\n\t'
 
 # Configuration
-REPO_URL="https://github.com/loco/loco"
+REPO_OWNER="shizukutanaka"
+REPO_NAME="Loco"
+REPO_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}"
 INSTALL_DIR="$HOME/.loco"
 BIN_DIR="$HOME/.local/bin"
 VERSION="latest"
+
+# Globals populated at runtime
+OS="unknown"
+ARCH="unknown"
+RUNTIME=""
+TMP_DIR=""
+SRC_DIR=""
 
 # Colors
 RED='\033[0;31m'
@@ -18,268 +28,296 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# Detect OS and Architecture
+SELF_CONTAINED=true
+CLI_BINARY=""
+SHELL_RC=""
+BIN_WRAPPER=""
+
+log_step() {
+    printf "%b==> %s%b\n" "$BLUE" "$1" "$NC"
+}
+
+log_info() {
+    printf "%b[INFO]%b %s\n" "$BLUE" "$NC" "$1"
+}
+
+log_warn() {
+    printf "%b[WARN]%b %s\n" "$YELLOW" "$NC" "$1"
+}
+
+log_error() {
+    printf "%b[ERROR]%b %s\n" "$RED" "$NC" "$1"
+}
+
+fail() {
+    log_error "$1"
+    exit 1
+}
+
 detect_platform() {
-    OS="unknown"
-    ARCH="unknown"
-    
-    # Detect OS
     case "$(uname -s)" in
-        Linux*)     OS="linux";;
-        Darwin*)    OS="macos";;
+        Linux*)  OS="linux";;
+        Darwin*) OS="macos";;
         CYGWIN*|MINGW*|MSYS*) OS="windows";;
-        *)          OS="unknown";;
+        *)       fail "Unsupported operating system: $(uname -s)";;
     esac
-    
-    # Detect Architecture
+
     case "$(uname -m)" in
-        x86_64|amd64)   ARCH="x64";;
-        arm64|aarch64)  ARCH="arm64";;
-        armv7l|armhf)   ARCH="arm";;
-        *)              ARCH="unknown";;
+        x86_64|amd64) ARCH="x64";;
+        arm64|aarch64) ARCH="arm64";;
+        armv7l|armhf) ARCH="arm";;
+        *) fail "Unsupported architecture: $(uname -m)";;
     esac
-    
-    # Special case for macOS M1/M2
-    if [[ "$OS" == "macos" && "$ARCH" == "arm64" ]]; then
-        RUNTIME="osx-arm64"
-    elif [[ "$OS" == "macos" ]]; then
-        RUNTIME="osx-x64"
-    elif [[ "$OS" == "linux" && "$ARCH" == "arm64" ]]; then
-        RUNTIME="linux-arm64"
-    elif [[ "$OS" == "linux" && "$ARCH" == "arm" ]]; then
-        RUNTIME="linux-arm"
-    elif [[ "$OS" == "linux" ]]; then
-        RUNTIME="linux-x64"
-    else
-        echo -e "${RED}Unsupported platform: $OS-$ARCH${NC}"
-        exit 1
-    fi
-    
-    echo -e "${GREEN}Detected platform: $OS-$ARCH ($RUNTIME)${NC}"
+
+    case "$OS-$ARCH" in
+        linux-x64)   RUNTIME="linux-x64";;
+        linux-arm64) RUNTIME="linux-arm64";;
+        linux-arm)   RUNTIME="linux-arm";;
+        macos-x64)   RUNTIME="osx-x64";;
+        macos-arm64) RUNTIME="osx-arm64";;
+        windows-x64) RUNTIME="win-x64";;
+        windows-arm64) RUNTIME="win-arm64";;
+        *) fail "Unsupported runtime combination: $OS-$ARCH";;
+    esac
+
+    log_info "Detected platform $OS ($ARCH), runtime identifier $RUNTIME"
 }
 
-# Check prerequisites
-check_prerequisites() {
-    echo -e "${YELLOW}Checking prerequisites...${NC}"
-    
-    # Check for curl or wget
-    if ! command -v curl &> /dev/null && ! command -v wget &> /dev/null; then
-        echo -e "${RED}ERROR: curl or wget is required${NC}"
-        exit 1
-    fi
-    
-    # Check for tar
-    if ! command -v tar &> /dev/null; then
-        echo -e "${RED}ERROR: tar is required${NC}"
-        exit 1
-    fi
-    
-    # Optional: Check for .NET Runtime (if not using self-contained)
-    if command -v dotnet &> /dev/null; then
-        echo -e "${GREEN}✓ .NET Runtime found${NC}"
+ensure_tools() {
+    log_step "Checking prerequisites"
+
+    if command -v curl >/dev/null 2>&1; then
+        DOWNLOAD_CMD="curl"
+    elif command -v wget >/dev/null 2>&1; then
+        DOWNLOAD_CMD="wget"
     else
-        echo -e "${YELLOW}⚠ .NET Runtime not found (using self-contained version)${NC}"
+        fail "curl or wget is required"
+    fi
+
+    command -v tar >/dev/null 2>&1 || fail "tar is required"
+    command -v dotnet >/dev/null 2>&1 || fail "dotnet SDK 8.0 or later is required"
+
+    if ! dotnet --list-sdks | grep -q "^8\."; then
+        log_warn "dotnet 8 SDK not detected. Continuing but build may fail."
     fi
 }
 
-# Download Loco
-download_loco() {
-    echo -e "${YELLOW}Downloading Loco $VERSION for $RUNTIME...${NC}"
-    
-    # Determine download URL
-    if [[ "$VERSION" == "latest" ]]; then
-        DOWNLOAD_URL="$REPO_URL/releases/latest/download/loco-$RUNTIME.tar.gz"
-    else
-        DOWNLOAD_URL="$REPO_URL/releases/download/$VERSION/loco-$RUNTIME.tar.gz"
-    fi
-    
-    # Create temp directory
-    TMP_DIR=$(mktemp -d)
-    cd "$TMP_DIR"
-    
-    # Download
-    if command -v curl &> /dev/null; then
-        curl -sSL "$DOWNLOAD_URL" -o loco.tar.gz
-    else
-        wget -q "$DOWNLOAD_URL" -O loco.tar.gz
-    fi
-    
-    # Extract
-    tar -xzf loco.tar.gz
-    
-    echo -e "${GREEN}✓ Download complete${NC}"
-}
-
-# Install Loco
-install_loco() {
-    echo -e "${YELLOW}Installing Loco...${NC}"
-    
-    # Create directories
-    mkdir -p "$INSTALL_DIR"
-    mkdir -p "$BIN_DIR"
-    
-    # Copy files
-    cp -r * "$INSTALL_DIR/" 2>/dev/null || true
-    
-    # Create symlink
-    ln -sf "$INSTALL_DIR/loco" "$BIN_DIR/loco"
-    
-    # Make executable
-    chmod +x "$INSTALL_DIR/loco"
-    chmod +x "$INSTALL_DIR/Loco.Cli" 2>/dev/null || true
-    
-    echo -e "${GREEN}✓ Installation complete${NC}"
-}
-
-# Setup environment
-setup_environment() {
-    echo -e "${YELLOW}Setting up environment...${NC}"
-    
-    # Detect shell
-    SHELL_RC=""
-    if [[ -n "$ZSH_VERSION" ]]; then
+prepare_shell_rc() {
+    if [[ -n "${ZSH_VERSION:-}" ]]; then
         SHELL_RC="$HOME/.zshrc"
-    elif [[ -n "$BASH_VERSION" ]]; then
+    elif [[ -n "${BASH_VERSION:-}" ]]; then
         SHELL_RC="$HOME/.bashrc"
     elif [[ -f "$HOME/.profile" ]]; then
         SHELL_RC="$HOME/.profile"
+    else
+        SHELL_RC=""
     fi
-    
-    # Add to PATH if not already there
-    if [[ -n "$SHELL_RC" ]]; then
-        if ! grep -q "$BIN_DIR" "$SHELL_RC"; then
-            echo "" >> "$SHELL_RC"
-            echo "# Loco automation platform" >> "$SHELL_RC"
-            echo "export PATH=\"\$PATH:$BIN_DIR\"" >> "$SHELL_RC"
-            echo -e "${GREEN}✓ Added to PATH in $SHELL_RC${NC}"
-            echo -e "${YELLOW}  Run: source $SHELL_RC${NC}"
-        else
-            echo -e "${GREEN}✓ PATH already configured${NC}"
-        fi
-    fi
-    
-    # Create config directory
-    mkdir -p "$HOME/.config/loco"
-    
-    # Create default config
-    cat > "$HOME/.config/loco/config.json" << EOF
-{
-    "version": "$VERSION",
-    "runtime": "$RUNTIME",
-    "installDir": "$INSTALL_DIR",
-    "language": "en",
-    "theme": "dark",
-    "autoUpdate": true
-}
-EOF
-    
-    echo -e "${GREEN}✓ Configuration created${NC}"
 }
 
-# Install dependencies based on OS
-install_dependencies() {
-    echo -e "${YELLOW}Checking system dependencies...${NC}"
-    
-    case "$OS" in
-        linux)
-            # Check for notification support
-            if ! command -v notify-send &> /dev/null; then
-                echo -e "${YELLOW}  notify-send not found (notifications will use fallback)${NC}"
-            fi
-            
-            # Check for TTS support
-            if ! command -v espeak &> /dev/null && ! command -v festival &> /dev/null; then
-                echo -e "${YELLOW}  TTS not available (install espeak or festival for text-to-speech)${NC}"
-            fi
+create_tmpdir() {
+    TMP_DIR=$(mktemp -d 2>/dev/null || mktemp -d -t loco)
+    SRC_DIR="$TMP_DIR/src"
+    mkdir -p "$SRC_DIR"
+}
+
+download_file() {
+    local url="$1"
+    local dest="$2"
+
+    case "$DOWNLOAD_CMD" in
+        curl)
+            curl -fL "$url" -o "$dest" || fail "Failed to download $url"
             ;;
-        
-        macos)
-            # macOS has built-in support for notifications and TTS
-            echo -e "${GREEN}✓ macOS native features available${NC}"
+        wget)
+            wget --https-only -qO "$dest" "$url" || fail "Failed to download $url"
             ;;
     esac
 }
 
-# Verify installation
-verify_installation() {
-    echo -e "${YELLOW}Verifying installation...${NC}"
-    
-    if "$BIN_DIR/loco" --version &> /dev/null; then
-        echo -e "${GREEN}✓ Loco installed successfully!${NC}"
-        "$BIN_DIR/loco" --version
+download_source() {
+    log_step "Fetching source code"
+    local ref="$VERSION"
+    local tarball=""
+
+    if [[ "$ref" == "latest" ]]; then
+        ref="main"
+        tarball="https://codeload.github.com/${REPO_OWNER}/${REPO_NAME}/tar.gz/refs/heads/${ref}"
     else
-        echo -e "${RED}✗ Installation verification failed${NC}"
-        exit 1
+        tarball="https://codeload.github.com/${REPO_OWNER}/${REPO_NAME}/tar.gz/refs/tags/${ref}"
+    fi
+
+    local archive="$TMP_DIR/source.tar.gz"
+    download_file "$tarball" "$archive"
+    tar -xzf "$archive" -C "$TMP_DIR"
+
+    local extracted
+    extracted=$(find "$TMP_DIR" -maxdepth 1 -mindepth 1 -type d -name "${REPO_NAME}-*" | head -n 1)
+    [[ -d "$extracted" ]] || fail "Failed to extract repository"
+    cp -R "$extracted"/. "$SRC_DIR"/
+}
+
+publish_cli() {
+    log_step "Building Loco CLI (runtime: $RUNTIME)"
+    local publish_dir="$TMP_DIR/publish"
+    mkdir -p "$publish_dir"
+
+    local publish_args=(publish "$SRC_DIR/src/Loco.Cli" -c Release -r "$RUNTIME" -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o "$publish_dir")
+
+    if [[ "$SELF_CONTAINED" == true ]]; then
+        publish_args+=(--self-contained true)
+    else
+        publish_args+=(--self-contained false)
+    fi
+
+    dotnet "${publish_args[@]}"
+
+    CLI_BINARY="$publish_dir/Loco.Cli"
+    [[ "$OS" == "windows" ]] && CLI_BINARY+=".exe"
+    [[ -f "$CLI_BINARY" ]] || fail "Build completed but Loco CLI binary not found"
+}
+
+install_cli() {
+    log_step "Installing into $INSTALL_DIR"
+    local target_bin_dir="$INSTALL_DIR/bin"
+
+    mkdir -p "$target_bin_dir"
+    mkdir -p "$BIN_DIR"
+
+    install -m 755 "$CLI_BINARY" "$target_bin_dir/"
+
+    BIN_WRAPPER="$target_bin_dir/loco"
+    cat > "$BIN_WRAPPER" <<'EOF'
+#!/bin/sh
+set -e
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+exec "$SCRIPT_DIR/Loco.Cli" "$@"
+EOF
+    chmod 755 "$BIN_WRAPPER"
+
+    if [[ "$OS" == "windows" ]]; then
+        cat > "$target_bin_dir/loco.cmd" <<'EOF'
+@echo off
+"%~dp0Loco.Cli.exe" %*
+EOF
+    fi
+
+    ln -sf "$BIN_WRAPPER" "$BIN_DIR/loco"
+}
+
+configure_environment() {
+    log_step "Configuring environment"
+
+    prepare_shell_rc
+
+    if [[ -n "$SHELL_RC" ]]; then
+        if ! grep -Fq "$BIN_DIR" "$SHELL_RC" 2>/dev/null; then
+            {
+                printf "\n# Loco automation platform\n"
+                printf "export PATH=\"$BIN_DIR:\$PATH\"\n"
+            } >> "$SHELL_RC"
+            log_info "Updated PATH in $SHELL_RC"
+        else
+            log_info "PATH already includes $BIN_DIR"
+        fi
+    else
+        log_warn "Could not detect shell profile file automatically. Ensure $BIN_DIR is on your PATH."
+    fi
+
+    mkdir -p "$HOME/.config/loco"
+    cat > "$HOME/.config/loco/config.json" <<EOF
+{
+  "version": "${VERSION}",
+  "runtime": "${RUNTIME}",
+  "installDir": "${INSTALL_DIR}",
+  "binDir": "${BIN_DIR}",
+  "selfContained": ${SELF_CONTAINED}
+}
+EOF
+}
+
+verify_installation() {
+    log_step "Verifying installation"
+
+    if "$BIN_DIR/loco" --version >/dev/null 2>&1; then
+        log_info "Loco CLI is operational"
+    else
+        fail "Verification failed. Check $BIN_DIR/loco --version output"
     fi
 }
 
-# Cleanup
 cleanup() {
-    if [[ -n "$TMP_DIR" && -d "$TMP_DIR" ]]; then
-        rm -rf "$TMP_DIR"
-    fi
+    [[ -n "$TMP_DIR" && -d "$TMP_DIR" ]] && rm -rf "$TMP_DIR"
 }
 
-# Main installation flow
-main() {
-    echo -e "${BLUE}=====================================${NC}"
-    echo -e "${BLUE}     Loco Installer${NC}"
-    echo -e "${BLUE}=====================================${NC}"
+print_summary() {
     echo
-    
-    # Parse arguments
+    printf "%b=====================================%b\n" "$GREEN" "$NC"
+    printf "%b Installation Complete%b\n" "$GREEN" "$NC"
+    printf "%b=====================================%b\n" "$GREEN" "$NC"
+    echo
+    printf "Install directory : %s\n" "$INSTALL_DIR"
+    printf "User binary path  : %s/loco\n" "$BIN_DIR"
+    if [[ -n "$SHELL_RC" ]]; then
+        printf "Reload shell config: source %s\n" "$SHELL_RC"
+    fi
+    printf "Check CLI: %s\n" "$BIN_DIR/loco --help"
+}
+
+parse_args() {
     while [[ $# -gt 0 ]]; do
-        case $1 in
+        case "$1" in
             --version)
+                [[ $# -lt 2 ]] && fail "--version requires an argument"
                 VERSION="$2"
                 shift 2
                 ;;
             --dir)
+                [[ $# -lt 2 ]] && fail "--dir requires an argument"
                 INSTALL_DIR="$2"
                 shift 2
                 ;;
+            --bin-dir)
+                [[ $# -lt 2 ]] && fail "--bin-dir requires an argument"
+                BIN_DIR="$2"
+                shift 2
+                ;;
+            --framework-dependent)
+                SELF_CONTAINED=false
+                shift
+                ;;
             --help)
-                echo "Usage: $0 [OPTIONS]"
-                echo "Options:"
-                echo "  --version VERSION  Install specific version (default: latest)"
-                echo "  --dir DIRECTORY    Installation directory (default: ~/.loco)"
-                echo "  --help            Show this help message"
+                cat <<EOF
+Usage: $0 [OPTIONS]
+
+Options:
+  --version <tag>            Install a specific tag (default: latest main branch)
+  --dir <path>               Installation directory (default: $HOME/.loco)
+  --bin-dir <path>           Directory for the loco shim (default: $HOME/.local/bin)
+  --framework-dependent      Produce a framework-dependent build (requires .NET runtime)
+  --help                     Show this help message
+EOF
                 exit 0
                 ;;
             *)
-                echo -e "${RED}Unknown option: $1${NC}"
-                exit 1
+                fail "Unknown option: $1"
                 ;;
         esac
     done
-    
-    # Set trap for cleanup
-    trap cleanup EXIT
-    
-    # Run installation steps
-    detect_platform
-    check_prerequisites
-    download_loco
-    install_loco
-    setup_environment
-    install_dependencies
-    verify_installation
-    
-    echo
-    echo -e "${GREEN}=====================================${NC}"
-    echo -e "${GREEN}     Installation Complete!${NC}"
-    echo -e "${GREEN}=====================================${NC}"
-    echo
-    echo -e "Loco has been installed to: ${BLUE}$INSTALL_DIR${NC}"
-    echo -e "Binary location: ${BLUE}$BIN_DIR/loco${NC}"
-    echo
-    echo -e "${YELLOW}Next steps:${NC}"
-    echo -e "  1. Reload your shell: ${BLUE}source $SHELL_RC${NC}"
-    echo -e "  2. Run Loco: ${BLUE}loco --help${NC}"
-    echo -e "  3. Create your first flow: ${BLUE}loco build${NC}"
-    echo
-    echo -e "${GREEN}Happy automating! 🚀${NC}"
 }
 
-# Run main function
+main() {
+    parse_args "$@"
+    trap cleanup EXIT
+
+    detect_platform
+    ensure_tools
+    create_tmpdir
+    download_source
+    publish_cli
+    install_cli
+    configure_environment
+    verify_installation
+    print_summary
+}
+
 main "$@"

@@ -1,0 +1,76 @@
+{
+  "id": "batch-processing-001",
+  "name": "Batch Email Processing",
+  "description": "Process multiple email addresses in batches",
+  "steps": [
+    {
+      "id": "load-email-list",
+      "name": "Load email list from file",
+      "type": "text",
+      "operation": "read",
+      "inputText": "C:\\Data\\email-list.csv",
+      "outputVariable": "emailData"
+    },
+    {
+      "id": "parse-email-list",
+      "name": "Parse CSV email data",
+      "type": "text",
+      "operation": "split",
+      "inputText": "{emailData}",
+      "delimiter": "\\n",
+      "outputVariable": "emailList"
+    },
+    {
+      "id": "process-emails-batch",
+      "name": "Process emails in batches",
+      "type": "batch",
+      "inputData": "emailList",
+      "batchSize": 5,
+      "maxConcurrency": 2,
+      "continueOnError": true,
+      "resultsVariable": "processedEmails",
+      "errorsVariable": "emailErrors",
+      "progressVariable": "batchProgress"
+    },
+    {
+      "id": "cache-results",
+      "name": "Cache batch results",
+      "type": "cache",
+      "operation": "set",
+      "key": "batch_results_{timestamp}",
+      "value": {
+        "processed": "{processedEmails}",
+        "errors": "{emailErrors}",
+        "totalCount": "{batchProgress.TotalItems}",
+        "timestamp": "{timestamp}"
+      },
+      "expirationMinutes": 60
+    },
+    {
+      "id": "generate-report",
+      "name": "Generate processing report",
+      "type": "text",
+      "operation": "template",
+      "inputText": "Batch Processing Report\\nTotal Items: {batchProgress.TotalItems}\\nProcessed: {batchProgress.ProcessedItems}\\nErrors: {emailErrors.Count}\\nCompleted: {timestamp}",
+      "outputVariable": "report"
+    },
+    {
+      "id": "save-report",
+      "name": "Save report to file",
+      "type": "text",
+      "operation": "write",
+      "inputText": "{report}",
+      "outputText": "C:\\Reports\\batch-report-{timestamp}.txt"
+    },
+    {
+      "id": "notify-completion",
+      "name": "Notify batch completion",
+      "type": "notification",
+      "channel": "file",
+      "recipient": "C:\\Logs\\batch-processing.log",
+      "title": "Batch Processing Complete",
+      "message": "Processed {batchProgress.ProcessedItems}/{batchProgress.TotalItems} items with {emailErrors.Count} errors",
+      "priority": "normal"
+    }
+  ]
+}

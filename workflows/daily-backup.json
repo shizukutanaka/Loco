@@ -1,0 +1,74 @@
+{
+  "id": "daily-backup-001",
+  "name": "Daily Backup Workflow",
+  "description": "Automated daily backup of important files with compression and verification",
+  "steps": [
+    {
+      "id": "start-backup",
+      "name": "Start Backup Process",
+      "type": "log",
+      "message": "Starting daily backup process at {timestamp}..."
+    },
+    {
+      "id": "get-user-profile",
+      "name": "Get User Profile Path",
+      "type": "env",
+      "operation": "get",
+      "variableName": "USERPROFILE"
+    },
+    {
+      "id": "create-backup-name",
+      "name": "Create Backup Archive Name",
+      "type": "text",
+      "operation": "template",
+      "inputText": "daily-backup-{timestamp}.zip"
+    },
+    {
+      "id": "backup-documents",
+      "name": "Backup Documents Folder",
+      "type": "archive",
+      "operation": "compress",
+      "sourcePath": "{USERPROFILE}\\Documents",
+      "targetPath": "C:\\Backups\\{daily-backup-{timestamp}.zip}",
+      "compressionLevel": "Optimal"
+    },
+    {
+      "id": "verify-backup",
+      "name": "Verify Backup Archive",
+      "type": "archive",
+      "operation": "list",
+      "sourcePath": "C:\\Backups\\{daily-backup-{timestamp}.zip}"
+    },
+    {
+      "id": "collect-backup-stats",
+      "name": "Collect Backup Statistics",
+      "type": "stats",
+      "operation": "collect",
+      "metricName": "backup_files_count",
+      "metricValue": "{archive_verification.FileCount}"
+    },
+    {
+      "id": "cache-backup-info",
+      "name": "Cache Backup Information",
+      "type": "cache",
+      "operation": "set",
+      "key": "last_backup_info",
+      "value": "{backup_result}",
+      "expirationMinutes": 1440
+    },
+    {
+      "id": "cleanup-old-backups",
+      "name": "Log Cleanup Notice",
+      "type": "log",
+      "message": "Backup completed. Consider cleaning up backups older than 30 days."
+    },
+    {
+      "id": "completion-notification",
+      "name": "Backup Completion Notification",
+      "type": "notification",
+      "channel": "console",
+      "title": "Daily Backup Complete",
+      "message": "Daily backup completed successfully. Files backed up: {verification_result.FileCount}"
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "id": "config-mgmt-001",
+  "name": "Configuration Management",
+  "description": "Manage application configuration files",
+  "steps": [
+    {
+      "id": "backup-config",
+      "name": "Backup current configuration",
+      "type": "config",
+      "operation": "backup",
+      "configPath": "app-config.json"
+    },
+    {
+      "id": "read-current-settings",
+      "name": "Read current settings",
+      "type": "config",
+      "operation": "read",
+      "configPath": "app-config.json",
+      "outputVariable": "currentConfig"
+    },
+    {
+      "id": "update-log-level",
+      "name": "Update log level setting",
+      "type": "config",
+      "operation": "update",
+      "configPath": "app-config.json",
+      "key": "logLevel",
+      "value": "Information"
+    },
+    {
+      "id": "update-performance-settings",
+      "name": "Update performance settings",
+      "type": "config",
+      "operation": "update",
+      "configPath": "app-config.json",
+      "key": "performance",
+      "value": {
+        "enableOptimization": true,
+        "gcIntervalMinutes": 5,
+        "maxMemoryMB": 512
+      }
+    },
+    {
+      "id": "verify-config",
+      "name": "Verify updated configuration",
+      "type": "config",
+      "operation": "read",
+      "configPath": "app-config.json",
+      "outputVariable": "updatedConfig"
+    },
+    {
+      "id": "log-changes",
+      "name": "Log configuration changes",
+      "type": "log",
+      "message": "Configuration updated. Current: {currentConfig}, Updated: {updatedConfig}"
+    }
+  ]
+}

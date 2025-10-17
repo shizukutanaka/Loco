@@ -1,0 +1,70 @@
+{
+  "id": "perf-test-001",
+  "name": "Performance Test Workflow",
+  "description": "Test various operations to demonstrate performance monitoring",
+  "steps": [
+    {
+      "id": "start-log",
+      "name": "Start Performance Test",
+      "type": "log",
+      "message": "Starting performance test workflow..."
+    },
+    {
+      "id": "quick-delay",
+      "name": "Quick Delay Test",
+      "type": "delay",
+      "duration": "00:00:00.100"
+    },
+    {
+      "id": "env-test",
+      "name": "Environment Variable Test",
+      "type": "env",
+      "operation": "get",
+      "variableName": "PATH"
+    },
+    {
+      "id": "json-test",
+      "name": "JSON Processing Test",
+      "type": "json",
+      "operation": "parse",
+      "data": "{\"test\": \"performance\", \"timestamp\": \"2024-01-01\"}"
+    },
+    {
+      "id": "condition-test",
+      "name": "Condition Test",
+      "type": "condition",
+      "leftValue": "performance",
+      "operator": "equals",
+      "rightValue": "performance"
+    },
+    {
+      "id": "cache-set",
+      "name": "Cache Set Test",
+      "type": "cache",
+      "operation": "set",
+      "key": "perf_test_key",
+      "value": "test_value_123"
+    },
+    {
+      "id": "cache-get",
+      "name": "Cache Get Test",
+      "type": "cache",
+      "operation": "get",
+      "key": "perf_test_key"
+    },
+    {
+      "id": "stats-collect",
+      "name": "Stats Collection Test",
+      "type": "stats",
+      "operation": "collect",
+      "metricName": "test_metric",
+      "metricValue": "100"
+    },
+    {
+      "id": "final-log",
+      "name": "Performance Test Complete",
+      "type": "log",
+      "message": "Performance test workflow completed! Check metrics above."
+    }
+  ]
+}

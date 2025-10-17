@@ -1,0 +1,25 @@
+{
+  "id": "hello-world-001",
+  "name": "Hello World Workflow",
+  "description": "A simple hello world workflow",
+  "steps": [
+    {
+      "id": "log-1",
+      "name": "Welcome Message",
+      "type": "log",
+      "message": "Hello, World! Welcome to Loco automation tool."
+    },
+    {
+      "id": "delay-1",
+      "name": "Brief Pause",
+      "type": "delay",
+      "duration": "00:00:01"
+    },
+    {
+      "id": "log-2",
+      "name": "Completion Message",
+      "type": "log",
+      "message": "Hello World workflow completed successfully!"
+    }
+  ]
+}

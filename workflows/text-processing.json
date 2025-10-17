@@ -1,0 +1,91 @@
+{
+  "id": "text-proc-001",
+  "name": "Text Processing Pipeline",
+  "description": "Process and clean text data with various operations",
+  "steps": [
+    {
+      "id": "read-input-text",
+      "name": "Read input text file",
+      "type": "fileOperation",
+      "operation": "read",
+      "path": "input.txt",
+      "outputVariable": "rawText"
+    },
+    {
+      "id": "trim-whitespace",
+      "name": "Trim whitespace",
+      "type": "text",
+      "operation": "trim",
+      "inputText": "{rawText}",
+      "outputVariable": "trimmedText"
+    },
+    {
+      "id": "convert-to-lower",
+      "name": "Convert to lowercase",
+      "type": "text",
+      "operation": "lower",
+      "inputText": "{trimmedText}",
+      "outputVariable": "lowerText"
+    },
+    {
+      "id": "remove-extra-spaces",
+      "name": "Remove extra spaces",
+      "type": "text",
+      "operation": "replace",
+      "inputText": "{lowerText}",
+      "pattern": "\\s+",
+      "replacement": " ",
+      "outputVariable": "cleanText"
+    },
+    {
+      "id": "split-into-words",
+      "name": "Split text into words",
+      "type": "text",
+      "operation": "split",
+      "inputText": "{cleanText}",
+      "separator": " ",
+      "outputVariable": "wordArray"
+    },
+    {
+      "id": "count-words",
+      "name": "Count words",
+      "type": "text",
+      "operation": "length",
+      "inputText": "{wordArray}",
+      "outputVariable": "wordCount"
+    },
+    {
+      "id": "check-word-count",
+      "name": "Check if text has enough words",
+      "type": "condition",
+      "leftValue": "{wordCount}",
+      "operator": "greater",
+      "rightValue": "10",
+      "resultVariable": "hasEnoughWords"
+    },
+    {
+      "id": "format-summary",
+      "name": "Format processing summary",
+      "type": "text",
+      "operation": "format",
+      "template": "Text Processing Summary\\nOriginal length: {rawText}\\nCleaned length: {cleanText}\\nWord count: {wordCount}\\nSufficient content: {hasEnoughWords}\\nProcessed: {timestamp}",
+      "outputVariable": "summary"
+    },
+    {
+      "id": "save-clean-text",
+      "name": "Save cleaned text",
+      "type": "fileOperation",
+      "operation": "write",
+      "path": "output-clean.txt",
+      "content": "{cleanText}"
+    },
+    {
+      "id": "save-summary",
+      "name": "Save processing summary",
+      "type": "fileOperation",
+      "operation": "write",
+      "path": "processing-summary.txt",
+      "content": "{summary}"
+    }
+  ]
+}

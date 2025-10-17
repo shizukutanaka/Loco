@@ -1,0 +1,66 @@
+{
+  "id": "sys-monitor-001",
+  "name": "Continuous System Monitoring",
+  "description": "Monitor system resources and alert on thresholds",
+  "steps": [
+    {
+      "id": "monitor-disk-c",
+      "name": "Monitor C: drive usage",
+      "type": "monitor",
+      "monitorType": "disk",
+      "target": "C:",
+      "thresholds": {
+        "max_usage_percent": 85
+      },
+      "checkIntervalSeconds": 60,
+      "alertVariable": "diskAlert"
+    },
+    {
+      "id": "monitor-memory",
+      "name": "Monitor memory usage",
+      "type": "monitor",
+      "monitorType": "memory",
+      "thresholds": {
+        "max_memory_mb": 1024
+      },
+      "checkIntervalSeconds": 30,
+      "alertVariable": "memoryAlert"
+    },
+    {
+      "id": "check-critical-process",
+      "name": "Monitor critical process",
+      "type": "monitor",
+      "monitorType": "process",
+      "target": "explorer",
+      "thresholds": {
+        "max_memory_mb": 512
+      },
+      "checkIntervalSeconds": 60,
+      "alertVariable": "processAlert"
+    },
+    {
+      "id": "alert-if-issues",
+      "name": "Send alert if any issues found",
+      "type": "notification",
+      "channel": "console",
+      "title": "System Monitoring Alert",
+      "message": "Disk: {diskAlert}, Memory: {memoryAlert}, Process: {processAlert}",
+      "priority": "high"
+    },
+    {
+      "id": "log-monitoring-data",
+      "name": "Log monitoring results",
+      "type": "fileOperation",
+      "operation": "append",
+      "path": "system-monitoring.log",
+      "content": "[{timestamp}] Disk: {diskAlert} | Memory: {memoryAlert} | Process: {processAlert}\\n"
+    },
+    {
+      "id": "repeat-delay",
+      "name": "Wait before next monitoring cycle",
+      "type": "schedule",
+      "scheduleType": "delay",
+      "delaySeconds": 300
+    }
+  ]
+}

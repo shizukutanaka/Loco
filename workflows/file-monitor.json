@@ -1,0 +1,49 @@
+{
+  "id": "file-monitor-001",
+  "name": "File System Monitor",
+  "description": "Monitor directory for file changes and process them",
+  "steps": [
+    {
+      "id": "setup-monitor-path",
+      "name": "Setup monitoring path",
+      "type": "env",
+      "operation": "get",
+      "variableName": "USERPROFILE",
+      "outputVariable": "userPath"
+    },
+    {
+      "id": "monitor-downloads",
+      "name": "Monitor downloads folder",
+      "type": "fileWatcher",
+      "path": "{userPath}\\Downloads",
+      "filter": "*.pdf",
+      "watchEvents": ["created"],
+      "timeoutSeconds": 300,
+      "eventVariable": "fileEvent"
+    },
+    {
+      "id": "check-if-file-detected",
+      "name": "Check if file was detected",
+      "type": "condition",
+      "leftValue": "{fileEvent.EventCount}",
+      "operator": "greater",
+      "rightValue": "0",
+      "resultVariable": "hasNewFile"
+    },
+    {
+      "id": "process-new-file",
+      "name": "Process new PDF file",
+      "type": "notification",
+      "channel": "console",
+      "title": "New PDF Detected",
+      "message": "File: {fileEvent.FirstEvent.Name}",
+      "priority": "normal"
+    },
+    {
+      "id": "log-file-info",
+      "name": "Log file information",
+      "type": "log",
+      "message": "Processed {fileEvent.EventCount} file events"
+    }
+  ]
+}

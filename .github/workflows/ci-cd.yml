@@ -1,258 +1,273 @@
-name: CI/CD Pipeline
+name: Loco CI/CD Pipeline
 
 on:
   push:
     branches: [ main, develop ]
-    tags:
-      - 'v*'
   pull_request:
     branches: [ main ]
-  workflow_dispatch:
+  release:
+    types: [published]
 
 env:
   DOTNET_VERSION: '8.0.x'
-  NODE_VERSION: '18.x'
-  DOCKER_REGISTRY: docker.io
-  DOCKER_IMAGE: shizukutanaka/loco
+  SOLUTION_PATH: Loco.sln
 
 jobs:
-  # Code quality checks
-  quality:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-      
-      - name: Restore dependencies
-        run: dotnet restore
-      
-      - name: Code formatting check
-        run: dotnet format --verify-no-changes
-      
-      - name: Security scan
-        run: |
-          dotnet tool install --global security-scan
-          security-scan ./src
-      
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  build-and-test:
+    name: Build and Test
+    runs-on: windows-latest
 
-  # Build and test
-  build-test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.nuget/packages
-            ~/.npm
-          key: ${{ runner.os }}-deps-${{ hashFiles('**/*.csproj', '**/package-lock.json') }}
-      
-      - name: Restore dependencies
-        run: dotnet restore
-      
-      - name: Build
-        run: dotnet build --configuration Release --no-restore
-      
-      - name: Test
-        run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
-      
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage.cobertura.xml
-          flags: unittests
-          name: codecov-${{ matrix.os }}
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-  # Build Docker images
-  docker:
-    needs: [quality, build-test]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha
-      
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
 
-  # Deploy to Kubernetes
-  deploy:
-    needs: docker
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
-    environment:
-      name: ${{ github.ref == 'refs/heads/main' && 'staging' || 'production' }}
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v3
-      
-      - name: Install Helm
-        uses: azure/setup-helm@v3
-      
-      - name: Configure kubectl
-        run: |
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > /tmp/kubeconfig
-          echo "KUBECONFIG=/tmp/kubeconfig" >> $GITHUB_ENV
-      
-      - name: Deploy with Helm
-        run: |
-          helm upgrade --install loco ./helm/loco \
-            --namespace loco-system \
-            --create-namespace \
-            --set image.tag=${{ github.sha }} \
-            --set image.pullPolicy=Always \
-            --wait \
-            --timeout 10m
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.SOLUTION_PATH }}
 
-  # Release
-  release:
-    needs: [docker, deploy]
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-      
-      - name: Build release artifacts
-        run: |
-          # Windows
-          dotnet publish src/Loco.Cli -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o ./dist/win-x64
-          
-          # Linux
-          dotnet publish src/Loco.Cli -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o ./dist/linux-x64
-          
-          # macOS
-          dotnet publish src/Loco.Cli -c Release -r osx-x64 --self-contained -p:PublishSingleFile=true -o ./dist/osx-x64
-          
-          # ARM64
-          dotnet publish src/Loco.Cli -c Release -r linux-arm64 --self-contained -p:PublishSingleFile=true -o ./dist/linux-arm64
-      
-      - name: Create archives
-        run: |
-          cd dist
-          tar czf loco-linux-x64.tar.gz -C linux-x64 .
-          tar czf loco-osx-x64.tar.gz -C osx-x64 .
-          tar czf loco-linux-arm64.tar.gz -C linux-arm64 .
-          zip -r loco-win-x64.zip win-x64/*
-      
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            dist/*.tar.gz
-            dist/*.zip
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Publish to NuGet
-        run: |
-          dotnet pack src/Loco.Core -c Release
-          dotnet nuget push src/Loco.Core/bin/Release/*.nupkg \
-            --api-key ${{ secrets.NUGET_API_KEY }} \
-            --source https://api.nuget.org/v3/index.json
-      
-      - name: Update Homebrew Formula
-        if: success()
-        run: |
-          # Update Homebrew formula
-          echo "Homebrew formula update would go here"
-      
-      - name: Update Chocolatey Package
-        if: success()
-        run: |
-          # Update Chocolatey package
-          echo "Chocolatey package update would go here"
+    - name: Build solution
+      run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
 
-  # Performance benchmarks
-  benchmark:
-    needs: build-test
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
+    - name: Run unit tests with coverage
+      run: dotnet test ${{ env.SOLUTION_PATH }} --configuration Release --no-build --verbosity normal --logger trx --results-directory test-results --collect:"XPlat Code Coverage"
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: test-results/**/coverage.cobertura.xml
+        flags: unittests
+        name: codecov-umbrella
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results
+        path: test-results/
+
+    - name: Run integration tests
+      run: .\test-suite.bat integration
+
+    - name: Upload integration test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: integration-test-results
+        path: test-results/
+
+  security-scan:
+    name: Security Scan
+    runs-on: windows-latest
+    needs: build-and-test
+
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-      
-      - name: Run benchmarks
-        run: |
-          dotnet run -c Release --project tests/Loco.Benchmarks
-      
-      - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@v1
-        with:
-          tool: 'benchmarkdotnet'
-          output-file-path: BenchmarkDotNet.Artifacts/results/Loco.Benchmarks-report-full-compressed.json
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: true
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Run security scan
+      run: .\test-suite.bat security
+
+    - name: Upload security scan results
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-scan-results
+        path: test-results/
+
+  performance-test:
+    name: Performance Test
+    runs-on: windows-latest
+    needs: build-and-test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Run performance tests
+      run: .\test-suite.bat performance
+
+    - name: Upload performance results
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-test-results
+        path: test-results/
+
+  publish:
+    name: Publish Artifacts
+    runs-on: windows-latest
+    needs: [build-and-test, security-scan, performance-test]
+    if: github.event_name == 'release'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Publish CLI for Windows x64
+      run: .\build.bat publish
+      env:
+        PUBLISH_RUNTIME: win-x64
+
+    - name: Publish CLI for Linux x64
+      run: dotnet publish src/Loco.Cli/Loco.Cli.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -p:PublishTrimmed=true -o publish-linux-x64
+      env:
+        PUBLISH_RUNTIME: linux-x64
+
+    - name: Publish CLI for macOS x64
+      run: dotnet publish src/Loco.Cli/Loco.Cli.csproj -c Release -r osx-x64 --self-contained -p:PublishSingleFile=true -p:PublishTrimmed=true -o publish-osx-x64
+      env:
+        PUBLISH_RUNTIME: osx-x64
+
+    - name: Publish GUI for Windows
+      run: dotnet publish src/Loco.Gui/Loco.Gui.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish-gui-win-x64
+
+    - name: Create release archives
+      run: |
+        Compress-Archive -Path output\* -DestinationPath loco-cli-windows-x64.zip
+        Compress-Archive -Path publish-linux-x64\* -DestinationPath loco-cli-linux-x64.zip
+        Compress-Archive -Path publish-osx-x64\* -DestinationPath loco-cli-macos-x64.zip
+        Compress-Archive -Path publish-gui-win-x64\* -DestinationPath loco-gui-windows-x64.zip
+
+    - name: Upload release assets
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          loco-cli-windows-x64.zip
+          loco-cli-linux-x64.zip
+          loco-cli-macos-x64.zip
+          loco-gui-windows-x64.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-docker:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    needs: publish
+    if: github.event_name == 'release'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Build and push CLI Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./deployment/Dockerfile.cli
+        push: true
+        tags: locoautomation/loco-cli:latest, locoautomation/loco-cli:${{ github.event.release.tag_name }}
+
+    - name: Build and push GUI Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./deployment/Dockerfile.gui
+        push: true
+        tags: locoautomation/loco-gui:latest, locoautomation/loco-gui:${{ github.event.release.tag_name }}
+
+  deploy-to-winget:
+    name: Deploy to Winget
+    runs-on: windows-latest
+    needs: publish
+    if: github.event_name == 'release'
+
+    steps:
+    - name: Checkout winget-pkgs
+      uses: actions/checkout@v4
+      with:
+        repository: microsoft/winget-pkgs
+        path: winget-pkgs
+
+    - name: Update winget manifest
+      run: |
+        $version = "${{ github.event.release.tag_name }}".TrimStart("v")
+        $manifestPath = "winget-pkgs/manifests/l/locoautomation/loco/$version/"
+
+        New-Item -ItemType Directory -Force -Path $manifestPath
+
+        # Copy and update manifests
+        Copy-Item "winget\LocoAutomation.Loco.yaml" "$manifestPath\"
+        Copy-Item "winget\LocoAutomation.Loco.installer.yaml" "$manifestPath\"
+        Copy-Item "winget\LocoAutomation.Loco.locale.en-US.yaml" "$manifestPath\"
+
+        # Update version in manifests
+        $content = Get-Content "$manifestPath\LocoAutomation.Loco.yaml"
+        $content = $content -replace "PackageVersion: .*", "PackageVersion: $version"
+        Set-Content "$manifestPath\LocoAutomation.Loco.yaml" $content
+
+        $content = Get-Content "$manifestPath\LocoAutomation.Loco.installer.yaml"
+        $content = $content -replace "PackageVersion: .*", "PackageVersion: $version"
+        $content = $content -replace "PLACEHOLDER_SHA256_HASH", "UPDATE_WITH_ACTUAL_HASH"
+        Set-Content "$manifestPath\LocoAutomation.Loco.installer.yaml" $content
+
+        $content = Get-Content "$manifestPath\LocoAutomation.Loco.locale.en-US.yaml"
+        $content = $content -replace "PackageVersion: .*", "PackageVersion: $version"
+        Set-Content "$manifestPath\LocoAutomation.Loco.locale.en-US.yaml" $content
+
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.WINGET_TOKEN }}
+        path: winget-pkgs
+        branch: loco-${{ github.event.release.tag_name }}
+        title: "Add Loco Automation Platform v${{ github.event.release.tag_name }}"
+        body: |
+          ## Package Details
+
+          - **Package ID**: LocoAutomation.Loco
+          - **Version**: ${{ github.event.release.tag_name }}
+          - **Publisher**: Loco Automation
+
+          ## Description
+
+          Enterprise-grade automation platform with IoT integration, security compliance, and comprehensive monitoring capabilities.
+
+          ## Release Notes
+
+          ${{ github.event.release.body }}
+
+        commit-message: "Add Loco Automation Platform v${{ github.event.release.tag_name }}"
+
+  notify-release:
+    name: Notify Release
+    runs-on: ubuntu-latest
+    needs: [publish, deploy-docker, deploy-to-winget]
+    if: github.event_name == 'release'
+
+    steps:
+    - name: Send notification
+      run: |
+        echo "🚀 Loco Automation Platform v${{ github.event.release.tag_name }} has been released!"
+        echo "📦 Available on:"
+        echo "  - GitHub Releases: https://github.com/${{ github.repository }}/releases/tag/${{ github.event.release.tag_name }}"
+        echo "  - Docker Hub: locoautomation/loco-cli:${{ github.event.release.tag_name }}"
+        echo "  - Winget: winget install LocoAutomation.Loco"
+        echo ""
+        echo "📊 Release Summary:"
+        echo "${{ github.event.release.body }}"

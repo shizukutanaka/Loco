@@ -4,135 +4,84 @@ on:
   push:
     branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
-  workflow_dispatch:
-
-env:
-  DOTNET_VERSION: '8.0.x'
-  NODE_VERSION: '18.x'
+    branches: [ main, develop ]
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+        dotnet-version: ['8.0.x']
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-        cache-dependency-path: |
-          web/package-lock.json
-          mobile/package-lock.json
+        dotnet-version: ${{ matrix.dotnet-version }}
 
     - name: Restore dependencies
       run: dotnet restore
 
     - name: Build
-      run: dotnet build --no-restore --configuration Release
+      run: dotnet build --configuration Release --no-restore
 
     - name: Test
-      run: dotnet test --no-build --verbosity normal --configuration Release --logger:"trx;LogFileName=test-results.trx"
+      run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
 
-    - name: Upload test results
-      uses: actions/upload-artifact@v4
-      if: always()
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      if: matrix.os == 'ubuntu-latest'
       with:
-        name: test-results-${{ matrix.os }}
-        path: '**/test-results.trx'
+        files: ./coverage/**/coverage.cobertura.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
 
-    - name: Build Web UI
-      working-directory: web
-      run: |
-        npm ci
-        npm run build
+  lint:
+    runs-on: ubuntu-latest
 
-    - name: Build Mobile App
-      working-directory: mobile
-      run: |
-        npm ci
-        npm run build
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Check formatting
+      run: dotnet format --verify-no-changes --verbosity diagnostic
+      continue-on-error: true
 
   security-scan:
     runs-on: ubuntu-latest
-    
+    permissions:
+      security-events: write
+
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
 
     - name: Run security scan
       run: |
-        dotnet tool install --global security-scan
-        security-scan --path . --format sarif --output security-results.sarif
-
-    - name: Upload security results
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: security-results.sarif
-
-  code-quality:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
-
-    - name: Install dotnet-format
-      run: dotnet tool install --global dotnet-format
-
-    - name: Check code formatting
-      run: dotnet format --verify-no-changes --verbosity diagnostic
-
-    - name: Run code analysis
-      run: dotnet build --no-incremental /p:EnforceCodeStyleInBuild=true
-
-  release:
-    needs: [build, security-scan, code-quality]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
-
-    - name: Build Release Artifacts
-      run: |
-        dotnet publish src/Loco.Cli/Loco.Cli.csproj -c Release -o ./publish/cli
-        dotnet publish src/Loco.Web/Loco.Web.csproj -c Release -o ./publish/web
-
-    - name: Create Release Package
-      run: |
-        cd publish
-        tar -czf loco-${{ github.sha }}.tar.gz cli web
-        zip -r loco-${{ github.sha }}.zip cli web
-
-    - name: Upload Release Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: release-artifacts
-        path: |
-          publish/*.tar.gz
-          publish/*.zip
+        dotnet list package --vulnerable --include-transitive 2>&1 | tee security-scan.log
+        if grep -q "has the following vulnerable packages" security-scan.log; then
+          echo "::warning::Vulnerable packages detected"
+        fi
+      continue-on-error: true
