@@ -1,0 +1,44 @@
+{
+  "id": "test-validation",
+  "name": "Validation Test Workflow",
+  "description": "Tests workflow validation with various valid and edge-case configurations",
+  "steps": [
+    {
+      "id": "valid-log",
+      "name": "Valid log step",
+      "type": "log",
+      "message": "This is a valid step"
+    },
+    {
+      "id": "valid-retry",
+      "name": "Valid retry configuration",
+      "type": "process",
+      "command": "echo test",
+      "retryCount": 3,
+      "retryDelay": "00:00:02",
+      "timeoutSeconds": 10
+    },
+    {
+      "id": "high-retry-warning",
+      "name": "High retry count (should warn)",
+      "type": "process",
+      "command": "echo test",
+      "retryCount": 15
+    },
+    {
+      "id": "valid-conditional",
+      "name": "Valid conditional step",
+      "type": "log",
+      "message": "Runs conditionally",
+      "runIf": "some_variable"
+    },
+    {
+      "id": "both-conditions-warning",
+      "name": "Both RunIf and SkipIf (should warn)",
+      "type": "log",
+      "message": "Has both conditions",
+      "runIf": "var1",
+      "skipIf": "var2"
+    }
+  ]
+}

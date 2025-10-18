@@ -1,0 +1,91 @@
+{
+  "id": "smart-deployment",
+  "name": "Smart Deployment Workflow",
+  "description": "Intelligent deployment with conditional steps based on environment checks",
+  "timeoutSeconds": 300,
+  "continueOnError": false,
+  "steps": [
+    {
+      "id": "start",
+      "name": "Start deployment",
+      "type": "log",
+      "message": "=== Smart Deployment Started at ${datetime} ==="
+    },
+    {
+      "id": "check-environment",
+      "name": "Check environment",
+      "type": "process",
+      "command": "echo %username%",
+      "saveOutput": "current_user"
+    },
+    {
+      "id": "verify-user",
+      "name": "Verify deployment user",
+      "type": "log",
+      "message": "Deploying as user: ${ctx:current_user}",
+      "runIf": "current_user"
+    },
+    {
+      "id": "check-disk-space",
+      "name": "Check available disk space",
+      "type": "process",
+      "command": "echo Available",
+      "saveOutput": "disk_status",
+      "continueOnError": true
+    },
+    {
+      "id": "proceed-if-space",
+      "name": "Proceed if disk space available",
+      "type": "log",
+      "message": "Sufficient disk space - proceeding with deployment",
+      "runIf": "disk_status"
+    },
+    {
+      "id": "backup-check",
+      "name": "Check if backup needed",
+      "type": "process",
+      "command": "echo backup_required",
+      "saveOutput": "backup_needed"
+    },
+    {
+      "id": "create-backup",
+      "name": "Create backup (conditional)",
+      "type": "log",
+      "message": "Creating backup before deployment...",
+      "runIf": "backup_needed"
+    },
+    {
+      "id": "deploy-application",
+      "name": "Deploy application",
+      "type": "log",
+      "message": "Deploying application files..."
+    },
+    {
+      "id": "verify-deployment",
+      "name": "Verify deployment",
+      "type": "process",
+      "command": "echo deployed",
+      "saveOutput": "deploy_result"
+    },
+    {
+      "id": "success-notification",
+      "name": "Notify on success",
+      "type": "log",
+      "message": "✓ Deployment completed successfully",
+      "runIf": "deploy_result"
+    },
+    {
+      "id": "rollback-on-failure",
+      "name": "Rollback if deployment failed",
+      "type": "log",
+      "message": "✗ Rolling back deployment due to errors",
+      "skipIf": "deploy_result"
+    },
+    {
+      "id": "complete",
+      "name": "Deployment complete",
+      "type": "log",
+      "message": "=== Smart Deployment Completed at ${datetime} ==="
+    }
+  ]
+}

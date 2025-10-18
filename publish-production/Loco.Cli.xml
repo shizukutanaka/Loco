@@ -4,6 +4,69 @@
         <name>Loco.Cli</name>
     </assembly>
     <members>
+        <member name="T:Loco.Cli.Commands.BackupCommand">
+            <summary>
+            バックアップコマンド
+            Backup command
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.Commands.BackupConfigCommand">
+            <summary>
+            BackupConfigCommand - Manage configuration backups
+            市販レベル: 設定バックアップ管理機能
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.Commands.BaseCommand">
+            <summary>
+            Base class for all CLI commands
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.Commands.BaseCommand.ExecuteAsync(System.String[])">
+            <summary>
+            Execute the command
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.Commands.BaseCommand.GetHelp">
+            <summary>
+            Get command help information
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.Commands.BaseCommand.TryConsumeOption(System.Collections.Generic.List{System.String},System.String,System.String@)">
+            <summary>
+            Try to consume an option from arguments
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.Commands.BaseCommand.ConsumeFlag(System.Collections.Generic.List{System.String},System.String)">
+            <summary>
+            Consume a flag from arguments
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.Commands.BaseCommand.CommandHelp">
+            <summary>
+            Command help information
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.Commands.SecretsCommand">
+            <summary>
+            CLI command for secrets management operations
+            シークレット管理用のCLIコマンド
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.Commands.SetupCommand">
+            <summary>
+            Setup command implementation
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.Commands.VersionCommand">
+            <summary>
+            Version command implementation
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.Commands.WorkflowCommand">
+            <summary>
+            Command for executing workflows from JSON files.
+            </summary>
+        </member>
         <member name="T:Loco.Cli.ErrorMessages">
             <summary>
             Centralized error message management with user-friendly explanations and solutions.
@@ -35,26 +98,29 @@
             Gets warning message in both languages.
             </summary>
         </member>
-        <member name="T:Loco.Cli.InteractiveMode">
+        <member name="T:Loco.Cli.LocalizationManager">
             <summary>
-            Interactive mode for Loco CLI with command history, auto-completion, and command validation.
-            Provides user-friendly interface for exploring and executing commands.
-            Production-grade implementation with error recovery and context-aware help.
+            Localization manager for the Loco CLI
             </summary>
         </member>
-        <member name="M:Loco.Cli.InteractiveMode.RunAsync">
+        <member name="M:Loco.Cli.LocalizationManager.DetectBestCulture">
             <summary>
-            Starts interactive mode loop.
+            Detect the best culture based on system settings
             </summary>
         </member>
-        <member name="M:Loco.Cli.InteractiveMode.GetCommandSuggestions(System.String)">
+        <member name="M:Loco.Cli.LocalizationManager.GetString(System.String,System.Object[])">
             <summary>
-            Provides command suggestions based on Levenshtein distance.
+            Get localized string
             </summary>
         </member>
-        <member name="M:Loco.Cli.InteractiveMode.LevenshteinDistance(System.String,System.String)">
+        <member name="M:Loco.Cli.LocalizationManager.GetAvailableCultures">
             <summary>
-            Calculates Levenshtein distance for command suggestion.
+            Get available cultures
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.LocalizationManager.IsCultureSupported(System.Globalization.CultureInfo)">
+            <summary>
+            Check if culture is supported
             </summary>
         </member>
         <member name="T:Loco.Cli.SetupWizard">
@@ -66,6 +132,734 @@
         <member name="M:Loco.Cli.SetupWizard.RunAsync">
             <summary>
             Run the setup wizard
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UIDemo">
+            <summary>
+            Demonstration of Atlassian-inspired UI components
+            Run: Loco.Cli.exe demo
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.AdvancedCLI">
+             <summary>
+             進歩的開示を実装した高度なCLI
+             Advanced CLI with progressive disclosure
+            
+             機能: 対話モード、進捗表示、アニメーション
+             Features: Interactive mode, progress display, animations
+             </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.AdvancedCLI.WriteIcon(Loco.Cli.UI.AdvancedCLI.IconType,System.String,System.Nullable{System.ConsoleColor})">
+            <summary>
+            アイコン付きメッセージを表示
+            Display message with icon
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.AdvancedCLI.ProgressBar">
+            <summary>
+            進捗バーを表示
+            Display progress bar
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.AdvancedCLI.Spinner">
+            <summary>
+            スピナーアニメーションを表示
+            Display spinner animation
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.AdvancedCLI.Confirm(System.String,System.Boolean)">
+            <summary>
+            対話的な確認プロンプト
+            Interactive confirmation prompt
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.AdvancedCLI.Select(System.String,System.Collections.Generic.List{System.String},System.Int32)">
+            <summary>
+            対話的な選択プロンプト
+            Interactive selection prompt
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.AdvancedCLI.Input(System.String,System.String,System.Func{System.String,System.String})">
+            <summary>
+            対話的なテキスト入力プロンプト
+            Interactive text input prompt
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.AdvancedCLI.Indent">
+            <summary>
+            インデントレベルを変更
+            Change indent level
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.AdvancedCLI.Section(System.String)">
+            <summary>
+            セクションヘッダーを表示
+            Display section header
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.AdvancedCLI.CreateProgress(System.String,System.Int32)">
+            <summary>
+            進捗バーを作成
+            Create progress bar
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.AdvancedCLI.CreateSpinner(System.String)">
+            <summary>
+            スピナーを作成
+            Create spinner
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.AdvancedCLI.WithSpinnerAsync``1(System.String,System.Func{System.Threading.Tasks.Task{``0}})">
+            <summary>
+            長時間実行タスクを実行
+            Execute long-running task with feedback
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.AdvancedCLI.Table``1(System.Collections.Generic.List{``0},System.ValueTuple{System.String,System.Func{``0,System.String}}[])">
+            <summary>
+            テーブル形式でデータを表示
+            Display data in table format
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.AdvancedCLI.Error(System.String,System.Exception)">
+            <summary>
+            エラーメッセージを表示
+            Display error message
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.AdvancedCLI.Success(System.String)">
+            <summary>
+            成功メッセージを表示
+            Display success message
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.AdvancedCLI.Warning(System.String)">
+            <summary>
+            警告メッセージを表示
+            Display warning message
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.AdvancedCLI.Info(System.String)">
+            <summary>
+            情報メッセージを表示
+            Display info message
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.AdvancedComponents">
+            <summary>
+            Advanced UI components inspired by Atlassian Design System
+            Modals, Forms, Data Grids, and more
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.AdvancedComponents.Modal">
+            <summary>
+            Modal dialog component
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.AdvancedComponents.Form">
+            <summary>
+            Form builder component
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.AdvancedComponents.Toast">
+            <summary>
+            Notification toast component
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.AdvancedComponents.DataGrid">
+            <summary>
+            Enhanced data grid with sorting and filtering
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.AdvancedComponents.Tabs">
+            <summary>
+            Tabs component
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.AdvancedComponents.Accordion">
+            <summary>
+            Accordion component
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Components">
+            <summary>
+            Atlassian-inspired UI components for CLI
+            Provides badge, tag, lozenge, banner, and more
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Components.Badge">
+            <summary>
+            Badge component - small status indicator
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Components.Lozenge">
+            <summary>
+            Lozenge component - pill-shaped status indicator
+            Inspired by Atlassian's lozenge component
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Components.Banner">
+            <summary>
+            Banner component - full-width notification
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Components.Card">
+            <summary>
+            Card component - content container with border
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Components.SectionFlag">
+            <summary>
+            Section flag - visual separator with label
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Components.ProgressIndicator">
+            <summary>
+            Progress indicator - visual progress display
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Components.Breadcrumb">
+            <summary>
+            Breadcrumb - navigation trail
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Components.Divider">
+            <summary>
+            Divider - visual separator
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Components.StatusIndicator">
+            <summary>
+            Status indicator - animated status display
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Components.InlineDialog">
+            <summary>
+            Inline dialog - small popup-like message
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.ConsoleUI">
+            <summary>
+            Enhanced console UI utilities for better user experience
+            Provides progress bars, spinners, tables, and formatting
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.ShowProgressBar(System.Int32,System.Int32,System.String,System.Int32)">
+            <summary>
+            Display a progress bar
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.ClearProgressBar">
+            <summary>
+            Clear the progress bar
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.ConsoleUI.Spinner">
+            <summary>
+            Show a spinner for long-running operations
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.ShowTable(System.String[],System.Collections.Generic.List{System.String[]},System.Boolean)">
+            <summary>
+            Display a table with headers and rows
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.ShowBox(System.String,System.String,System.ConsoleColor)">
+            <summary>
+            Display a box with title and content
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.Success(System.String,System.String)">
+            <summary>
+            Display a success message
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.Error(System.String,System.String)">
+            <summary>
+            Display an error message
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.Warning(System.String,System.String)">
+            <summary>
+            Display a warning message
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.Info(System.String,System.String)">
+            <summary>
+            Display an info message
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.Confirm(System.String,System.Boolean)">
+            <summary>
+            Prompt user for confirmation
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.Prompt(System.String,System.String,System.Func{System.String,System.Boolean})">
+            <summary>
+            Prompt user for input with validation
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.Menu(System.String,System.String[],System.Int32)">
+            <summary>
+            Display a menu and get user selection
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.ShowKeyValues(System.Collections.Generic.Dictionary{System.String,System.String},System.Int32)">
+            <summary>
+            Display key-value pairs in a formatted way
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.SectionHeader(System.String,System.Char)">
+            <summary>
+            Display a section header
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.WithSpinner``1(System.String,System.Func{System.Threading.Tasks.Task{``0}})">
+            <summary>
+            Execute an operation with a spinner
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.WithSpinner(System.String,System.Func{System.Threading.Tasks.Task})">
+            <summary>
+            Execute an operation with a spinner (void)
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.FriendlyError(System.String,System.String,System.String,System.String)">
+            <summary>
+            Display a user-friendly error message with suggestions
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.ConsoleUI.ErrorMessages">
+            <summary>
+            Display common error types with pre-defined messages
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.SuccessWithDetails(System.String,System.String,System.String,System.String)">
+            <summary>
+            Display a success message with additional context
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.Tip(System.String,System.String)">
+            <summary>
+            Display a tip or hint to the user
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.ShowMenu(System.String,System.String[],System.Int32,System.String)">
+            <summary>
+            Display an interactive menu and get user selection
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.Confirm(System.String,System.Boolean,System.String)">
+            <summary>
+            Display a confirmation prompt
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.ShowStatusAsync(System.String,System.Func{System.Threading.Tasks.Task},System.String)">
+            <summary>
+            Display a status indicator with spinner and message
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ConsoleUI.ShowMultiStepProgressAsync(System.String,System.Collections.Generic.IEnumerable{Loco.Cli.UI.ConsoleUI.ProgressStep})">
+            <summary>
+            Display a multi-step progress indicator
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.ConsoleUI.ProgressStep">
+            <summary>
+            Progress step definition
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.DesignTokens">
+            <summary>
+            Design tokens based on Atlassian Design System principles
+            Provides consistent spacing, colors, and typography for CLI
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.DesignTokens.Spacing">
+            <summary>
+            Spacing scale following 4px/8px grid system
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.DesignTokens.Spacing.Get(System.Int32)">
+            <summary>
+            Get spacing string for console formatting
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.DesignTokens.Colors">
+            <summary>
+            Color tokens with semantic meanings
+            Inspired by Atlassian's color system
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.DesignTokens.Borders">
+            <summary>
+            Border styles and characters
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.DesignTokens.Icons">
+            <summary>
+            Icon set following Atlassian iconography
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.DesignTokens.Typography">
+            <summary>
+            Typography settings
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.DesignTokens.Elevation">
+            <summary>
+            Elevation levels (visual hierarchy)
+            Represented through spacing and borders
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.DesignTokens.Animation">
+            <summary>
+            Animation timing
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.DesignTokens.Layout">
+            <summary>
+            Layout constants
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.DesignTokens.ComponentSize">
+            <summary>
+            Component sizes
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.DesignTokens.ZIndex">
+            <summary>
+            Z-index layers
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.DesignTokens.Accessibility">
+            <summary>
+            Accessibility labels
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.HelpSystem">
+            <summary>
+            Enhanced help system with contextual help, examples, and search
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.HelpSystem.GetSmartSuggestion(System.String,System.String)">
+            <summary>
+            インテリジェントなコマンド提案を提供
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.HelpSystem.ShowUsageTips">
+            <summary>
+            コマンド使用のヒントを表示
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.CommandSuggestion">
+            <summary>
+            スマートなコマンド提案
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.InputHelper">
+            <summary>
+            Enhanced input handling with validation and auto-completion
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.InputHelper.ReadLineWithCompletion(System.String[])">
+            <summary>
+            Read input with auto-completion support
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.InputHelper.IsValidEmail(System.String)">
+            <summary>
+            Validate email address
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.InputHelper.IsValidPath(System.String)">
+            <summary>
+            Validate path
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.InputHelper.IsInRange(System.String,System.Int32,System.Int32)">
+            <summary>
+            Validate number range
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.InputHelper.IsValidUrl(System.String)">
+            <summary>
+            Validate URL
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.InputHelper.PromptInt(System.String,System.Int32,System.Int32,System.Int32)">
+            <summary>
+            Prompt for integer within range
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.InputHelper.PromptPath(System.String,System.String,System.Boolean)">
+            <summary>
+            Prompt for path with validation
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.InputHelper.PromptEmail(System.String,System.String)">
+            <summary>
+            Prompt for email
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.InputHelper.PromptChoice(System.String,System.String[],System.String)">
+            <summary>
+            Prompt for choice from list
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.InputHelper.PromptMultiLine(System.String,System.String)">
+            <summary>
+            Prompt for multi-line input
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.InputHelper.PromptPassword(System.String)">
+            <summary>
+            Prompt for password (hidden input)
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Layout">
+            <summary>
+            Responsive layout system for CLI
+            Adapts to terminal width and provides consistent spacing
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Layout.TerminalSize">
+            <summary>
+            Get current terminal size category
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.Layout.GetTerminalSize">
+            <summary>
+            Get current terminal size
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.Layout.GetContentWidth(System.Int32)">
+            <summary>
+            Get optimal content width for current terminal
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Layout.Columns">
+            <summary>
+            Column layout system
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Layout.Grid">
+            <summary>
+            Grid system
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Layout.Container">
+            <summary>
+            Container with padding
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Layout.ResponsiveTable">
+            <summary>
+            Responsive table
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Layout.Stack">
+            <summary>
+            Stack layout - vertical arrangement with spacing
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Layout.Inline">
+            <summary>
+            Inline layout - horizontal arrangement
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Layout.Sidebar">
+            <summary>
+            Sidebar layout - two-column layout
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.Accessibility">
+            <summary>
+            Accessibility helpers
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.Accessibility.Announce(System.String,System.Boolean)">
+            <summary>
+            Announce to screen reader (simulated for CLI)
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.Accessibility.ShowKeyboardShortcuts(System.Collections.Generic.Dictionary{System.String,System.String})">
+            <summary>
+            Show keyboard shortcuts
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.Accessibility.ShowSkipLink(System.String)">
+            <summary>
+            Create skip link (for long output)
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.Accessibility.IsHighContrastMode">
+            <summary>
+            High contrast mode detection
+            </summary>
+        </member>
+        <member name="F:Loco.Cli.UI.Accessibility._screenReaderMode">
+            <summary>
+            Screen reader mode
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.Accessibility.Describe(System.String,System.String)">
+            <summary>
+            Describe UI element for screen readers
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.OutputFormatter">
+            <summary>
+            Output formatting utilities for different formats (JSON, XML, YAML, Table)
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.OutputFormatter.FormatObject(System.Object,Loco.Cli.UI.OutputFormatter.Format)">
+            <summary>
+            Format object based on specified format
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.OutputFormatter.FormatJson(System.Object,System.Boolean)">
+            <summary>
+            Format as JSON
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.OutputFormatter.FormatXml(System.Object)">
+            <summary>
+            Format as XML
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.OutputFormatter.FormatYaml(System.Object,System.Int32)">
+            <summary>
+            Format as YAML (simplified)
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.OutputFormatter.FormatCsv(System.Object)">
+            <summary>
+            Format as CSV
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.OutputFormatter.FormatTable(System.Object)">
+            <summary>
+            Format as table
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.OutputFormatter.FormatBytes(System.Int64)">
+            <summary>
+            Format file size in human-readable form
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.OutputFormatter.FormatDuration(System.TimeSpan)">
+            <summary>
+            Format duration in human-readable form
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.OutputFormatter.FormatNumber(System.Int64)">
+            <summary>
+            Format number with thousands separator
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.OutputFormatter.FormatPercent(System.Double,System.Int32)">
+            <summary>
+            Format percentage
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.OutputFormatter.Truncate(System.String,System.Int32,System.String)">
+            <summary>
+            Truncate string with ellipsis
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.OutputFormatter.FormatDateTime(System.DateTime,System.Boolean)">
+            <summary>
+            Format date/time in ISO format
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.OutputFormatter.FormatRelativeTime(System.DateTime)">
+            <summary>
+            Format relative time (e.g., "2 hours ago")
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.OutputFormatter.HighlightMatch(System.String,System.String,System.ConsoleColor)">
+            <summary>
+            Highlight text matches
+            </summary>
+        </member>
+        <member name="T:Loco.Cli.UI.ProgressBar">
+            <summary>
+            コンソールベースのプログレスバーコンポーネント
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ProgressBar.#ctor(System.Int32,System.Char,System.Char,System.ConsoleColor,System.ConsoleColor,System.String,System.String)">
+            <summary>
+            プログレスバーを作成
+            </summary>
+            <param name="totalWidth">バーの総幅</param>
+            <param name="progressChar">プログレス部分の文字</param>
+            <param name="backgroundChar">背景部分の文字</param>
+            <param name="progressColor">プログレス部分の色</param>
+            <param name="backgroundColor">背景部分の色</param>
+            <param name="prefix">プレフィックステキスト</param>
+            <param name="suffix">サフィックステキスト</param>
+        </member>
+        <member name="M:Loco.Cli.UI.ProgressBar.Show">
+            <summary>
+            プログレスバーを表示
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ProgressBar.Hide">
+            <summary>
+            プログレスバーを非表示
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ProgressBar.SetProgress(System.Int32,System.Int32)">
+            <summary>
+            進捗値を設定
+            </summary>
+            <param name="value">現在の値</param>
+            <param name="maximum">最大値</param>
+        </member>
+        <member name="M:Loco.Cli.UI.ProgressBar.Step">
+            <summary>
+            進捗を1ステップ進める
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ProgressBar.SetPercentage(System.Int32)">
+            <summary>
+            パーセントで進捗を設定
+            </summary>
+            <param name="percentage">パーセント (0-100)</param>
+        </member>
+        <member name="M:Loco.Cli.UI.ProgressBar.GetProgressRatio">
+            <summary>
+            進捗率を取得
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ProgressBar.GetPercentage">
+            <summary>
+            パーセントを取得
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ProgressBar.RunWithProgressAsync(System.Func{System.IProgress{System.Int32},System.Threading.Tasks.Task},System.Int32)">
+            <summary>
+            プログレスバーを使用した処理を実行
+            </summary>
+            <param name="action">実行するアクション</param>
+            <param name="totalSteps">総ステップ数</param>
+        </member>
+        <member name="M:Loco.Cli.UI.ProgressBar.RunWithProgress(System.Action{System.IProgress{System.Int32}},System.Int32)">
+            <summary>
+            プログレスバーを使用した同期処理を実行
+            </summary>
+            <param name="action">実行するアクション</param>
+            <param name="totalSteps">総ステップ数</param>
+        </member>
+        <member name="T:Loco.Cli.UI.ProgressBarExtensions">
+            <summary>
+            プログレスバーの拡張メソッド
+            </summary>
+        </member>
+        <member name="M:Loco.Cli.UI.ProgressBarExtensions.CopyFileWithProgressAsync(Loco.Cli.UI.ProgressBar,System.String,System.String,System.Threading.CancellationToken)">
+            <summary>
+            プログレスバー付きでファイルをコピー
             </summary>
         </member>
     </members>

@@ -1,0 +1,94 @@
+{
+  "id": "parallel-deployment",
+  "name": "Parallel Deployment Workflow",
+  "description": "Demonstrates parallel step execution for faster deployments",
+  "timeoutSeconds": 300,
+  "continueOnError": false,
+  "parallelGroups": [
+    {
+      "groupId": "health-checks",
+      "stepIds": ["check-api", "check-database", "check-cache"],
+      "waitForAll": true,
+      "failOnAnyError": true,
+      "maxConcurrency": 3
+    },
+    {
+      "groupId": "service-deployments",
+      "stepIds": ["deploy-frontend", "deploy-backend", "deploy-worker"],
+      "waitForAll": true,
+      "failOnAnyError": false,
+      "maxConcurrency": 2
+    }
+  ],
+  "steps": [
+    {
+      "id": "start",
+      "name": "Deployment started",
+      "type": "log",
+      "message": "=== Parallel Deployment Started at ${datetime} ==="
+    },
+    {
+      "id": "check-api",
+      "name": "Health check: API",
+      "type": "http",
+      "url": "https://httpbin.org/status/200",
+      "method": "GET",
+      "saveOutput": "api_status",
+      "retryCount": 2,
+      "timeoutSeconds": 10
+    },
+    {
+      "id": "check-database",
+      "name": "Health check: Database",
+      "type": "process",
+      "command": "echo DB_OK",
+      "saveOutput": "db_status",
+      "timeoutSeconds": 5
+    },
+    {
+      "id": "check-cache",
+      "name": "Health check: Cache",
+      "type": "process",
+      "command": "echo CACHE_OK",
+      "saveOutput": "cache_status",
+      "timeoutSeconds": 5
+    },
+    {
+      "id": "health-check-complete",
+      "name": "Health checks completed",
+      "type": "log",
+      "message": "✓ All health checks passed"
+    },
+    {
+      "id": "deploy-frontend",
+      "name": "Deploy Frontend",
+      "type": "log",
+      "message": "Deploying frontend application..."
+    },
+    {
+      "id": "deploy-backend",
+      "name": "Deploy Backend API",
+      "type": "log",
+      "message": "Deploying backend API..."
+    },
+    {
+      "id": "deploy-worker",
+      "name": "Deploy Background Worker",
+      "type": "log",
+      "message": "Deploying background worker..."
+    },
+    {
+      "id": "verify-deployments",
+      "name": "Verify all deployments",
+      "type": "process",
+      "command": "echo all_deployed",
+      "saveOutput": "deployment_status"
+    },
+    {
+      "id": "complete",
+      "name": "Deployment complete",
+      "type": "log",
+      "message": "=== Parallel Deployment Completed at ${datetime} ==="
+    }
+  ]
+}

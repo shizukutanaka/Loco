@@ -149,7 +149,45 @@ namespace Loco.Cli.UI
                     "Loco.Cli.exe preset daily",
                     "Loco.Cli.exe preset cleanup"
                 },
-                SeeAlso = new[] { "rule", "schedule" }
+                SeeAlso = new[] { "rule", "schedule", "workflow" }
+            });
+
+            // Workflow command
+            AddCommand("workflow", new CommandHelp
+            {
+                Name = "workflow",
+                Aliases = new[] { "wf" },
+                Category = "Automation",
+                ShortDescription = "Execute automation workflows from JSON files",
+                LongDescription = "Loads and executes workflow definitions from JSON files. Workflows consist of sequential steps that are executed in order. Supports log, delay, file, process, and http actions.",
+                Usage = "Loco.Cli.exe workflow <list|stats|info|<file_path>> [options]",
+                SubCommands = new Dictionary<string, string>
+                {
+                    ["list"] = "List all available workflows",
+                    ["stats"] = "Show execution statistics",
+                    ["info <file>"] = "Show workflow details"
+                },
+                Options = new Dictionary<string, string>
+                {
+                    ["--dry-run"] = "Validate without executing",
+                    ["--verbose, -v"] = "Show detailed logs",
+                    ["--var name=value"] = "Set workflow variable",
+                    ["--output <file>"] = "Save execution summary to file",
+                    ["--report"] = "Show detailed execution report"
+                },
+                Examples = new[]
+                {
+                    "Loco.Cli.exe workflow list",
+                    "Loco.Cli.exe workflow stats",
+                    "Loco.Cli.exe workflow info workflows/hello-world.json",
+                    "Loco.Cli.exe workflow workflows/hello-world.json",
+                    "Loco.Cli.exe workflow workflows/hello-world.json --dry-run",
+                    "Loco.Cli.exe workflow workflows/backup.json --var source=C:\\data --var dest=C:\\backup",
+                    "Loco.Cli.exe workflow workflows/hello-world.json --output execution.log",
+                    "Loco.Cli.exe workflow workflows/hello-world.json --report",
+                    "Loco.Cli.exe wf workflows/process-test.json -v"
+                },
+                SeeAlso = new[] { "preset", "rule", "start" }
             });
 
             // Files command
@@ -304,6 +342,7 @@ namespace Loco.Cli.UI
             AddAlias("check-update", "update");
             AddAlias("resources", "resource");
             AddAlias("config-backup", "backup-config");
+            AddAlias("wf", "workflow");
         }
 
         public void AddCommand(string name, CommandHelp help)

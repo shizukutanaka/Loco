@@ -34,7 +34,7 @@ public static class DirectoryUtils
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or PathTooLongException or IOException)
         {
-            throw new LocoExecutionException($"Cannot create directory at {directoryPath}: {ex.Message}", ex, "DIRECTORY_CREATE_FAILED", null, null);
+            throw new LocoExecutionException($"Cannot create directory at {directoryPath}: {ex.Message}", ex);
         }
     }
 }

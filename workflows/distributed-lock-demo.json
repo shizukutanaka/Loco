@@ -1,0 +1,111 @@
+{
+  "name": "distributed-lock-demo",
+  "description": "Demonstrates distributed locking to prevent concurrent workflow execution",
+  "steps": [
+    {
+      "name": "check-lock-availability",
+      "description": "Check if resource is currently locked",
+      "action": {
+        "type": "log",
+        "message": "Checking if resource 'shared-database' is available for locking",
+        "level": "Information"
+      }
+    },
+    {
+      "name": "acquire-lock",
+      "description": "Acquire distributed lock with timeout",
+      "action": {
+        "type": "log",
+        "message": "Acquiring lock on 'shared-database' (timeout: 30s, expiry: 5min)",
+        "level": "Information"
+      },
+      "lock": {
+        "resourceName": "shared-database",
+        "timeout": "00:00:30",
+        "lockExpiry": "00:05:00",
+        "autoRenew": true,
+        "renewInterval": "00:02:00"
+      }
+    },
+    {
+      "name": "critical-section-1",
+      "description": "Perform exclusive operation while holding lock",
+      "action": {
+        "type": "script",
+        "command": "powershell",
+        "args": [
+          "-Command",
+          "Write-Host 'Performing critical database operation...'; Start-Sleep -Seconds 3; Write-Host 'Database operation completed'"
+        ]
+      }
+    },
+    {
+      "name": "renew-lock",
+      "description": "Explicitly renew lock for extended operation",
+      "action": {
+        "type": "log",
+        "message": "Renewing lock (extending expiry by 5 minutes)",
+        "level": "Information"
+      },
+      "lock": {
+        "action": "renew",
+        "resourceName": "shared-database",
+        "extension": "00:05:00"
+      }
+    },
+    {
+      "name": "critical-section-2",
+      "description": "Another exclusive operation",
+      "action": {
+        "type": "script",
+        "command": "powershell",
+        "args": [
+          "-Command",
+          "Write-Host 'Performing data migration...'; Start-Sleep -Seconds 5; Write-Host 'Migration completed'"
+        ]
+      }
+    },
+    {
+      "name": "release-lock",
+      "description": "Release the distributed lock",
+      "action": {
+        "type": "log",
+        "message": "Releasing lock on 'shared-database'",
+        "level": "Information"
+      },
+      "lock": {
+        "action": "release",
+        "resourceName": "shared-database"
+      },
+      "alwaysRun": true
+    },
+    {
+      "name": "verify-release",
+      "description": "Verify lock was released successfully",
+      "action": {
+        "type": "log",
+        "message": "Lock released - resource available for other workflows",
+        "level": "Information"
+      }
+    }
+  ],
+  "locking": {
+    "enabled": true,
+    "lockDirectory": "./workflow-locks",
+    "cleanupExpiredInterval": "00:00:05"
+  },
+  "onError": {
+    "action": "release-locks",
+    "message": "Error occurred - ensuring all locks are released"
+  },
+  "cleanup": {
+    "actions": [
+      {
+        "type": "log",
+        "message": "Cleanup: Verifying all locks released"
+      }
+    ],
+    "runOnSuccess": true,
+    "runOnFailure": true
+  }
+}

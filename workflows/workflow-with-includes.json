@@ -1,0 +1,49 @@
+{
+  "id": "workflow-with-includes",
+  "name": "Workflow with Includes Example",
+  "description": "Demonstrates workflow includes and composition",
+  "version": "1.0.0",
+  "includes": [
+    {
+      "path": "includes/common-setup.json",
+      "prefix": "setup-"
+    }
+  ],
+  "steps": [
+    {
+      "id": "process-data",
+      "name": "Process Data",
+      "type": "log",
+      "message": "Processing application data...",
+      "dependsOn": ["setup-create-temp-dir"]
+    },
+    {
+      "id": "generate-report",
+      "name": "Generate Report",
+      "type": "log",
+      "message": "Generating execution report...",
+      "dependsOn": ["process-data"]
+    },
+    {
+      "id": "finalize",
+      "name": "Finalize Workflow",
+      "type": "log",
+      "message": "Finalizing workflow execution...",
+      "dependsOn": ["generate-report"]
+    }
+  ],
+  "cleanup": {
+    "runOnSuccess": true,
+    "runOnFailure": true,
+    "actions": [
+      {
+        "id": "cleanup-workspace",
+        "name": "Cleanup Workspace",
+        "type": "log",
+        "parameters": {
+          "message": "Cleaning up workspace and temporary files..."
+        }
+      }
+    ]
+  }
+}

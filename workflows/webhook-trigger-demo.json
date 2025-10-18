@@ -1,0 +1,55 @@
+{
+  "name": "webhook-trigger-demo",
+  "description": "Demonstrates webhook-triggered workflow execution",
+  "eventTriggers": [
+    {
+      "type": "Webhook",
+      "webhookPath": "/webhook/deploy",
+      "httpMethods": ["POST"],
+      "authToken": "your-secret-token-here",
+      "enabled": true,
+      "cooldownSeconds": 60
+    }
+  ],
+  "steps": [
+    {
+      "name": "log-webhook-trigger",
+      "description": "Log the webhook trigger event",
+      "action": {
+        "type": "log",
+        "message": "Webhook triggered: {{eventId}} from {{eventSource}}",
+        "level": "Information"
+      }
+    },
+    {
+      "name": "validate-payload",
+      "description": "Validate webhook payload",
+      "action": {
+        "type": "script",
+        "command": "powershell",
+        "args": [
+          "-Command",
+          "Write-Host 'Validating deployment payload...'; exit 0"
+        ]
+      }
+    },
+    {
+      "name": "run-deployment",
+      "description": "Execute deployment process",
+      "action": {
+        "type": "log",
+        "message": "Running deployment...",
+        "level": "Information"
+      }
+    },
+    {
+      "name": "notify-complete",
+      "description": "Send deployment completion notification",
+      "action": {
+        "type": "log",
+        "message": "Deployment completed successfully",
+        "level": "Information"
+      }
+    }
+  ]
+}

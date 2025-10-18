@@ -1,0 +1,56 @@
+{
+  "name": "cron-schedule-demo",
+  "description": "Demonstrates scheduled workflow execution using cron expressions",
+  "schedule": {
+    "expression": "*/5 * * * *",
+    "timezone": "UTC",
+    "enabled": true,
+    "maxExecutions": null,
+    "startAfter": null,
+    "endBefore": null
+  },
+  "steps": [
+    {
+      "name": "log-scheduled-run",
+      "description": "Log the scheduled execution",
+      "action": {
+        "type": "log",
+        "message": "Scheduled workflow executed at {{scheduledTime}}",
+        "level": "Information"
+      }
+    },
+    {
+      "name": "check-disk-space",
+      "description": "Check available disk space",
+      "action": {
+        "type": "script",
+        "command": "powershell",
+        "args": [
+          "-Command",
+          "Get-PSDrive C | Select-Object @{N='FreeGB';E={[math]::Round($_.Free/1GB,2)}}"
+        ]
+      }
+    },
+    {
+      "name": "cleanup-temp",
+      "description": "Clean up temporary files older than 7 days",
+      "action": {
+        "type": "script",
+        "command": "powershell",
+        "args": [
+          "-Command",
+          "Get-ChildItem -Path $env:TEMP -Recurse -Force | Where-Object {$_.LastWriteTime -lt (Get-Date).AddDays(-7)} | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue"
+        ]
+      }
+    },
+    {
+      "name": "log-complete",
+      "description": "Log completion",
+      "action": {
+        "type": "log",
+        "message": "Scheduled maintenance completed",
+        "level": "Information"
+      }
+    }
+  ]
+}

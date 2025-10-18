@@ -303,7 +303,7 @@ namespace Loco.Core.Configuration
             {
                 var errorMessage = $"Configuration validation failed: {string.Join("; ", validationErrors)}";
                 _pathResolutionWarnings.Add(errorMessage);
-                throw new LocoConfigurationException(errorMessage, "CONFIG_VALIDATION_FAILED");
+                throw new LocoConfigurationException(errorMessage);
             }
         }
 

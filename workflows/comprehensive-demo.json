@@ -1,0 +1,55 @@
+{
+  "id": "comprehensive-demo",
+  "name": "Comprehensive Workflow Demo",
+  "description": "Demonstrates all available workflow actions with error handling",
+  "steps": [
+    {
+      "id": "init",
+      "name": "Initialize workflow",
+      "type": "log",
+      "message": "=== Comprehensive Workflow Demo Started ==="
+    },
+    {
+      "id": "check-dir",
+      "name": "Verify workflows directory",
+      "type": "file",
+      "path": "workflows"
+    },
+    {
+      "id": "delay1",
+      "name": "Short pause",
+      "type": "delay",
+      "duration": "00:00:01"
+    },
+    {
+      "id": "system-info",
+      "name": "Get system information",
+      "type": "process",
+      "command": "echo System: %COMPUTERNAME% / User: %USERNAME%"
+    },
+    {
+      "id": "delay2",
+      "name": "Another pause",
+      "type": "delay",
+      "duration": "00:00:01"
+    },
+    {
+      "id": "count-workflows",
+      "name": "Count workflow files",
+      "type": "process",
+      "command": "dir /b workflows\*.json | find /c /v \"\""
+    },
+    {
+      "id": "delay3",
+      "name": "Final pause",
+      "type": "delay",
+      "duration": "00:00:01"
+    },
+    {
+      "id": "complete",
+      "name": "Workflow completion",
+      "type": "log",
+      "message": "=== Workflow Completed Successfully ==="
+    }
+  ]
+}

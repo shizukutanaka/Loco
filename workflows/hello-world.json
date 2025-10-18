@@ -1,25 +1,37 @@
 {
-  "id": "hello-world-001",
+  "id": "hello-world",
   "name": "Hello World Workflow",
-  "description": "A simple hello world workflow",
+  "description": "A simple workflow that demonstrates the basic functionality",
   "steps": [
     {
-      "id": "log-1",
-      "name": "Welcome Message",
+      "id": "step1",
+      "name": "Welcome message",
       "type": "log",
-      "message": "Hello, World! Welcome to Loco automation tool."
+      "message": "Hello! This is a simple workflow example."
     },
     {
-      "id": "delay-1",
-      "name": "Brief Pause",
+      "id": "step2",
+      "name": "Wait a moment",
+      "type": "delay",
+      "duration": "00:00:02"
+    },
+    {
+      "id": "step3",
+      "name": "Progress update",
+      "type": "log",
+      "message": "Workflow is running smoothly..."
+    },
+    {
+      "id": "step4",
+      "name": "Another delay",
       "type": "delay",
       "duration": "00:00:01"
     },
     {
-      "id": "log-2",
-      "name": "Completion Message",
+      "id": "step5",
+      "name": "Completion message",
       "type": "log",
-      "message": "Hello World workflow completed successfully!"
+      "message": "Workflow completed successfully!"
     }
   ]
 }

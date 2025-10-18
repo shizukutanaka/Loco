@@ -1,0 +1,43 @@
+{
+  "id": "disk-check-with-output",
+  "name": "Disk Space Check with Output Capture",
+  "description": "Checks disk space and captures the output for later use",
+  "timeoutSeconds": 60,
+  "continueOnError": false,
+  "steps": [
+    {
+      "id": "header",
+      "name": "Start disk check",
+      "type": "log",
+      "message": "=== Disk Space Check Started at ${datetime} ==="
+    },
+    {
+      "id": "check-disk",
+      "name": "Get disk information",
+      "type": "process",
+      "command": "wmic logicaldisk where drivetype=3 get caption,freespace,size /format:list",
+      "saveOutput": "disk_info",
+      "continueOnError": false
+    },
+    {
+      "id": "wait",
+      "name": "Brief pause",
+      "type": "delay",
+      "duration": "00:00:01"
+    },
+    {
+      "id": "check-temp",
+      "name": "Check temp folder",
+      "type": "process",
+      "command": "dir /s \"%TEMP%\" | findstr /C:\"File(s)\" /C:\"Dir(s)\"",
+      "saveOutput": "temp_info",
+      "continueOnError": true
+    },
+    {
+      "id": "summary",
+      "name": "Completion message",
+      "type": "log",
+      "message": "=== Disk check completed. Results captured in variables ==="
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "name": "resilient-workflow-demo",
+  "description": "Demonstrates workflow resilience with retry, circuit breaker, and state persistence",
+  "steps": [
+    {
+      "name": "initialize",
+      "description": "Initialize workflow with state persistence",
+      "action": {
+        "type": "log",
+        "message": "Starting resilient workflow execution - state will be persisted",
+        "level": "Information"
+      }
+    },
+    {
+      "name": "acquire-lock",
+      "description": "Acquire distributed lock to prevent concurrent execution",
+      "action": {
+        "type": "log",
+        "message": "Acquiring distributed lock for resource: workflow-critical-section",
+        "level": "Information"
+      },
+      "retry": {
+        "maxRetries": 3,
+        "initialDelay": "00:00:01",
+        "strategy": "Exponential",
+        "backoffMultiplier": 2.0
+      }
+    },
+    {
+      "name": "risky-operation",
+      "description": "Operation that may fail and requires retry",
+      "action": {
+        "type": "script",
+        "command": "powershell",
+        "args": [
+          "-Command",
+          "$random = Get-Random -Minimum 1 -Maximum 10; if ($random -lt 6) { throw 'Simulated failure' } else { Write-Host 'Operation succeeded' }"
+        ]
+      },
+      "retry": {
+        "maxRetries": 5,
+        "initialDelay": "00:00:00.500",
+        "maxDelay": "00:00:30",
+        "strategy": "Jitter",
+        "useJitter": true
+      },
+      "circuitBreaker": {
+        "failureThreshold": 3,
+        "resetTimeout": "00:01:00",
+        "halfOpenSuccessThreshold": 2
+      }
+    },
+    {
+      "name": "persist-checkpoint",
+      "description": "Save workflow state checkpoint",
+      "action": {
+        "type": "log",
+        "message": "Workflow checkpoint saved - can resume from here if interrupted",
+        "level": "Information"
+      }
+    },
+    {
+      "name": "network-call",
+      "description": "Simulated network call with timeout and retry",
+      "action": {
+        "type": "script",
+        "command": "powershell",
+        "args": [
+          "-Command",
+          "Start-Sleep -Milliseconds 100; Write-Host 'Network call completed'"
+        ]
+      },
+      "timeout": "00:00:10",
+      "retry": {
+        "maxRetries": 5,
+        "initialDelay": "00:00:00.500",
+        "maxDelay": "00:00:30",
+        "strategy": "Exponential",
+        "backoffMultiplier": 2.0
+      }
+    },
+    {
+      "name": "release-lock",
+      "description": "Release distributed lock",
+      "action": {
+        "type": "log",
+        "message": "Releasing distributed lock",
+        "level": "Information"
+      },
+      "alwaysRun": true
+    },
+    {
+      "name": "complete",
+      "description": "Mark workflow as completed",
+      "action": {
+        "type": "log",
+        "message": "Resilient workflow completed successfully",
+        "level": "Information"
+      }
+    }
+  ],
+  "onError": {
+    "action": "retry",
+    "maxRetries": 3,
+    "saveStateOnFailure": true
+  },
+  "cleanup": {
+    "actions": [
+      {
+        "type": "log",
+        "message": "Cleanup: Ensuring lock is released and state is saved"
+      }
+    ],
+    "runOnSuccess": true,
+    "runOnFailure": true
+  }
+}

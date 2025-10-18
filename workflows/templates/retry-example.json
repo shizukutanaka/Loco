@@ -1,0 +1,54 @@
+{
+  "id": "retry-example",
+  "name": "Retry and Timeout Example",
+  "description": "Demonstrates retry logic and timeout configuration",
+  "timeoutSeconds": 120,
+  "continueOnError": true,
+  "steps": [
+    {
+      "id": "start",
+      "name": "Start demo",
+      "type": "log",
+      "message": "=== Retry and Timeout Demo Started ==="
+    },
+    {
+      "id": "quick-success",
+      "name": "Quick successful step",
+      "type": "log",
+      "message": "This step completes immediately"
+    },
+    {
+      "id": "with-timeout",
+      "name": "Step with 5 second timeout",
+      "type": "delay",
+      "duration": "00:00:02",
+      "timeoutSeconds": 5
+    },
+    {
+      "id": "api-with-retry",
+      "name": "API call with retry",
+      "type": "http",
+      "url": "https://httpbin.org/status/200",
+      "method": "GET",
+      "retryCount": 3,
+      "retryDelay": "00:00:01",
+      "timeoutSeconds": 10,
+      "continueOnError": true
+    },
+    {
+      "id": "process-with-retry",
+      "name": "Process with retry on failure",
+      "type": "process",
+      "command": "echo Retry test completed",
+      "retryCount": 2,
+      "retryDelay": "00:00:01",
+      "continueOnError": true
+    },
+    {
+      "id": "summary",
+      "name": "Demo complete",
+      "type": "log",
+      "message": "=== All steps completed (some may have used retry/timeout) ==="
+    }
+  ]
+}

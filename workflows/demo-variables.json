@@ -1,0 +1,189 @@
+{
+  "id": "demo-variables",
+  "name": "Variable Substitution Demo",
+  "description": "Comprehensive demonstration of all variable types",
+  "timeoutSeconds": 60,
+  "continueOnError": true,
+  "steps": [
+    {
+      "id": "header",
+      "name": "Demo header",
+      "type": "log",
+      "message": "=========================================="
+    },
+    {
+      "id": "title",
+      "name": "Demo title",
+      "type": "log",
+      "message": "  LOCO VARIABLE SUBSTITUTION DEMO"
+    },
+    {
+      "id": "separator1",
+      "name": "Separator",
+      "type": "log",
+      "message": "=========================================="
+    },
+    {
+      "id": "builtin-header",
+      "name": "Built-in variables header",
+      "type": "log",
+      "message": ""
+    },
+    {
+      "id": "builtin-title",
+      "name": "Built-in variables title",
+      "type": "log",
+      "message": "BUILT-IN VARIABLES:"
+    },
+    {
+      "id": "demo-date",
+      "name": "Show date",
+      "type": "log",
+      "message": "  Date: ${date}"
+    },
+    {
+      "id": "demo-time",
+      "name": "Show time",
+      "type": "log",
+      "message": "  Time: ${time}"
+    },
+    {
+      "id": "demo-datetime",
+      "name": "Show datetime",
+      "type": "log",
+      "message": "  DateTime: ${datetime}"
+    },
+    {
+      "id": "demo-timestamp",
+      "name": "Show timestamp",
+      "type": "log",
+      "message": "  Unix Timestamp: ${timestamp}"
+    },
+    {
+      "id": "demo-user",
+      "name": "Show user",
+      "type": "log",
+      "message": "  User: ${user}"
+    },
+    {
+      "id": "demo-machine",
+      "name": "Show machine",
+      "type": "log",
+      "message": "  Machine: ${machine}"
+    },
+    {
+      "id": "demo-workdir",
+      "name": "Show working directory",
+      "type": "log",
+      "message": "  Working Directory: ${workdir}"
+    },
+    {
+      "id": "separator2",
+      "name": "Separator",
+      "type": "log",
+      "message": ""
+    },
+    {
+      "id": "custom-format-title",
+      "name": "Custom format title",
+      "type": "log",
+      "message": "CUSTOM DATE/TIME FORMATS:"
+    },
+    {
+      "id": "demo-custom-date",
+      "name": "Custom date format",
+      "type": "log",
+      "message": "  Date (MM/dd/yyyy): ${date:MM/dd/yyyy}"
+    },
+    {
+      "id": "demo-custom-time",
+      "name": "Custom time format",
+      "type": "log",
+      "message": "  Time (HH-mm-ss): ${time:HH-mm-ss}"
+    },
+    {
+      "id": "demo-custom-datetime",
+      "name": "Custom datetime format",
+      "type": "log",
+      "message": "  DateTime (yyyy-MM-dd_HHmmss): ${datetime:yyyy-MM-dd_HHmmss}"
+    },
+    {
+      "id": "separator3",
+      "name": "Separator",
+      "type": "log",
+      "message": ""
+    },
+    {
+      "id": "env-title",
+      "name": "Environment variables title",
+      "type": "log",
+      "message": "ENVIRONMENT VARIABLES:"
+    },
+    {
+      "id": "demo-env-username",
+      "name": "Show USERNAME env var",
+      "type": "log",
+      "message": "  USERNAME: ${env:USERNAME}"
+    },
+    {
+      "id": "demo-env-computername",
+      "name": "Show COMPUTERNAME env var",
+      "type": "log",
+      "message": "  COMPUTERNAME: ${env:COMPUTERNAME}"
+    },
+    {
+      "id": "demo-env-userprofile",
+      "name": "Show USERPROFILE env var",
+      "type": "log",
+      "message": "  USERPROFILE: ${env:USERPROFILE}"
+    },
+    {
+      "id": "separator4",
+      "name": "Separator",
+      "type": "log",
+      "message": ""
+    },
+    {
+      "id": "workflow-title",
+      "name": "Workflow variables title",
+      "type": "log",
+      "message": "WORKFLOW VARIABLES (--var):"
+    },
+    {
+      "id": "demo-var1",
+      "name": "Show custom variable 1",
+      "type": "log",
+      "message": "  Custom Variable 1: ${var:myvar}"
+    },
+    {
+      "id": "demo-var2",
+      "name": "Show custom variable 2",
+      "type": "log",
+      "message": "  Custom Variable 2: ${var:config}"
+    },
+    {
+      "id": "separator5",
+      "name": "Separator",
+      "type": "log",
+      "message": ""
+    },
+    {
+      "id": "practical-title",
+      "name": "Practical example title",
+      "type": "log",
+      "message": "PRACTICAL EXAMPLE:"
+    },
+    {
+      "id": "practical-log",
+      "name": "Practical log message",
+      "type": "log",
+      "message": "  Workflow executed by ${user} on ${machine} at ${datetime}"
+    },
+    {
+      "id": "footer",
+      "name": "Demo footer",
+      "type": "log",
+      "message": "=========================================="
+    }
+  ]
+}

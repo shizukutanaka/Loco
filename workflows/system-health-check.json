@@ -1,49 +1,43 @@
 {
-  "id": "sys-health-001",
-  "name": "System Health Check",
-  "description": "Check system health: disk space, memory, processes",
+  "id": "system-health-check",
+  "name": "System Health Check Workflow",
+  "description": "Performs a comprehensive system health check",
   "steps": [
     {
-      "id": "check-system-info",
-      "name": "Get system information",
-      "type": "systemInfo",
-      "infoType": "all",
-      "outputVariable": "systemInfo"
+      "id": "step1",
+      "name": "Start health check",
+      "type": "log",
+      "message": "Starting system health check..."
     },
     {
-      "id": "check-disk-space",
+      "id": "step2",
+      "name": "Check memory",
+      "type": "monitor",
+      "message": "Checking system memory usage"
+    },
+    {
+      "id": "step3",
+      "name": "Brief pause",
+      "type": "delay",
+      "duration": "00:00:01"
+    },
+    {
+      "id": "step4",
       "name": "Check disk space",
-      "type": "command",
-      "command": "wmic",
-      "arguments": ["logicaldisk", "get", "size,freespace,caption"],
-      "captureOutput": true,
-      "outputVariable": "diskInfo"
+      "type": "monitor",
+      "message": "Checking available disk space"
     },
     {
-      "id": "validate-health",
-      "name": "Validate system health",
-      "type": "dataTransform",
-      "operation": "validate",
-      "inputVariable": "systemInfo",
-      "rules": ["notNull", "notEmpty"],
-      "outputVariable": "healthStatus"
+      "id": "step5",
+      "name": "Brief pause",
+      "type": "delay",
+      "duration": "00:00:01"
     },
     {
-      "id": "log-results",
-      "name": "Log health check results",
-      "type": "fileOperation",
-      "operation": "write",
-      "path": "health-reports/health-{timestamp}.log",
-      "content": "System Health Report\nTimestamp: {timestamp}\nSystem Info: {systemInfo}\nDisk Info: {diskInfo}\nHealth Status: {healthStatus}"
-    },
-    {
-      "id": "notify-status",
-      "name": "Send health notification",
-      "type": "notification",
-      "channel": "console",
-      "title": "System Health Check",
-      "message": "Health check completed. Status: {healthStatus}",
-      "priority": "normal"
+      "id": "step6",
+      "name": "Completion",
+      "type": "log",
+      "message": "System health check completed!"
     }
   ]
 }

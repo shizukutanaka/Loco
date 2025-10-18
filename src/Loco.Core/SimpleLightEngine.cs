@@ -21,7 +21,6 @@ namespace Loco.Core
         private readonly ConcurrentDictionary<string, SimpleFlow> _flows = new();
         private readonly ConcurrentDictionary<string, SimpleRule> _rules = new();
         private readonly EngineStatus _status = new();
-        private readonly ActionExecutorFactory _actionExecutorFactory;
         private readonly SemaphoreSlim _executionSemaphore;
         private readonly LocoConfig _config;
         private readonly SimpleScheduler _scheduler;
@@ -34,7 +33,6 @@ namespace Loco.Core
             _logger = logger;
             _config = config ?? new LocoConfig();
             _isRunning = false;
-            _actionExecutorFactory = new ActionExecutorFactory();
             _executionSemaphore = new SemaphoreSlim(_config.MaxConcurrentFlows, _config.MaxConcurrentFlows);
             _scheduler = new SimpleScheduler(logger);
             _ruleStore = ruleStore;
@@ -336,13 +334,20 @@ namespace Loco.Core
 
                 try
                 {
-                    var executor = _actionExecutorFactory.CreateExecutor(action.Type);
-                    await executor.ExecuteAsync(action, _logger);
-                    return true;
-                }
-                catch (ArgumentException argEx)
-                {
-                    _logger?.LogWarning(argEx, "Unknown action type: {ActionType}", action.Type);
+                    // Execute action directly if it implements IAction interface
+                    if (action is IAction actionImpl)
+                    {
+                        var context = new ActionContext
+                        {
+                            Logger = _logger,
+                            CancellationToken = cancellationToken,
+                            Variables = new Dictionary<string, object?>()
+                        };
+                        var result = await actionImpl.ExecuteAsync(context);
+                        return result;
+                    }
+
+                    _logger?.LogWarning("Action does not implement IAction: {ActionType}", action.Type);
                     return false;
                 }
                 catch (Exception ex) when (retryCount < maxRetries)

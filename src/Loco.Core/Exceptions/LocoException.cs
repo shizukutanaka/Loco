@@ -1,251 +1,187 @@
 using System;
-using System.Collections.Generic;
 
 namespace Loco.Core.Exceptions
 {
     /// <summary>
-    /// Base exception for all Loco-specific exceptions
+    /// Base exception for all Loco-specific exceptions.
     /// </summary>
     public class LocoException : Exception
     {
-        public string ErrorCode { get; set; }
-        public Dictionary<string, object> Context { get; set; } = new();
+        public string ErrorCode { get; }
+        public object? Context { get; }
 
-        public LocoException(string message, string errorCode = "LOCO_000")
+        public LocoException(string message, string errorCode = "LOCO_ERROR", object? context = null)
             : base(message)
         {
             ErrorCode = errorCode;
+            Context = context;
         }
 
-        public LocoException(string message, Exception innerException, string errorCode = "LOCO_000")
+        public LocoException(string message, Exception innerException, string errorCode = "LOCO_ERROR", object? context = null)
             : base(message, innerException)
         {
             ErrorCode = errorCode;
-        }
-
-        public void AddContext(string key, object value)
-        {
-            Context[key] = value;
+            Context = context;
         }
     }
 
     /// <summary>
-    /// Validation-related exceptions
+    /// Exception thrown when workflow execution fails.
     /// </summary>
-    public class ValidationException : LocoException
+    public class WorkflowExecutionException : LocoException
     {
-        public List<string> ValidationErrors { get; set; } = new();
+        public string? WorkflowId { get; }
+        public string? StepId { get; }
 
-        public ValidationException(string message, string errorCode = "VAL_001")
-            : base(message, errorCode)
+        public WorkflowExecutionException(string message, string? workflowId = null, string? stepId = null)
+            : base(message, "WORKFLOW_EXEC_ERROR", new { WorkflowId = workflowId, StepId = stepId })
         {
+            WorkflowId = workflowId;
+            StepId = stepId;
         }
 
-        public ValidationException(string message, List<string> errors, string errorCode = "VAL_001")
-            : base(message, errorCode)
+        public WorkflowExecutionException(string message, Exception innerException, string? workflowId = null, string? stepId = null)
+            : base(message, innerException, "WORKFLOW_EXEC_ERROR", new { WorkflowId = workflowId, StepId = stepId })
         {
-            ValidationErrors = errors;
+            WorkflowId = workflowId;
+            StepId = stepId;
         }
     }
 
     /// <summary>
-    /// Configuration-related exceptions
+    /// Exception thrown when workflow validation fails.
     /// </summary>
-    public class ConfigurationException : LocoException
+    public class WorkflowValidationException : LocoException
     {
-        public ConfigurationException(string message, string errorCode = "CFG_001")
-            : base(message, errorCode)
+        public string[] ValidationErrors { get; }
+
+        public WorkflowValidationException(string message, string[] validationErrors)
+            : base(message, "WORKFLOW_VALIDATION_ERROR", new { Errors = validationErrors })
+        {
+            ValidationErrors = validationErrors;
+        }
+    }
+
+    /// <summary>
+    /// Exception thrown for action-specific errors.
+    /// </summary>
+    public class ActionException : LocoException
+    {
+        public string ActionType { get; }
+        public string ActionId { get; }
+
+        public ActionException(string message, string actionType, string actionId)
+            : base(message, "ACTION_ERROR", new { ActionType = actionType, ActionId = actionId })
+        {
+            ActionType = actionType;
+            ActionId = actionId;
+        }
+
+        public ActionException(string message, Exception innerException, string actionType, string actionId)
+            : base(message, innerException, "ACTION_ERROR", new { ActionType = actionType, ActionId = actionId })
+        {
+            ActionType = actionType;
+            ActionId = actionId;
+        }
+    }
+
+    /// <summary>
+    /// Exception thrown for engine-specific errors.
+    /// </summary>
+    public class EngineException : LocoException
+    {
+        public EngineException(string message)
+            : base(message, "ENGINE_ERROR")
         {
         }
 
-        public ConfigurationException(string message, Exception innerException, string errorCode = "CFG_001")
-            : base(message, innerException, errorCode)
+        public EngineException(string message, Exception innerException)
+            : base(message, innerException, "ENGINE_ERROR")
         {
         }
     }
 
     /// <summary>
-    /// Security-related exceptions
+    /// Exception thrown for resource-related errors.
     /// </summary>
-    public class SecurityException : LocoException
+    public class ResourceException : LocoException
     {
-        public SecurityException(string message, string errorCode = "SEC_001")
-            : base(message, errorCode)
-        {
-        }
+        public string ResourceType { get; }
+        public string ResourceId { get; }
 
-        public SecurityException(string message, Exception innerException, string errorCode = "SEC_001")
-            : base(message, innerException, errorCode)
-        {
-        }
-    }
-
-    /// <summary>
-    /// Resource limit exceptions
-    /// </summary>
-    public class ResourceLimitException : LocoException
-    {
-        public string ResourceType { get; set; }
-        public long CurrentValue { get; set; }
-        public long LimitValue { get; set; }
-
-        public ResourceLimitException(string resourceType, long currentValue, long limitValue, string errorCode = "RES_001")
-            : base($"{resourceType} limit exceeded: {currentValue} > {limitValue}", errorCode)
+        public ResourceException(string message, string resourceType, string resourceId)
+            : base(message, "RESOURCE_ERROR", new { ResourceType = resourceType, ResourceId = resourceId })
         {
             ResourceType = resourceType;
-            CurrentValue = currentValue;
-            LimitValue = limitValue;
+            ResourceId = resourceId;
         }
     }
 
     /// <summary>
-    /// Workflow execution exceptions
-    /// </summary>
-    public class WorkflowException : LocoException
-    {
-        public string? WorkflowId { get; set; }
-        public string? StepId { get; set; }
-
-        public WorkflowException(string message, string? workflowId = null, string? stepId = null, string errorCode = "WF_001")
-            : base(message, errorCode)
-        {
-            WorkflowId = workflowId;
-            StepId = stepId;
-        }
-
-        public WorkflowException(string message, Exception innerException, string? workflowId = null, string? stepId = null, string errorCode = "WF_001")
-            : base(message, innerException, errorCode)
-        {
-            WorkflowId = workflowId;
-            StepId = stepId;
-        }
-    }
-
-    /// <summary>
-    /// Timeout exceptions
+    /// Exception thrown when operation times out.
     /// </summary>
     public class TimeoutException : LocoException
     {
-        public TimeSpan Timeout { get; set; }
+        public TimeSpan Timeout { get; }
 
-        public TimeoutException(TimeSpan timeout, string errorCode = "TIME_001")
-            : base($"Operation timed out after {timeout.TotalSeconds:F1} seconds", errorCode)
-        {
-            Timeout = timeout;
-        }
-
-        public TimeoutException(string message, TimeSpan timeout, string errorCode = "TIME_001")
-            : base(message, errorCode)
+        public TimeoutException(string message, TimeSpan timeout)
+            : base(message, "TIMEOUT_ERROR", new { Timeout = timeout })
         {
             Timeout = timeout;
         }
     }
 
     /// <summary>
-    /// Plugin exceptions
+    /// Exception thrown for security-related violations.
     /// </summary>
-    public class PluginException : LocoException
+    public class SecurityException : LocoException
     {
-        public string? PluginName { get; set; }
-
-        public PluginException(string message, string? pluginName = null, string errorCode = "PLG_001")
-            : base(message, errorCode)
+        public SecurityException(string message)
+            : base(message, "SECURITY_ERROR")
         {
-            PluginName = pluginName;
         }
 
-        public PluginException(string message, Exception innerException, string? pluginName = null, string errorCode = "PLG_001")
-            : base(message, innerException, errorCode)
+        public SecurityException(string message, Exception innerException)
+            : base(message, innerException, "SECURITY_ERROR")
         {
-            PluginName = pluginName;
         }
     }
 
     /// <summary>
-    /// Execution-related exceptions
+    /// Exception thrown during execution.
     /// </summary>
     public class LocoExecutionException : LocoException
     {
-        public string? FlowId { get; set; }
-        public string? StepName { get; set; }
-
-        public LocoExecutionException(string message, string errorCode = "EXEC_001", string? flowId = null, string? stepName = null)
-            : base(message, errorCode)
+        public LocoExecutionException(string message)
+            : base(message, "EXECUTION_ERROR")
         {
-            FlowId = flowId;
-            StepName = stepName;
         }
 
-        public LocoExecutionException(string message, Exception innerException, string errorCode = "EXEC_001", string? flowId = null, string? stepName = null)
-            : base(message, innerException, errorCode)
+        public LocoExecutionException(string message, Exception innerException)
+            : base(message, innerException, "EXECUTION_ERROR")
         {
-            FlowId = flowId;
-            StepName = stepName;
-        }
-    }
-
-    /// <summary>
-    /// Configuration-related exceptions with detailed context
-    /// </summary>
-    public class LocoConfigurationException : ConfigurationException
-    {
-        public string? ConfigKey { get; set; }
-
-        public LocoConfigurationException(string message, string? configKey = null, string errorCode = "CFG_002")
-            : base(message, errorCode)
-        {
-            ConfigKey = configKey;
         }
 
-        public LocoConfigurationException(string message, Exception innerException, string? configKey = null, string errorCode = "CFG_002")
-            : base(message, innerException, errorCode)
+        // Legacy constructor for compatibility
+        public LocoExecutionException(string message, string p1, string p2, string p3, string p4)
+            : base(message, "EXECUTION_ERROR", new { P1 = p1, P2 = p2, P3 = p3, P4 = p4 })
         {
-            ConfigKey = configKey;
         }
     }
 
     /// <summary>
-    /// Validation exceptions with field details
+    /// Exception thrown for configuration errors.
     /// </summary>
-    public class LocoValidationException : ValidationException
+    public class LocoConfigurationException : LocoException
     {
-        public string? FieldName { get; set; }
-        public object? InvalidValue { get; set; }
-
-        public LocoValidationException(string message, string? fieldName = null, object? invalidValue = null, string errorCode = "VAL_002")
-            : base(message, errorCode)
+        public LocoConfigurationException(string message)
+            : base(message, "CONFIG_ERROR")
         {
-            FieldName = fieldName;
-            InvalidValue = invalidValue;
         }
 
-        public LocoValidationException(string message, Exception innerException, string? fieldName = null, string errorCode = "VAL_002")
-            : base(message, errorCode)
+        public LocoConfigurationException(string message, Exception innerException)
+            : base(message, innerException, "CONFIG_ERROR")
         {
-            FieldName = fieldName;
-        }
-    }
-
-    /// <summary>
-    /// Database operation exceptions
-    /// </summary>
-    public class LoCoDatabaseException : LocoException
-    {
-        public string? Database { get; set; }
-        public string? Query { get; set; }
-
-        public LoCoDatabaseException(string message, string? database = null, string? query = null, string errorCode = "DB_001")
-            : base(message, errorCode)
-        {
-            Database = database;
-            Query = query;
-        }
-
-        public LoCoDatabaseException(string message, Exception innerException, string? database = null, string? query = null, string errorCode = "DB_001")
-            : base(message, innerException, errorCode)
-        {
-            Database = database;
-            Query = query;
         }
     }
 }

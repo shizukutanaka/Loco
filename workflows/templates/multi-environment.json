@@ -1,0 +1,88 @@
+{
+  "id": "multi-environment",
+  "name": "Multi-Environment Deployment",
+  "description": "Workflow with environment-specific configurations",
+  "environments": [
+    {
+      "name": "dev",
+      "description": "Development environment",
+      "isDefault": true,
+      "variables": {
+        "api_url": "https://api.dev.example.com",
+        "deploy_path": "C:\\dev\\app",
+        "backup_enabled": "false",
+        "notification_email": "dev@example.com"
+      }
+    },
+    {
+      "name": "staging",
+      "description": "Staging environment",
+      "isDefault": false,
+      "variables": {
+        "api_url": "https://api.staging.example.com",
+        "deploy_path": "C:\\staging\\app",
+        "backup_enabled": "true",
+        "notification_email": "staging@example.com"
+      }
+    },
+    {
+      "name": "production",
+      "description": "Production environment",
+      "isDefault": false,
+      "variables": {
+        "api_url": "https://api.example.com",
+        "deploy_path": "C:\\prod\\app",
+        "backup_enabled": "true",
+        "notification_email": "ops@example.com"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "id": "start",
+      "name": "Start deployment",
+      "type": "log",
+      "message": "=== Deploying to ${var:api_url} ==="
+    },
+    {
+      "id": "check-backup",
+      "name": "Check if backup needed",
+      "type": "log",
+      "message": "Backup enabled: ${var:backup_enabled}"
+    },
+    {
+      "id": "create-backup",
+      "name": "Create backup",
+      "type": "log",
+      "message": "Creating backup for ${var:deploy_path}...",
+      "runIf": "backup_enabled"
+    },
+    {
+      "id": "deploy",
+      "name": "Deploy application",
+      "type": "log",
+      "message": "Deploying to ${var:deploy_path}"
+    },
+    {
+      "id": "verify",
+      "name": "Verify deployment",
+      "type": "http",
+      "url": "${var:api_url}/health",
+      "method": "GET",
+      "retryCount": 3,
+      "continueOnError": true
+    },
+    {
+      "id": "notify",
+      "name": "Send notification",
+      "type": "log",
+      "message": "Deployment complete - notification sent to ${var:notification_email}"
+    },
+    {
+      "id": "complete",
+      "name": "Complete",
+      "type": "log",
+      "message": "=== Deployment completed successfully ==="
+    }
+  ]
+}

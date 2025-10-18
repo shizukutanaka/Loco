@@ -1,0 +1,57 @@
+{
+  "id": "api-health-check",
+  "name": "API Health Check with Response Capture",
+  "description": "Checks API endpoints and captures response data",
+  "timeoutSeconds": 120,
+  "continueOnError": true,
+  "steps": [
+    {
+      "id": "start",
+      "name": "Start API health check",
+      "type": "log",
+      "message": "=== API Health Check Started ==="
+    },
+    {
+      "id": "check-google",
+      "name": "Check Google",
+      "type": "http",
+      "url": "https://www.google.com",
+      "method": "GET",
+      "saveOutput": "google_response"
+    },
+    {
+      "id": "delay1",
+      "name": "Wait before next check",
+      "type": "delay",
+      "duration": "00:00:02"
+    },
+    {
+      "id": "check-github",
+      "name": "Check GitHub API",
+      "type": "http",
+      "url": "https://api.github.com",
+      "method": "GET",
+      "saveOutput": "github_response"
+    },
+    {
+      "id": "delay2",
+      "name": "Wait before next check",
+      "type": "delay",
+      "duration": "00:00:02"
+    },
+    {
+      "id": "check-example",
+      "name": "Check Example.com",
+      "type": "http",
+      "url": "https://example.com",
+      "method": "GET",
+      "saveOutput": "example_response"
+    },
+    {
+      "id": "complete",
+      "name": "Health check complete",
+      "type": "log",
+      "message": "=== API Health Check Completed. All responses captured ==="
+    }
+  ]
+}

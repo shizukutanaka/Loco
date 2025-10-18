@@ -1,0 +1,53 @@
+{
+  "id": "backup-with-variables",
+  "name": "Flexible Backup with Variables",
+  "description": "Demonstrates workflow variables for flexible, reusable backups",
+  "timeoutSeconds": 120,
+  "continueOnError": false,
+  "steps": [
+    {
+      "id": "start",
+      "name": "Start backup",
+      "type": "log",
+      "message": "=== Backup started at ${datetime} by ${user} on ${machine} ==="
+    },
+    {
+      "id": "log-source",
+      "name": "Log source directory",
+      "type": "log",
+      "message": "Source: ${var:source}"
+    },
+    {
+      "id": "log-dest",
+      "name": "Log destination directory",
+      "type": "log",
+      "message": "Destination: ${var:dest}"
+    },
+    {
+      "id": "check-source",
+      "name": "Verify source exists",
+      "type": "file",
+      "path": "${var:source}"
+    },
+    {
+      "id": "create-backup-dir",
+      "name": "Create timestamped backup directory",
+      "type": "process",
+      "command": "mkdir \"${var:dest}\\backup-${date}-${timestamp}\"",
+      "continueOnError": true
+    },
+    {
+      "id": "copy-files",
+      "name": "Copy files to backup",
+      "type": "process",
+      "command": "xcopy \"${var:source}\" \"${var:dest}\\backup-${date}-${timestamp}\" /E /I /Y",
+      "continueOnError": false
+    },
+    {
+      "id": "complete",
+      "name": "Backup complete",
+      "type": "log",
+      "message": "=== Backup completed successfully at ${time} ==="
+    }
+  ]
+}

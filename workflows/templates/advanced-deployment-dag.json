@@ -1,0 +1,154 @@
+{
+  "id": "advanced-deployment-dag",
+  "name": "Advanced Deployment with DAG",
+  "description": "Demonstrates step dependencies and parallel execution",
+  "timing": {
+    "maxDurationSeconds": 600,
+    "startDelaySeconds": 0,
+    "stepDelaySeconds": 1,
+    "earliestStartTime": "08:00",
+    "latestStartTime": "20:00",
+    "skipOutsideWindow": false
+  },
+  "hooks": {
+    "preExecution": [
+      {
+        "type": "log",
+        "name": "Pre-execution notification",
+        "message": "🚀 Starting deployment workflow...",
+        "continueOnError": true
+      }
+    ],
+    "postSuccess": [
+      {
+        "type": "log",
+        "name": "Success notification",
+        "message": "✅ Deployment completed successfully!",
+        "continueOnError": true
+      }
+    ],
+    "postFailure": [
+      {
+        "type": "log",
+        "name": "Failure notification",
+        "message": "❌ Deployment failed - check logs",
+        "continueOnError": true
+      }
+    ]
+  },
+  "steps": [
+    {
+      "id": "init",
+      "name": "Initialize deployment",
+      "type": "log",
+      "message": "Initializing deployment environment..."
+    },
+    {
+      "id": "validate-env",
+      "name": "Validate environment",
+      "type": "log",
+      "message": "Validating environment configuration...",
+      "dependsOn": ["init"]
+    },
+    {
+      "id": "check-disk",
+      "name": "Check disk space",
+      "type": "log",
+      "message": "Checking available disk space...",
+      "dependsOn": ["init"],
+      "allowParallel": true
+    },
+    {
+      "id": "check-memory",
+      "name": "Check memory",
+      "type": "log",
+      "message": "Checking available memory...",
+      "dependsOn": ["init"],
+      "allowParallel": true
+    },
+    {
+      "id": "backup-database",
+      "name": "Backup database",
+      "type": "log",
+      "message": "Creating database backup...",
+      "dependsOn": ["validate-env", "check-disk"],
+      "onFailure": {
+        "type": "log",
+        "message": "⚠ Database backup failed - cannot proceed",
+        "continueAfterCleanup": false
+      }
+    },
+    {
+      "id": "backup-files",
+      "name": "Backup application files",
+      "type": "log",
+      "message": "Creating file backup...",
+      "dependsOn": ["validate-env", "check-disk"],
+      "allowParallel": true
+    },
+    {
+      "id": "stop-services",
+      "name": "Stop application services",
+      "type": "log",
+      "message": "Stopping application services...",
+      "dependsOn": ["backup-database", "backup-files"]
+    },
+    {
+      "id": "deploy-backend",
+      "name": "Deploy backend",
+      "type": "log",
+      "message": "Deploying backend application...",
+      "dependsOn": ["stop-services"]
+    },
+    {
+      "id": "deploy-frontend",
+      "name": "Deploy frontend",
+      "type": "log",
+      "message": "Deploying frontend application...",
+      "dependsOn": ["stop-services"],
+      "allowParallel": true
+    },
+    {
+      "id": "migrate-database",
+      "name": "Run database migrations",
+      "type": "log",
+      "message": "Running database migrations...",
+      "dependsOn": ["deploy-backend"]
+    },
+    {
+      "id": "start-services",
+      "name": "Start application services",
+      "type": "log",
+      "message": "Starting application services...",
+      "dependsOn": ["deploy-backend", "deploy-frontend", "migrate-database"]
+    },
+    {
+      "id": "verify-backend",
+      "name": "Verify backend health",
+      "type": "http",
+      "url": "https://httpbin.org/status/200",
+      "method": "GET",
+      "retryCount": 3,
+      "timeoutSeconds": 10,
+      "dependsOn": ["start-services"]
+    },
+    {
+      "id": "verify-frontend",
+      "name": "Verify frontend health",
+      "type": "http",
+      "url": "https://httpbin.org/status/200",
+      "method": "GET",
+      "retryCount": 3,
+      "timeoutSeconds": 10,
+      "dependsOn": ["start-services"],
+      "allowParallel": true
+    },
+    {
+      "id": "complete",
+      "name": "Deployment complete",
+      "type": "log",
+      "message": "=== Deployment completed successfully ===",
+      "dependsOn": ["verify-backend", "verify-frontend"]
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "id": "conditional-example",
+  "name": "Conditional Execution Example",
+  "description": "Demonstrates conditional step execution based on previous step results",
+  "timeoutSeconds": 120,
+  "continueOnError": true,
+  "steps": [
+    {
+      "id": "start",
+      "name": "Start demo",
+      "type": "log",
+      "message": "=== Conditional Execution Demo Started ==="
+    },
+    {
+      "id": "check-system",
+      "name": "Check system name",
+      "type": "process",
+      "command": "echo %computername%",
+      "saveOutput": "hostname"
+    },
+    {
+      "id": "step-always-runs",
+      "name": "This step always runs",
+      "type": "log",
+      "message": "This step has no conditions, so it always executes"
+    },
+    {
+      "id": "step-run-if-hostname",
+      "name": "Run if hostname exists",
+      "type": "log",
+      "message": "Hostname is available: ${ctx:hostname}",
+      "runIf": "hostname"
+    },
+    {
+      "id": "create-flag",
+      "name": "Create a flag variable",
+      "type": "process",
+      "command": "echo success",
+      "saveOutput": "deployment_flag"
+    },
+    {
+      "id": "conditional-on-flag",
+      "name": "Run only if deployment succeeded",
+      "type": "log",
+      "message": "Deployment flag is set - proceeding with next steps",
+      "runIf": "deployment_flag"
+    },
+    {
+      "id": "create-error-code",
+      "name": "Simulate exit code",
+      "type": "process",
+      "command": "exit 0"
+    },
+    {
+      "id": "check-success",
+      "name": "Run only if previous step succeeded",
+      "type": "log",
+      "message": "Previous step completed successfully",
+      "runIf": "create-error-code_success"
+    },
+    {
+      "id": "check-exit-code",
+      "name": "Run only if exit code is 0",
+      "type": "log",
+      "message": "Exit code was 0 as expected",
+      "runIf": "create-error-code_exitcode==0"
+    },
+    {
+      "id": "skip-example",
+      "name": "This step will be skipped",
+      "type": "log",
+      "message": "You should not see this message",
+      "skipIf": "hostname"
+    },
+    {
+      "id": "summary",
+      "name": "Demo complete",
+      "type": "log",
+      "message": "=== Conditional Execution Demo Completed ==="
+    }
+  ]
+}

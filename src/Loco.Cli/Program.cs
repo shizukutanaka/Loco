@@ -161,6 +161,20 @@ class Program
                 return await new SetupCommand().ExecuteAsync(args.Skip(1).ToArray());
             case "version":
                 return await new VersionCommand().ExecuteAsync(args.Skip(1).ToArray());
+            case "workflow":
+            case "wf":
+                if (args.Length > 1)
+                    return await WorkflowCommand(args.Skip(1).ToArray());
+                Console.WriteLine("Usage: loco workflow <list|<file_path>>");
+                Console.WriteLine();
+                Console.WriteLine("Commands:");
+                Console.WriteLine("  loco workflow list                           - List all workflows");
+                Console.WriteLine("  loco workflow <file_path>                    - Execute workflow");
+                Console.WriteLine();
+                Console.WriteLine("Examples:");
+                Console.WriteLine("  loco workflow list");
+                Console.WriteLine("  loco workflow workflows/hello-world.json");
+                return 1;
             case "demo":
             case "ui-demo":
                 await UIDemo.RunAsync();
@@ -2075,6 +2089,301 @@ class Program
         }
     }
 
+    private static async Task<int> WorkflowCommand(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            Console.WriteLine("Usage: loco workflow <list|stats|<file_path>> [options]");
+            Console.WriteLine();
+            Console.WriteLine("Options:");
+            Console.WriteLine("  --verbose, -v        Show detailed execution logs");
+            Console.WriteLine("  --dry-run            Validate workflow without executing");
+            Console.WriteLine("  --visualize          Show workflow diagram without executing");
+            Console.WriteLine("  --compact            Show compact workflow list");
+            Console.WriteLine("  --deps               Show workflow dependencies");
+            Console.WriteLine("  --schedule           Show workflow schedule information");
+            Console.WriteLine("  --analyze            Analyze workflow with dependency validation");
+            Console.WriteLine("  --health             Run health check on workflow");
+            Console.WriteLine("  --lint               Run linter for code quality checks");
+            Console.WriteLine("  --test               Run smoke tests on workflow");
+            Console.WriteLine("  --env <name>         Use environment preset (dev, staging, production)");
+            Console.WriteLine("  --var name=value     Set workflow variable (can be used multiple times)");
+            Console.WriteLine("  --output <file>      Save execution summary to file");
+            Console.WriteLine("  --report             Show detailed execution report");
+            Console.WriteLine();
+            Console.WriteLine("Examples:");
+            Console.WriteLine("  loco workflow list");
+            Console.WriteLine("  loco workflow stats");
+            Console.WriteLine("  loco workflow workflows/hello-world.json");
+            Console.WriteLine("  loco workflow workflows/hello-world.json --verbose");
+            Console.WriteLine("  loco workflow workflows/hello-world.json --dry-run");
+            Console.WriteLine("  loco workflow workflows/hello-world.json --visualize");
+            Console.WriteLine("  loco workflow workflows/hello-world.json --deps");
+            Console.WriteLine("  loco workflow workflows/backup.json --var source=C:\\data --var dest=C:\\backup");
+            Console.WriteLine("  loco workflow workflows/hello-world.json --output execution.log");
+            Console.WriteLine("  loco workflow workflows/hello-world.json --report");
+            return 1;
+        }
+
+        var command = args[0];
+
+        // Handle "list" subcommand
+        if (command.Equals("list", StringComparison.OrdinalIgnoreCase))
+        {
+            return await ListWorkflows();
+        }
+
+        // Handle "stats" subcommand
+        if (command.Equals("stats", StringComparison.OrdinalIgnoreCase))
+        {
+            ShowWorkflowStats();
+            return 0;
+        }
+
+        // Handle "info" subcommand
+        if (command.Equals("info", StringComparison.OrdinalIgnoreCase) && args.Length > 1)
+        {
+            return await ShowWorkflowInfo(args[1]);
+        }
+
+        var filePath = args[0];
+        var isDryRun = args.Any(a => a.Equals("--dry-run", StringComparison.OrdinalIgnoreCase));
+        var isVerbose = args.Any(a => a.Equals("--verbose", StringComparison.OrdinalIgnoreCase) || a == "-v");
+        var showReport = args.Any(a => a.Equals("--report", StringComparison.OrdinalIgnoreCase));
+        var visualize = args.Any(a => a.Equals("--visualize", StringComparison.OrdinalIgnoreCase));
+        var compact = args.Any(a => a.Equals("--compact", StringComparison.OrdinalIgnoreCase));
+        var showDeps = args.Any(a => a.Equals("--deps", StringComparison.OrdinalIgnoreCase));
+        var showSchedule = args.Any(a => a.Equals("--schedule", StringComparison.OrdinalIgnoreCase));
+        var analyze = args.Any(a => a.Equals("--analyze", StringComparison.OrdinalIgnoreCase));
+        var runHealthCheck = args.Any(a => a.Equals("--health", StringComparison.OrdinalIgnoreCase));
+        var runLint = args.Any(a => a.Equals("--lint", StringComparison.OrdinalIgnoreCase));
+        var runTest = args.Any(a => a.Equals("--test", StringComparison.OrdinalIgnoreCase));
+
+        // Parse environment preset
+        string? environment = null;
+        var envIndex = Array.FindIndex(args, a => a.Equals("--env", StringComparison.OrdinalIgnoreCase));
+        if (envIndex >= 0 && envIndex + 1 < args.Length)
+        {
+            environment = args[envIndex + 1];
+        }
+
+        // Parse output file
+        string? outputFile = null;
+        var outputIndex = Array.FindIndex(args, a => a.Equals("--output", StringComparison.OrdinalIgnoreCase));
+        if (outputIndex >= 0 && outputIndex + 1 < args.Length)
+        {
+            outputFile = args[outputIndex + 1];
+        }
+
+        // Parse workflow variables (--var name=value)
+        var variables = new Dictionary<string, string>();
+        for (int i = 1; i < args.Length; i++)
+        {
+            if (args[i].Equals("--var", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                var varArg = args[i + 1];
+                var parts = varArg.Split('=', 2);
+                if (parts.Length == 2)
+                {
+                    variables[parts[0]] = parts[1];
+                    Console.WriteLine($"Variable: {parts[0]} = {parts[1]}");
+                }
+                i++; // Skip next arg since we consumed it
+            }
+        }
+
+        try
+        {
+            if (!File.Exists(filePath))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error: Workflow file not found: {filePath}");
+                Console.ResetColor();
+                return 1;
+            }
+
+            // Handle visualization and analysis options (no execution)
+            if (visualize || compact || showDeps || showSchedule || analyze || runHealthCheck || runLint || runTest)
+            {
+                var workflowJson = await File.ReadAllTextAsync(filePath);
+                var workflowDef = System.Text.Json.JsonSerializer.Deserialize<Loco.Core.Workflows.WorkflowDefinition>(
+                    workflowJson,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                if (workflowDef == null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Error: Failed to parse workflow JSON");
+                    Console.ResetColor();
+                    return 1;
+                }
+
+                if (visualize)
+                {
+                    Console.WriteLine(Loco.Core.Workflows.WorkflowVisualizer.GenerateDiagram(workflowDef));
+                }
+                else if (compact)
+                {
+                    Console.WriteLine(Loco.Core.Workflows.WorkflowVisualizer.GenerateCompactList(workflowDef));
+                }
+                else if (showDeps)
+                {
+                    Console.WriteLine(Loco.Core.Workflows.WorkflowVisualizer.GenerateDependencyGraph(workflowDef));
+                }
+                else if (showSchedule)
+                {
+                    Console.WriteLine(Loco.Core.Workflows.WorkflowVisualizer.GenerateScheduleInfo(workflowDef));
+                }
+                else if (analyze)
+                {
+                    Console.WriteLine(Loco.Core.Workflows.WorkflowVisualizer.GenerateDependencyAnalysis(workflowDef));
+                }
+                else if (runHealthCheck)
+                {
+                    var checker = new Loco.Core.Workflows.WorkflowHealthChecker();
+                    var healthReport = checker.CheckWorkflow(workflowDef);
+                    Console.WriteLine(Loco.Core.Workflows.WorkflowHealthChecker.GenerateHealthReport(healthReport));
+
+                    // Return non-zero exit code if unhealthy
+                    return healthReport.IsHealthy ? 0 : 1;
+                }
+                else if (runLint)
+                {
+                    var linter = new Loco.Core.Workflows.WorkflowLinter();
+                    var lintReport = linter.LintWorkflow(workflowDef);
+                    Console.WriteLine(Loco.Core.Workflows.WorkflowLinter.GenerateLintReport(lintReport));
+
+                    // Return non-zero exit code if critical violations found
+                    return lintReport.HasCriticalViolations ? 1 : 0;
+                }
+                else if (runTest)
+                {
+                    var testRunner = new Loco.Core.Workflows.WorkflowTestRunner();
+                    var testResult = await testRunner.RunSmokeTestsAsync(workflowDef);
+                    Console.WriteLine(Loco.Core.Workflows.WorkflowTestRunner.GenerateTestReport(testResult));
+
+                    // Return non-zero exit code if tests failed
+                    return testResult.AllPassed ? 0 : 1;
+                }
+
+                return 0;
+            }
+
+            if (isDryRun)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("DRY-RUN MODE - No actions will be executed");
+                Console.ResetColor();
+                Console.WriteLine();
+            }
+
+            Console.WriteLine($"Loading workflow from: {filePath}");
+            Console.WriteLine();
+
+            // Create logger factory for workflow execution
+            using var loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder => { });
+            var logger = loggerFactory.CreateLogger("Workflow");
+
+            // Load workflow with variables and environment
+            var workflowLoader = new Loco.Core.Workflows.WorkflowLoader(logger, variables, environment);
+            var workflow = await workflowLoader.LoadFromFileAsync(filePath);
+
+            if (workflow == null)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Error: Failed to load workflow");
+                Console.ResetColor();
+                return 1;
+            }
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"✓ Loaded workflow: {workflow.Name} (ID: {workflow.Id})");
+            Console.WriteLine($"  Steps: {workflow.Actions.Count}");
+            Console.ResetColor();
+            Console.WriteLine();
+
+            if (isDryRun)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("✓ Workflow validation passed");
+                Console.WriteLine("  Dry-run complete - workflow is ready to execute");
+                Console.ResetColor();
+                return 0;
+            }
+
+            // Create engine and execute workflow
+            var config = new LocoConfig
+            {
+                MaxConcurrentFlows = 1,
+                DefaultTimeoutSeconds = 300,
+                DefaultRetryCount = 0
+            };
+
+            using var engine = new SimpleLightEngine(logger, config);
+            await engine.StartAsync();
+
+            engine.AddFlow(workflow);
+
+            Console.WriteLine("Executing workflow...");
+            Console.WriteLine(new string('-', 60));
+            Console.WriteLine();
+
+            var startTime = DateTime.Now;
+            var success = await engine.ExecuteFlowAsync(workflow.Id);
+            var duration = DateTime.Now - startTime;
+
+            Console.WriteLine();
+            Console.WriteLine(new string('-', 60));
+
+            // Record statistics
+            _workflowStats.RecordExecution(workflow.Id, success, duration);
+
+            // Save output log if requested
+            if (!string.IsNullOrEmpty(outputFile))
+            {
+                Loco.Core.Workflows.WorkflowOutputLogger.SaveExecutionSummary(
+                    outputFile,
+                    workflow.Name,
+                    workflow.Id,
+                    success,
+                    duration,
+                    workflow.Actions.Count,
+                    success ? null : "Workflow execution failed");
+
+                Console.WriteLine($"Execution summary saved to: {outputFile}");
+            }
+
+            // Show detailed report if requested
+            if (showReport)
+            {
+                Console.WriteLine();
+                ShowExecutionReport(workflow, success, startTime, DateTime.Now);
+            }
+
+            if (success)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"✓ Workflow completed successfully in {duration.TotalSeconds:F2}s");
+                Console.ResetColor();
+                return 0;
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"✗ Workflow failed after {duration.TotalSeconds:F2}s");
+                Console.ResetColor();
+                return 1;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"Error: {ex.Message}");
+            Console.ResetColor();
+            return 1;
+        }
+    }
+
     private static async Task<int> HistoryCommand(string[] args)
     {
         if (args.Length == 0)
@@ -2177,6 +2486,181 @@ class Program
         catch (Exception ex)
         {
             Console.WriteLine($"History command failed: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private static readonly Loco.Core.Workflows.WorkflowStatistics _workflowStats = new("workflow-stats.json");
+
+    private static void ShowWorkflowStats()
+    {
+        var stats = _workflowStats.GetAllStats().ToList();
+
+        if (!stats.Any())
+        {
+            Console.WriteLine("No workflow execution statistics available.");
+            Console.WriteLine("Run some workflows to see statistics.");
+            return;
+        }
+
+        Console.WriteLine("=== Workflow Execution Statistics ===");
+        Console.WriteLine();
+
+        foreach (var stat in stats.OrderByDescending(s => s.TotalExecutions))
+        {
+            Console.WriteLine(stat.ToString());
+            Console.WriteLine();
+        }
+    }
+
+    private static async Task<int> ShowWorkflowInfo(string filePath)
+    {
+        try
+        {
+            if (!File.Exists(filePath))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error: Workflow file not found: {filePath}");
+                Console.ResetColor();
+                return 1;
+            }
+
+            using var loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder => { });
+            var logger = loggerFactory.CreateLogger("WorkflowInfo");
+            var workflowLoader = new Loco.Core.Workflows.WorkflowLoader(logger);
+            var workflow = await workflowLoader.LoadFromFileAsync(filePath);
+
+            if (workflow == null)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Error: Failed to load workflow");
+                Console.ResetColor();
+                return 1;
+            }
+
+            Console.WriteLine("=== Workflow Information ===");
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"Name: {workflow.Name}");
+            Console.ResetColor();
+            Console.WriteLine($"ID: {workflow.Id}");
+            Console.WriteLine($"Description: {workflow.Description ?? "N/A"}");
+            Console.WriteLine($"Steps: {workflow.Actions.Count}");
+            Console.WriteLine($"File: {filePath}");
+            Console.WriteLine();
+
+            Console.WriteLine("Steps:");
+            for (int i = 0; i < workflow.Actions.Count; i++)
+            {
+                var action = workflow.Actions[i];
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.Write($"  {i + 1}. ");
+                Console.ResetColor();
+                Console.WriteLine($"{action.Name} ({action.Id})");
+            }
+            Console.WriteLine();
+
+            // Show statistics if available
+            var stats = _workflowStats.GetStats(workflow.Id);
+            if (stats != null)
+            {
+                Console.WriteLine("Execution Statistics:");
+                Console.WriteLine($"  Total runs: {stats.TotalExecutions}");
+                Console.WriteLine($"  Success rate: {stats.SuccessRate:F1}%");
+                Console.WriteLine($"  Avg duration: {stats.AverageDuration.TotalSeconds:F2}s");
+                Console.WriteLine($"  Last run: {stats.LastExecutionTime}");
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Gray;
+                Console.WriteLine("No execution history yet");
+                Console.ResetColor();
+            }
+
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"Error: {ex.Message}");
+            Console.ResetColor();
+            return 1;
+        }
+    }
+
+    private static void ShowExecutionReport(Loco.Core.Models.SimpleFlow workflow, bool success, DateTime startTime, DateTime endTime)
+    {
+        var duration = endTime - startTime;
+        var report = new Loco.Core.Workflows.WorkflowExecutionReport
+        {
+            WorkflowId = workflow.Id,
+            WorkflowName = workflow.Name,
+            StartTime = startTime,
+            EndTime = endTime,
+            Success = success,
+            TotalSteps = workflow.Actions.Count,
+            ExecutedSteps = workflow.Actions.Count,
+            SkippedSteps = 0,
+            FailedSteps = success ? 0 : 1
+        };
+
+        Console.WriteLine(report.GenerateTextReport());
+    }
+
+    private static async Task<int> ListWorkflows()
+    {
+        try
+        {
+            var workflowsDir = "workflows";
+
+            if (!Directory.Exists(workflowsDir))
+            {
+                Console.WriteLine("No workflows directory found.");
+                Console.WriteLine($"Create a '{workflowsDir}' directory and add workflow JSON files.");
+                return 0;
+            }
+
+            Console.WriteLine("Scanning for workflows...");
+            Console.WriteLine();
+
+            var catalog = new Loco.Core.Workflows.WorkflowCatalog();
+            var count = await catalog.ScanDirectoryAsync(workflowsDir, recursive: true);
+
+            if (count == 0)
+            {
+                Console.WriteLine("No workflow files found in the workflows directory.");
+                return 0;
+            }
+
+            Console.WriteLine("=== Workflow Catalog ===");
+            Console.WriteLine();
+
+            // Display catalog
+            Console.WriteLine(catalog.GenerateCatalogDisplay());
+
+            // Show summary
+            Console.WriteLine();
+            Console.WriteLine($"Total workflows: {count}");
+
+            var categories = catalog.GetCategories();
+            if (categories.Count > 0)
+            {
+                Console.WriteLine($"Categories: {string.Join(", ", categories)}");
+            }
+
+            var tags = catalog.GetTags();
+            if (tags.Count > 0)
+            {
+                Console.WriteLine($"Tags: {string.Join(", ", tags)}");
+            }
+
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"Error listing workflows: {ex.Message}");
+            Console.ResetColor();
             return 1;
         }
     }

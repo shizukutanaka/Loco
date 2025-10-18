@@ -1,0 +1,37 @@
+{
+  "id": "process-test",
+  "name": "Process Action Test",
+  "description": "Test process/command execution",
+  "steps": [
+    {
+      "id": "step1",
+      "name": "Start test",
+      "type": "log",
+      "message": "Testing process actions..."
+    },
+    {
+      "id": "step2",
+      "name": "Echo command",
+      "type": "process",
+      "command": "echo Hello from process action!"
+    },
+    {
+      "id": "step3",
+      "name": "Wait",
+      "type": "delay",
+      "duration": "00:00:01"
+    },
+    {
+      "id": "step4",
+      "name": "Directory listing",
+      "type": "process",
+      "command": "dir workflows"
+    },
+    {
+      "id": "step5",
+      "name": "Completion",
+      "type": "log",
+      "message": "Process test completed!"
+    }
+  ]
+}

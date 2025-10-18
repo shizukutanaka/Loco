@@ -1,40 +1,53 @@
 {
-  "id": "backup-001",
-  "name": "Simple Backup Workflow",
-  "description": "Create backup of important files and verify the backup",
+  "id": "backup-workflow",
+  "name": "Automated Backup Workflow",
+  "description": "Automated backup workflow with logging and notifications",
   "steps": [
     {
-      "id": "create-backup-dir",
-      "name": "Create backup directory",
-      "type": "fileOperation",
-      "operation": "createDirectory",
-      "path": "backups/{timestamp}",
-      "createParents": true
+      "id": "step1",
+      "name": "Initialize backup",
+      "type": "log",
+      "message": "Initializing backup process..."
     },
     {
-      "id": "backup-files",
-      "name": "Copy important files",
-      "type": "fileOperation",
-      "operation": "copy",
-      "source": "important-files/",
-      "destination": "backups/{timestamp}/files/"
+      "id": "step2",
+      "name": "Verify source",
+      "type": "file",
+      "message": "Verifying source files exist",
+      "path": "."
     },
     {
-      "id": "verify-backup",
-      "name": "Verify backup integrity",
-      "type": "command",
-      "command": "dir",
-      "arguments": ["backups/{timestamp}"],
-      "captureOutput": true
+      "id": "step3",
+      "name": "Prepare backup",
+      "type": "log",
+      "message": "Preparing backup destination..."
     },
     {
-      "id": "notify-completion",
-      "name": "Send backup notification",
-      "type": "notification",
-      "channel": "console",
-      "title": "Backup Complete",
-      "message": "Backup created successfully at {timestamp}",
-      "priority": "normal"
+      "id": "step4",
+      "name": "Perform backup",
+      "type": "backup",
+      "message": "Performing backup operation",
+      "source": "./data",
+      "destination": "./backup/data"
+    },
+    {
+      "id": "step5",
+      "name": "Wait for completion",
+      "type": "delay",
+      "duration": "00:00:02"
+    },
+    {
+      "id": "step6",
+      "name": "Verify backup",
+      "type": "file",
+      "message": "Verifying backup completed",
+      "path": "./backup"
+    },
+    {
+      "id": "step7",
+      "name": "Complete",
+      "type": "log",
+      "message": "Backup workflow completed successfully!"
     }
   ]
 }

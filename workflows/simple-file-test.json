@@ -1,0 +1,25 @@
+{
+  "id": "simple-file-test",
+  "name": "Simple File Test",
+  "description": "Simple test of file actions",
+  "steps": [
+    {
+      "id": "step1",
+      "name": "Start test",
+      "type": "log",
+      "message": "Testing file actions..."
+    },
+    {
+      "id": "step2",
+      "name": "Check directory",
+      "type": "file",
+      "path": "workflows"
+    },
+    {
+      "id": "step3",
+      "name": "Completion",
+      "type": "log",
+      "message": "File test completed!"
+    }
+  ]
+}

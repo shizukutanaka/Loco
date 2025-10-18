@@ -1,0 +1,56 @@
+{
+  "id": "advanced-actions-demo",
+  "name": "Advanced Actions Demo",
+  "description": "Demonstrates file, process, and HTTP actions",
+  "steps": [
+    {
+      "id": "step1",
+      "name": "Start demo",
+      "type": "log",
+      "message": "Starting advanced actions demonstration..."
+    },
+    {
+      "id": "step2",
+      "name": "Check current directory",
+      "type": "file",
+      "path": "."
+    },
+    {
+      "id": "step3",
+      "name": "Check workflows directory",
+      "type": "file",
+      "path": "workflows"
+    },
+    {
+      "id": "step4",
+      "name": "Wait a moment",
+      "type": "delay",
+      "duration": "00:00:01"
+    },
+    {
+      "id": "step5",
+      "name": "List directory contents",
+      "type": "process",
+      "command": "dir workflows\*.json"
+    },
+    {
+      "id": "step6",
+      "name": "Wait before HTTP request",
+      "type": "delay",
+      "duration": "00:00:01"
+    },
+    {
+      "id": "step7",
+      "name": "HTTP health check",
+      "type": "http",
+      "url": "https://www.example.com",
+      "method": "GET"
+    },
+    {
+      "id": "step8",
+      "name": "Demo completed",
+      "type": "log",
+      "message": "Advanced actions demonstration completed!"
+    }
+  ]
+}

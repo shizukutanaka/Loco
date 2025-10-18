@@ -1,0 +1,68 @@
+{
+  "id": "robust-api-check",
+  "name": "Robust API Health Check",
+  "description": "API health check with comprehensive retry and timeout configuration",
+  "timeoutSeconds": 180,
+  "continueOnError": true,
+  "steps": [
+    {
+      "id": "start",
+      "name": "Start health check",
+      "type": "log",
+      "message": "=== Robust API Health Check Started at ${datetime} ==="
+    },
+    {
+      "id": "check-httpbin",
+      "name": "Check HTTPBin API",
+      "type": "http",
+      "url": "https://httpbin.org/get",
+      "method": "GET",
+      "retryCount": 3,
+      "retryDelay": "00:00:02",
+      "timeoutSeconds": 15,
+      "saveOutput": "httpbin_response",
+      "continueOnError": true
+    },
+    {
+      "id": "wait1",
+      "name": "Wait between checks",
+      "type": "delay",
+      "duration": "00:00:01"
+    },
+    {
+      "id": "check-jsonplaceholder",
+      "name": "Check JSONPlaceholder API",
+      "type": "http",
+      "url": "https://jsonplaceholder.typicode.com/posts/1",
+      "method": "GET",
+      "retryCount": 2,
+      "retryDelay": "00:00:01",
+      "timeoutSeconds": 10,
+      "saveOutput": "jsonplaceholder_response",
+      "continueOnError": true
+    },
+    {
+      "id": "wait2",
+      "name": "Wait between checks",
+      "type": "delay",
+      "duration": "00:00:01"
+    },
+    {
+      "id": "check-example",
+      "name": "Check Example.com",
+      "type": "http",
+      "url": "https://example.com",
+      "method": "GET",
+      "retryCount": 1,
+      "retryDelay": "00:00:01",
+      "timeoutSeconds": 8,
+      "continueOnError": true
+    },
+    {
+      "id": "summary",
+      "name": "Health check complete",
+      "type": "log",
+      "message": "=== Robust API Health Check Completed at ${datetime} ==="
+    }
+  ]
+}

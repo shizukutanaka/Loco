@@ -161,7 +161,7 @@ public class AdvancedEncryptionManager
     /// <summary>
     /// ChaCha20-Poly1305暗号化（量子耐性）
     /// </summary>
-    public async Task<EncryptionResult> EncryptChaCha20Async(byte[] data, string keyId = "quantum-safe")
+    public async Task<EncryptionResult> EncryptChaCha20Async(byte[] data, string keyId = "chacha20")
     {
         // .NETではChaCha20-Poly1305が直接サポートされていないため、
         // 代替としてより安全なAES-GCMを使用
@@ -376,9 +376,9 @@ public class AdvancedEncryptionManager
         _keys["default"] = defaultKey;
 
         // 量子耐性鍵（実際には量子耐性アルゴリズムを使用）
-        var quantumKey = GenerateKey();
-        quantumKey.Id = "quantum-safe";
-        _keys["quantum-safe"] = quantumKey;
+        var chachaKey = GenerateKey();
+        chachaKey.Id = "chacha20";
+        _keys["chacha20"] = chachaKey;
     }
 
     // データモデル

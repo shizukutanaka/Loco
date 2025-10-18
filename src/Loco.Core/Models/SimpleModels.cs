@@ -191,6 +191,8 @@ namespace Loco.Core.Models
         public Task<bool> ExecuteAsync(IActionContext context)
         {
             context.Logger?.LogInformation("LogAction: {Message}", Message);
+            // Also output to console for better visibility
+            Console.WriteLine($"[LOG] {Message}");
             return Task.FromResult(true);
         }
     }

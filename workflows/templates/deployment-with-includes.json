@@ -1,0 +1,56 @@
+{
+  "id": "deployment-with-includes",
+  "name": "Deployment with Reusable Components",
+  "description": "Demonstrates workflow includes for reusable step sequences",
+  "variables": {
+    "api_url": "https://httpbin.org",
+    "source_path": "C:\\app\\current",
+    "backup_path": "C:\\app\\backup"
+  },
+  "includes": [
+    {
+      "id": "pre-deploy-backup",
+      "path": "workflows/includes/backup-steps.json",
+      "position": 1,
+      "variables": {
+        "source_path": "${var:source_path}",
+        "backup_path": "${var:backup_path}"
+      }
+    },
+    {
+      "id": "post-deploy-health",
+      "path": "workflows/includes/health-check.json",
+      "position": -1,
+      "variables": {
+        "api_url": "${var:api_url}"
+      },
+      "continueOnError": false
+    }
+  ],
+  "steps": [
+    {
+      "id": "start",
+      "name": "Start deployment",
+      "type": "log",
+      "message": "=== Starting Deployment with Includes ==="
+    },
+    {
+      "id": "deploy",
+      "name": "Deploy application",
+      "type": "log",
+      "message": "Deploying application files..."
+    },
+    {
+      "id": "restart-services",
+      "name": "Restart services",
+      "type": "log",
+      "message": "Restarting application services..."
+    },
+    {
+      "id": "complete",
+      "name": "Deployment complete",
+      "type": "log",
+      "message": "=== Deployment Completed ==="
+    }
+  ]
+}

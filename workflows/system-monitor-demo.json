@@ -1,0 +1,76 @@
+{
+  "name": "system-monitor-demo",
+  "description": "Demonstrates system resource monitoring triggers",
+  "eventTriggers": [
+    {
+      "type": "SystemCpu",
+      "threshold": 80.0,
+      "checkIntervalSeconds": 30,
+      "requireContinuous": true,
+      "continuousChecks": 3,
+      "cooldownSeconds": 300,
+      "enabled": true
+    },
+    {
+      "type": "SystemMemory",
+      "threshold": 85.0,
+      "checkIntervalSeconds": 30,
+      "requireContinuous": true,
+      "continuousChecks": 2,
+      "cooldownSeconds": 300,
+      "enabled": true
+    },
+    {
+      "type": "SystemDisk",
+      "threshold": 90.0,
+      "checkIntervalSeconds": 60,
+      "requireContinuous": false,
+      "cooldownSeconds": 600,
+      "enabled": true
+    }
+  ],
+  "steps": [
+    {
+      "name": "log-alert",
+      "description": "Log the system resource alert",
+      "action": {
+        "type": "log",
+        "message": "ALERT: {{eventType}} exceeded threshold - Current: {{value}}%, Threshold: {{threshold}}%",
+        "level": "Warning"
+      }
+    },
+    {
+      "name": "capture-diagnostics",
+      "description": "Capture system diagnostics",
+      "action": {
+        "type": "script",
+        "command": "powershell",
+        "args": [
+          "-Command",
+          "Get-Process | Sort-Object CPU -Descending | Select-Object -First 10 | Format-Table ProcessName,CPU,WorkingSet -AutoSize"
+        ]
+      }
+    },
+    {
+      "name": "cleanup-resources",
+      "description": "Attempt automatic cleanup",
+      "action": {
+        "type": "script",
+        "command": "powershell",
+        "args": [
+          "-Command",
+          "[System.GC]::Collect(); [System.GC]::WaitForPendingFinalizers(); Write-Host 'Garbage collection completed'"
+        ]
+      }
+    },
+    {
+      "name": "send-alert",
+      "description": "Send alert notification",
+      "action": {
+        "type": "log",
+        "message": "System alert processed and cleanup attempted",
+        "level": "Information"
+      }
+    }
+  ]
+}

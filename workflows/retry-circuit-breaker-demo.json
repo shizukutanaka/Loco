@@ -1,0 +1,164 @@
+{
+  "name": "retry-circuit-breaker-demo",
+  "description": "Demonstrates advanced retry strategies and circuit breaker patterns",
+  "steps": [
+    {
+      "name": "fixed-retry-demo",
+      "description": "Fixed delay retry strategy",
+      "action": {
+        "type": "script",
+        "command": "powershell",
+        "args": [
+          "-Command",
+          "$random = Get-Random -Maximum 5; if ($random -lt 3) { throw 'Random failure' } else { Write-Host 'Success' }"
+        ]
+      },
+      "retry": {
+        "maxRetries": 3,
+        "initialDelay": "00:00:02",
+        "strategy": "Fixed"
+      }
+    },
+    {
+      "name": "exponential-retry-demo",
+      "description": "Exponential backoff with jitter",
+      "action": {
+        "type": "script",
+        "command": "powershell",
+        "args": [
+          "-Command",
+          "$random = Get-Random -Maximum 5; if ($random -lt 2) { throw 'Transient error' } else { Write-Host 'Success' }"
+        ]
+      },
+      "retry": {
+        "maxRetries": 5,
+        "initialDelay": "00:00:00.500",
+        "maxDelay": "00:00:30",
+        "strategy": "Exponential",
+        "backoffMultiplier": 2.0,
+        "useJitter": true
+      }
+    },
+    {
+      "name": "linear-retry-demo",
+      "description": "Linear backoff strategy",
+      "action": {
+        "type": "script",
+        "command": "powershell",
+        "args": [
+          "-Command",
+          "Write-Host 'Attempting operation...'; Start-Sleep -Milliseconds 100; Write-Host 'Completed'"
+        ]
+      },
+      "retry": {
+        "maxRetries": 4,
+        "initialDelay": "00:00:01",
+        "maxDelay": "00:00:10",
+        "strategy": "Linear"
+      }
+    },
+    {
+      "name": "circuit-breaker-protected",
+      "description": "Operation protected by circuit breaker",
+      "action": {
+        "type": "script",
+        "command": "powershell",
+        "args": [
+          "-Command",
+          "$random = Get-Random -Maximum 10; if ($random -lt 7) { throw 'Service unavailable' } else { Write-Host 'Service call succeeded' }"
+        ]
+      },
+      "circuitBreaker": {
+        "failureThreshold": 3,
+        "successThreshold": 2,
+        "resetTimeout": "00:01:00",
+        "halfOpenCalls": 1
+      },
+      "retry": {
+        "maxRetries": 5,
+        "initialDelay": "00:00:01",
+        "strategy": "Exponential"
+      }
+    },
+    {
+      "name": "network-retry-demo",
+      "description": "Network-specific retry policy",
+      "action": {
+        "type": "script",
+        "command": "powershell",
+        "args": [
+          "-Command",
+          "try { Invoke-WebRequest -Uri 'https://httpbin.org/status/200' -UseBasicParsing | Out-Null; Write-Host 'Network call succeeded' } catch { throw 'Network error' }"
+        ]
+      },
+      "retry": {
+        "maxRetries": 5,
+        "initialDelay": "00:00:00.500",
+        "maxDelay": "00:00:30",
+        "strategy": "Exponential",
+        "backoffMultiplier": 2.0,
+        "retryableExceptions": ["HttpRequestException", "TimeoutException", "IOException"]
+      },
+      "timeout": "00:00:10"
+    },
+    {
+      "name": "database-retry-demo",
+      "description": "Database-specific retry policy",
+      "action": {
+        "type": "log",
+        "message": "Simulated database operation with optimized retry settings",
+        "level": "Information"
+      },
+      "retry": {
+        "maxRetries": 3,
+        "initialDelay": "00:00:00.100",
+        "maxDelay": "00:00:10",
+        "strategy": "Exponential",
+        "backoffMultiplier": 2.5
+      }
+    },
+    {
+      "name": "non-retryable-error-demo",
+      "description": "Demonstrates non-retryable error handling",
+      "action": {
+        "type": "script",
+        "command": "powershell",
+        "args": [
+          "-Command",
+          "Write-Host 'Operation completed (validation errors do not retry)'"
+        ]
+      },
+      "retry": {
+        "maxRetries": 3,
+        "initialDelay": "00:00:01",
+        "nonRetryableExceptions": ["ArgumentException", "InvalidOperationException", "ValidationException"]
+      }
+    },
+    {
+      "name": "circuit-breaker-stats",
+      "description": "Log circuit breaker statistics",
+      "action": {
+        "type": "log",
+        "message": "Circuit Breaker Stats - State: {{circuitBreakerState}}, Failures: {{totalFailures}}, Successes: {{totalSuccesses}}",
+        "level": "Information"
+      }
+    }
+  ],
+  "resilience": {
+    "defaultRetryPolicy": {
+      "maxRetries": 3,
+      "initialDelay": "00:00:01",
+      "strategy": "Exponential"
+    },
+    "defaultCircuitBreaker": {
+      "failureThreshold": 5,
+      "resetTimeout": "00:01:00"
+    },
+    "defaultTimeout": "00:00:30"
+  },
+  "monitoring": {
+    "trackRetryAttempts": true,
+    "trackCircuitBreakerState": true,
+    "logFailureDetails": true
+  }
+}

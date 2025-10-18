@@ -1,0 +1,108 @@
+{
+  "id": "production-deployment",
+  "name": "Production Deployment Workflow",
+  "description": "Comprehensive production deployment with all advanced features: variables, conditions, retry, timeout, output capture",
+  "timeoutSeconds": 600,
+  "continueOnError": false,
+  "steps": [
+    {
+      "id": "start",
+      "name": "Deployment started",
+      "type": "log",
+      "message": "=== Production Deployment Started at ${datetime} by ${user} on ${machine} ==="
+    },
+    {
+      "id": "check-environment",
+      "name": "Verify environment",
+      "type": "process",
+      "command": "echo %computername%",
+      "saveOutput": "deploy_host",
+      "timeoutSeconds": 5
+    },
+    {
+      "id": "validate-host",
+      "name": "Confirm deployment host",
+      "type": "log",
+      "message": "Deploying to host: ${ctx:deploy_host}",
+      "runIf": "deploy_host"
+    },
+    {
+      "id": "pre-deployment-check",
+      "name": "Pre-deployment validation",
+      "type": "process",
+      "command": "echo validation_passed",
+      "saveOutput": "validation_result",
+      "retryCount": 2,
+      "retryDelay": "00:00:01",
+      "timeoutSeconds": 10
+    },
+    {
+      "id": "proceed-if-validated",
+      "name": "Proceed only if validated",
+      "type": "log",
+      "message": "✓ Pre-deployment validation passed",
+      "runIf": "validation_result"
+    },
+    {
+      "id": "backup-current",
+      "name": "Backup current version",
+      "type": "log",
+      "message": "Creating backup of current version...",
+      "continueOnError": true
+    },
+    {
+      "id": "deploy-application",
+      "name": "Deploy application files",
+      "type": "log",
+      "message": "Deploying application version ${var:version} to ${var:environment}..."
+    },
+    {
+      "id": "verify-deployment",
+      "name": "Verify deployment success",
+      "type": "process",
+      "command": "echo deployed",
+      "saveOutput": "deploy_status",
+      "retryCount": 3,
+      "retryDelay": "00:00:02",
+      "timeoutSeconds": 30
+    },
+    {
+      "id": "health-check",
+      "name": "Run health check",
+      "type": "http",
+      "url": "https://httpbin.org/status/200",
+      "method": "GET",
+      "retryCount": 5,
+      "retryDelay": "00:00:03",
+      "timeoutSeconds": 15,
+      "saveOutput": "health_check_response",
+      "continueOnError": false
+    },
+    {
+      "id": "deployment-success",
+      "name": "Deployment succeeded",
+      "type": "log",
+      "message": "✓ Deployment completed successfully",
+      "runIf": "deploy_status"
+    },
+    {
+      "id": "rollback",
+      "name": "Rollback on failure",
+      "type": "log",
+      "message": "✗ Deployment failed - initiating rollback",
+      "skipIf": "deploy_status"
+    },
+    {
+      "id": "notify-completion",
+      "name": "Send completion notification",
+      "type": "log",
+      "message": "Deployment notification sent to team"
+    },
+    {
+      "id": "complete",
+      "name": "Deployment complete",
+      "type": "log",
+      "message": "=== Production Deployment Completed at ${datetime} - Duration: ${timestamp} ==="
+    }
+  ]
+}

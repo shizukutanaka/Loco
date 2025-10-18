@@ -1,0 +1,43 @@
+{
+  "name": "file-watch-demo",
+  "description": "Demonstrates automatic workflow execution when files change",
+  "fileWatchers": [
+    {
+      "path": "C:\\temp\\watched",
+      "filePattern": "*.txt",
+      "includeSubdirectories": false,
+      "changeTypes": ["Created", "Changed"],
+      "debounceMs": 500,
+      "cooldownSeconds": 5,
+      "enabled": true
+    }
+  ],
+  "steps": [
+    {
+      "name": "log-file-change",
+      "description": "Log the file change event",
+      "action": {
+        "type": "log",
+        "message": "File changed: {{filePath}} ({{changeType}})"
+      }
+    },
+    {
+      "name": "backup-file",
+      "description": "Create a backup of the changed file",
+      "action": {
+        "type": "file-copy",
+        "source": "{{filePath}}",
+        "destination": "C:\\temp\\backups\\{{fileName}}.{{timestamp}}.bak"
+      }
+    },
+    {
+      "name": "notify-complete",
+      "description": "Log completion",
+      "action": {
+        "type": "log",
+        "message": "Backup created successfully",
+        "level": "Information"
+      }
+    }
+  ]
+}

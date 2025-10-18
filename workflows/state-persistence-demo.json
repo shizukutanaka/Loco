@@ -1,0 +1,95 @@
+{
+  "name": "state-persistence-demo",
+  "description": "Demonstrates workflow state persistence for crash recovery and pause/resume",
+  "steps": [
+    {
+      "name": "step-1",
+      "description": "First step - state saved after completion",
+      "action": {
+        "type": "log",
+        "message": "Step 1: State will be persisted after this step",
+        "level": "Information"
+      }
+    },
+    {
+      "name": "long-running-step",
+      "description": "Long-running operation that can be paused and resumed",
+      "action": {
+        "type": "script",
+        "command": "powershell",
+        "args": [
+          "-Command",
+          "for ($i=1; $i -le 10; $i++) { Write-Host \"Processing chunk $i/10\"; Start-Sleep -Seconds 1 }"
+        ]
+      },
+      "pausable": true,
+      "saveStateInterval": "00:00:05"
+    },
+    {
+      "name": "checkpoint-1",
+      "description": "Explicit checkpoint for state persistence",
+      "action": {
+        "type": "log",
+        "message": "Checkpoint 1: Workflow state saved - 50% complete",
+        "level": "Information"
+      },
+      "checkpoint": true
+    },
+    {
+      "name": "data-processing",
+      "description": "Process data with variable tracking",
+      "action": {
+        "type": "script",
+        "command": "powershell",
+        "args": [
+          "-Command",
+          "$processedItems = 100; Write-Host \"Processed $processedItems items\""
+        ]
+      },
+      "variables": {
+        "processedItems": 0,
+        "startTime": "{{now}}",
+        "batchSize": 100
+      }
+    },
+    {
+      "name": "checkpoint-2",
+      "description": "Second checkpoint",
+      "action": {
+        "type": "log",
+        "message": "Checkpoint 2: Workflow state saved - 75% complete",
+        "level": "Information"
+      },
+      "checkpoint": true
+    },
+    {
+      "name": "final-step",
+      "description": "Final step before completion",
+      "action": {
+        "type": "log",
+        "message": "Final step: All data processed. Variables: processedItems={{processedItems}}, batchSize={{batchSize}}",
+        "level": "Information"
+      }
+    },
+    {
+      "name": "complete",
+      "description": "Mark as completed and finalize state",
+      "action": {
+        "type": "log",
+        "message": "Workflow completed - final state persisted",
+        "level": "Information"
+      }
+    }
+  ],
+  "persistence": {
+    "enabled": true,
+    "autoSaveIntervalMs": 5000,
+    "storagePath": "./workflow-states",
+    "retentionDays": 30
+  },
+  "recovery": {
+    "enabled": true,
+    "resumeFromLastCheckpoint": true,
+    "markCrashedAsFailed": true
+  }
+}

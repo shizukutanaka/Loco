@@ -1,0 +1,91 @@
+{
+  "id": "scheduled-backup",
+  "name": "Scheduled Backup Workflow",
+  "description": "Automated backup that runs on a schedule",
+  "schedule": {
+    "timeOfDay": "02:00",
+    "daysOfWeek": "Monday,Wednesday,Friday",
+    "enabled": true,
+    "maxExecutions": 0
+  },
+  "timing": {
+    "maxDurationSeconds": 3600,
+    "earliestStartTime": "00:00",
+    "latestStartTime": "06:00",
+    "skipOutsideWindow": true
+  },
+  "hooks": {
+    "preExecution": [
+      {
+        "type": "log",
+        "name": "Backup start notification",
+        "message": "📦 Starting scheduled backup at ${datetime:yyyy-MM-dd HH:mm:ss}"
+      }
+    ],
+    "postSuccess": [
+      {
+        "type": "log",
+        "name": "Backup success notification",
+        "message": "✅ Backup completed successfully"
+      }
+    ],
+    "postFailure": [
+      {
+        "type": "log",
+        "name": "Backup failure notification",
+        "message": "❌ Backup failed - manual intervention required"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "id": "check-space",
+      "name": "Check available disk space",
+      "type": "log",
+      "message": "Checking disk space for backup..."
+    },
+    {
+      "id": "backup-database",
+      "name": "Backup database",
+      "type": "log",
+      "message": "Creating database backup for ${date:yyyy-MM-dd}...",
+      "timeoutSeconds": 1800,
+      "onFailure": {
+        "type": "log",
+        "message": "Database backup failed",
+        "continueAfterCleanup": false
+      }
+    },
+    {
+      "id": "backup-files",
+      "name": "Backup application files",
+      "type": "log",
+      "message": "Creating file system backup...",
+      "timeoutSeconds": 1800
+    },
+    {
+      "id": "verify-backups",
+      "name": "Verify backup integrity",
+      "type": "log",
+      "message": "Verifying backup files...",
+      "retryCount": 2
+    },
+    {
+      "id": "cleanup-old-backups",
+      "name": "Clean up old backups",
+      "type": "log",
+      "message": "Removing backups older than 30 days...",
+      "continueOnError": true
+    },
+    {
+      "id": "update-log",
+      "name": "Update backup log",
+      "type": "log",
+      "message": "Backup completed at ${datetime:yyyy-MM-dd HH:mm:ss}",
+      "onComplete": {
+        "type": "log",
+        "message": "Backup log updated"
+      }
+    }
+  ]
+}

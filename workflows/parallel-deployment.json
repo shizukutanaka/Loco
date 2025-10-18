@@ -1,0 +1,134 @@
+{
+  "id": "parallel-deployment",
+  "name": "Parallel Deployment Workflow",
+  "description": "Demonstrates parallel step execution with dependencies",
+  "version": "1.0.0",
+  "variables": {
+    "environment": "staging",
+    "version": "1.0.0"
+  },
+  "steps": [
+    {
+      "id": "prepare",
+      "name": "Prepare Deployment",
+      "type": "log",
+      "message": "Preparing deployment for version ${var:version} to ${var:environment}..."
+    },
+    {
+      "id": "build-frontend",
+      "name": "Build Frontend",
+      "type": "log",
+      "message": "Building frontend application...",
+      "dependsOn": ["prepare"]
+    },
+    {
+      "id": "build-backend",
+      "name": "Build Backend",
+      "type": "log",
+      "message": "Building backend services...",
+      "dependsOn": ["prepare"]
+    },
+    {
+      "id": "build-database-migrations",
+      "name": "Build Database Migrations",
+      "type": "log",
+      "message": "Preparing database migrations...",
+      "dependsOn": ["prepare"]
+    },
+    {
+      "id": "run-frontend-tests",
+      "name": "Run Frontend Tests",
+      "type": "log",
+      "message": "Running frontend unit tests...",
+      "dependsOn": ["build-frontend"]
+    },
+    {
+      "id": "run-backend-tests",
+      "name": "Run Backend Tests",
+      "type": "log",
+      "message": "Running backend unit tests...",
+      "dependsOn": ["build-backend"]
+    },
+    {
+      "id": "deploy-database",
+      "name": "Deploy Database Migrations",
+      "type": "log",
+      "message": "Applying database migrations...",
+      "dependsOn": ["build-database-migrations"],
+      "rollback": {
+        "id": "rollback-database",
+        "name": "Rollback Database Migrations",
+        "type": "log",
+        "parameters": {
+          "message": "Rolling back database migrations..."
+        }
+      }
+    },
+    {
+      "id": "deploy-backend",
+      "name": "Deploy Backend Services",
+      "type": "log",
+      "message": "Deploying backend services...",
+      "dependsOn": ["run-backend-tests", "deploy-database"],
+      "rollback": {
+        "id": "rollback-backend",
+        "name": "Rollback Backend Deployment",
+        "type": "log",
+        "parameters": {
+          "message": "Rolling back backend services..."
+        }
+      }
+    },
+    {
+      "id": "deploy-frontend",
+      "name": "Deploy Frontend Application",
+      "type": "log",
+      "message": "Deploying frontend application...",
+      "dependsOn": ["run-frontend-tests", "deploy-backend"],
+      "rollback": {
+        "id": "rollback-frontend",
+        "name": "Rollback Frontend Deployment",
+        "type": "log",
+        "parameters": {
+          "message": "Rolling back frontend application..."
+        }
+      }
+    },
+    {
+      "id": "verify-deployment",
+      "name": "Verify Deployment",
+      "type": "log",
+      "message": "Verifying deployment health...",
+      "dependsOn": ["deploy-frontend", "deploy-backend"]
+    },
+    {
+      "id": "notify-success",
+      "name": "Send Success Notification",
+      "type": "log",
+      "message": "Deployment completed successfully! Sending notifications...",
+      "dependsOn": ["verify-deployment"]
+    }
+  ],
+  "cleanup": {
+    "runOnSuccess": true,
+    "runOnFailure": true,
+    "actions": [
+      {
+        "id": "cleanup-temp-files",
+        "name": "Cleanup Temporary Files",
+        "type": "log",
+        "parameters": {
+          "message": "Cleaning up temporary build files..."
+        }
+      },
+      {
+        "id": "cleanup-cache",
+        "name": "Clear Build Cache",
+        "type": "log",
+        "parameters": {
+          "message": "Clearing build cache..."
+        }
+      }
+    ]
+  }
+}

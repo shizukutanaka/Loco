@@ -1,0 +1,54 @@
+{
+  "id": "daily-health-check",
+  "name": "Daily System Health Check",
+  "description": "Comprehensive daily health check with disk, memory, and process monitoring",
+  "timeoutSeconds": 300,
+  "continueOnError": false,
+  "steps": [
+    {
+      "id": "start",
+      "name": "Start health check",
+      "type": "log",
+      "message": "=== Daily System Health Check Started ==="
+    },
+    {
+      "id": "check-disk",
+      "name": "Check disk space",
+      "type": "process",
+      "command": "wmic logicaldisk get size,freespace,caption",
+      "continueOnError": true
+    },
+    {
+      "id": "wait1",
+      "name": "Brief pause",
+      "type": "delay",
+      "duration": "00:00:01"
+    },
+    {
+      "id": "check-memory",
+      "name": "Check memory usage",
+      "type": "process",
+      "command": "wmic OS get FreePhysicalMemory,TotalVisibleMemorySize /Value",
+      "continueOnError": true
+    },
+    {
+      "id": "wait2",
+      "name": "Brief pause",
+      "type": "delay",
+      "duration": "00:00:01"
+    },
+    {
+      "id": "check-processes",
+      "name": "List top processes",
+      "type": "process",
+      "command": "tasklist /NH | findstr /i \"chrome firefox edge\"",
+      "continueOnError": true
+    },
+    {
+      "id": "complete",
+      "name": "Health check complete",
+      "type": "log",
+      "message": "=== Daily Health Check Completed ==="
+    }
+  ]
+}

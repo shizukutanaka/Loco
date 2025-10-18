@@ -1,0 +1,31 @@
+{
+  "id": "backup-fragment",
+  "name": "Backup Steps Fragment",
+  "description": "Reusable backup steps",
+  "steps": [
+    {
+      "id": "backup-start",
+      "name": "Start backup",
+      "type": "log",
+      "message": ">>> Creating backup at ${datetime:yyyy-MM-dd HH:mm:ss}"
+    },
+    {
+      "id": "backup-files",
+      "name": "Backup application files",
+      "type": "log",
+      "message": "Backing up files from ${var:source_path} to ${var:backup_path}"
+    },
+    {
+      "id": "verify-backup",
+      "name": "Verify backup",
+      "type": "log",
+      "message": "Verifying backup integrity..."
+    },
+    {
+      "id": "backup-complete",
+      "name": "Backup complete",
+      "type": "log",
+      "message": "<<< Backup completed successfully"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "id": "health-check-fragment",
+  "name": "Health Check Fragment",
+  "description": "Reusable health check steps",
+  "steps": [
+    {
+      "id": "health-check-start",
+      "name": "Starting health checks",
+      "type": "log",
+      "message": ">>> Running health checks..."
+    },
+    {
+      "id": "check-api",
+      "name": "Check API endpoint",
+      "type": "http",
+      "url": "${var:api_url}/health",
+      "method": "GET",
+      "retryCount": 3,
+      "timeoutSeconds": 10,
+      "saveOutput": "api_health_status"
+    },
+    {
+      "id": "check-database",
+      "name": "Check database connection",
+      "type": "log",
+      "message": "Checking database connectivity..."
+    },
+    {
+      "id": "health-check-complete",
+      "name": "Health checks complete",
+      "type": "log",
+      "message": "<<< Health checks completed"
+    }
+  ]
+}

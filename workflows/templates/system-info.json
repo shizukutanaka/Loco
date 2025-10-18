@@ -1,0 +1,75 @@
+{
+  "id": "system-info",
+  "name": "System Information Report",
+  "description": "Displays system information using built-in variables",
+  "timeoutSeconds": 60,
+  "continueOnError": true,
+  "steps": [
+    {
+      "id": "header",
+      "name": "Report header",
+      "type": "log",
+      "message": "╔════════════════════════════════════════════════╗"
+    },
+    {
+      "id": "title",
+      "name": "Report title",
+      "type": "log",
+      "message": "║        SYSTEM INFORMATION REPORT              ║"
+    },
+    {
+      "id": "separator",
+      "name": "Separator",
+      "type": "log",
+      "message": "╠════════════════════════════════════════════════╣"
+    },
+    {
+      "id": "date-info",
+      "name": "Date and time",
+      "type": "log",
+      "message": "║ Date/Time: ${datetime}              ║"
+    },
+    {
+      "id": "user-info",
+      "name": "User information",
+      "type": "log",
+      "message": "║ User: ${user}"
+    },
+    {
+      "id": "machine-info",
+      "name": "Machine information",
+      "type": "log",
+      "message": "║ Machine: ${machine}"
+    },
+    {
+      "id": "workdir-info",
+      "name": "Working directory",
+      "type": "log",
+      "message": "║ Working Directory: ${workdir}"
+    },
+    {
+      "id": "env-user",
+      "name": "Environment - USERNAME",
+      "type": "log",
+      "message": "║ ENV USERNAME: ${env:USERNAME}"
+    },
+    {
+      "id": "env-computername",
+      "name": "Environment - COMPUTERNAME",
+      "type": "log",
+      "message": "║ ENV COMPUTERNAME: ${env:COMPUTERNAME}"
+    },
+    {
+      "id": "footer",
+      "name": "Report footer",
+      "type": "log",
+      "message": "╚════════════════════════════════════════════════╝"
+    },
+    {
+      "id": "os-info",
+      "name": "Get OS information",
+      "type": "process",
+      "command": "systeminfo | findstr /B /C:\"OS Name\" /C:\"OS Version\""
+    }
+  ]
+}

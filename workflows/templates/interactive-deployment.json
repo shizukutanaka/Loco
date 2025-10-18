@@ -1,0 +1,85 @@
+{
+  "id": "interactive-deployment",
+  "name": "Interactive Deployment with Cleanup",
+  "description": "Demonstrates interactive prompts and cleanup handlers",
+  "steps": [
+    {
+      "id": "start",
+      "name": "Deployment started",
+      "type": "log",
+      "message": "=== Interactive Deployment Started ==="
+    },
+    {
+      "id": "confirm-env",
+      "name": "Confirm environment",
+      "type": "log",
+      "message": "Ready to deploy to ${var:environment} environment",
+      "prompt": {
+        "message": "Deploy to ${var:environment}? This will affect live systems.",
+        "defaultYes": false,
+        "timeoutSeconds": 30,
+        "onDecline": "stop"
+      }
+    },
+    {
+      "id": "create-backup",
+      "name": "Create backup",
+      "type": "log",
+      "message": "Creating backup before deployment...",
+      "onFailure": {
+        "type": "log",
+        "message": "⚠ Backup failed - cannot proceed with deployment",
+        "continueAfterCleanup": false
+      }
+    },
+    {
+      "id": "deploy-files",
+      "name": "Deploy application files",
+      "type": "log",
+      "message": "Deploying files to ${var:deploy_path}",
+      "prompt": {
+        "message": "Proceed with file deployment?",
+        "defaultYes": true,
+        "onDecline": "skip"
+      },
+      "onFailure": {
+        "type": "log",
+        "message": "✗ Deployment failed - restoring from backup...",
+        "continueAfterCleanup": false
+      },
+      "onComplete": {
+        "type": "log",
+        "message": "Deployment step completed"
+      }
+    },
+    {
+      "id": "verify-deployment",
+      "name": "Verify deployment",
+      "type": "http",
+      "url": "https://httpbin.org/status/200",
+      "method": "GET",
+      "retryCount": 2,
+      "onFailure": {
+        "type": "log",
+        "message": "⚠ Verification failed - rolling back deployment",
+        "continueAfterCleanup": true
+      }
+    },
+    {
+      "id": "cleanup-temp",
+      "name": "Clean up temporary files",
+      "type": "log",
+      "message": "Cleaning up temporary deployment files...",
+      "onComplete": {
+        "type": "log",
+        "message": "Cleanup completed"
+      }
+    },
+    {
+      "id": "complete",
+      "name": "Deployment complete",
+      "type": "log",
+      "message": "=== Deployment Completed Successfully ==="
+    }
+  ]
+}

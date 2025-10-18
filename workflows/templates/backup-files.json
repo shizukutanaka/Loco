@@ -1,0 +1,46 @@
+{
+  "id": "backup-files",
+  "name": "File Backup Workflow",
+  "description": "Simple file backup with verification",
+  "timeoutSeconds": 600,
+  "steps": [
+    {
+      "id": "init",
+      "name": "Initialize backup",
+      "type": "log",
+      "message": "Starting file backup process..."
+    },
+    {
+      "id": "create-backup-dir",
+      "name": "Create backup directory",
+      "type": "process",
+      "command": "mkdir backup 2>nul || echo Directory exists",
+      "continueOnError": true
+    },
+    {
+      "id": "timestamp",
+      "name": "Get timestamp",
+      "type": "process",
+      "command": "echo %date:~-4,4%%date:~-10,2%%date:~-7,2%_%time:~0,2%%time:~3,2%"
+    },
+    {
+      "id": "copy-files",
+      "name": "Copy important files",
+      "type": "file",
+      "source": "workflow-stats.json",
+      "destination": "backup/workflow-stats-backup.json"
+    },
+    {
+      "id": "verify",
+      "name": "Verify backup",
+      "type": "file",
+      "path": "backup/workflow-stats-backup.json"
+    },
+    {
+      "id": "complete",
+      "name": "Backup complete",
+      "type": "log",
+      "message": "Backup completed successfully!"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "id": "system-check-output",
+  "name": "System Check with Output Capture",
+  "description": "Simple system checks with output capture",
+  "timeoutSeconds": 60,
+  "continueOnError": true,
+  "steps": [
+    {
+      "id": "start",
+      "name": "Start system check",
+      "type": "log",
+      "message": "=== System Check Started at ${datetime} on ${machine} ==="
+    },
+    {
+      "id": "check-date",
+      "name": "Get current date and time",
+      "type": "process",
+      "command": "echo %date% %time%",
+      "saveOutput": "current_datetime"
+    },
+    {
+      "id": "check-user",
+      "name": "Get current username",
+      "type": "process",
+      "command": "echo %username%",
+      "saveOutput": "username"
+    },
+    {
+      "id": "check-computername",
+      "name": "Get computer name",
+      "type": "process",
+      "command": "echo %computername%",
+      "saveOutput": "computername"
+    },
+    {
+      "id": "check-processor",
+      "name": "Get processor info",
+      "type": "process",
+      "command": "echo %processor_architecture%",
+      "saveOutput": "processor_arch"
+    },
+    {
+      "id": "summary",
+      "name": "Summary message",
+      "type": "log",
+      "message": "=== System check completed. All outputs captured in context variables ==="
+    }
+  ]
+}

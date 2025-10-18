@@ -1,0 +1,28 @@
+{
+  "id": "common-setup",
+  "name": "Common Setup Steps",
+  "description": "Reusable setup steps for workflows",
+  "version": "1.0.0",
+  "steps": [
+    {
+      "id": "init-env",
+      "name": "Initialize Environment",
+      "type": "log",
+      "message": "Initializing environment variables and configuration..."
+    },
+    {
+      "id": "check-dependencies",
+      "name": "Check Dependencies",
+      "type": "log",
+      "message": "Verifying all required dependencies are installed...",
+      "dependsOn": ["init-env"]
+    },
+    {
+      "id": "create-temp-dir",
+      "name": "Create Temporary Directory",
+      "type": "log",
+      "message": "Creating temporary working directory...",
+      "dependsOn": ["check-dependencies"]
+    }
+  ]
+}

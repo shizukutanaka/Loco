@@ -1,0 +1,57 @@
+{
+  "id": "api-monitoring",
+  "name": "API Health Monitoring",
+  "description": "Monitor multiple API endpoints for availability",
+  "timeoutSeconds": 120,
+  "continueOnError": true,
+  "steps": [
+    {
+      "id": "start",
+      "name": "Start API monitoring",
+      "type": "log",
+      "message": "Starting API health checks..."
+    },
+    {
+      "id": "check-google",
+      "name": "Check Google",
+      "type": "http",
+      "url": "https://www.google.com",
+      "method": "GET",
+      "continueOnError": true
+    },
+    {
+      "id": "wait1",
+      "name": "Wait between requests",
+      "type": "delay",
+      "duration": "00:00:02"
+    },
+    {
+      "id": "check-github",
+      "name": "Check GitHub",
+      "type": "http",
+      "url": "https://github.com",
+      "method": "GET",
+      "continueOnError": true
+    },
+    {
+      "id": "wait2",
+      "name": "Wait between requests",
+      "type": "delay",
+      "duration": "00:00:02"
+    },
+    {
+      "id": "check-example",
+      "name": "Check Example.com",
+      "type": "http",
+      "url": "https://example.com",
+      "method": "GET",
+      "continueOnError": true
+    },
+    {
+      "id": "complete",
+      "name": "Monitoring complete",
+      "type": "log",
+      "message": "API monitoring completed"
+    }
+  ]
+}
