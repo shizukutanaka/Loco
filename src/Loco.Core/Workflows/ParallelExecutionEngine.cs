@@ -237,7 +237,7 @@ public class ParallelExecutionEngine
     }
 
     /// <summary>
-    /// Executes a single step.
+    /// Executes a single step with retry logic and timeout.
     /// </summary>
     private async Task<StepExecutionResult> ExecuteStepAsync(
         WorkflowStep step,
@@ -245,44 +245,297 @@ public class ParallelExecutionEngine
     {
         var stopwatch = Stopwatch.StartNew();
         var retryCount = 0;
+        var maxRetries = step.RetryCount ?? 0;
+        var retryDelay = TimeSpan.FromSeconds(2); // Default 2 seconds
+
+        if (!string.IsNullOrEmpty(step.RetryDelay) && TimeSpan.TryParse(step.RetryDelay, out var parsedDelay))
+        {
+            retryDelay = parsedDelay;
+        }
+
+        Exception? lastException = null;
+
+        for (int attempt = 0; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                if (attempt > 0)
+                {
+                    retryCount = attempt;
+                    var delay = retryDelay * Math.Pow(2, attempt - 1); // Exponential backoff
+                    _logger?.LogInformation("Retry {Attempt}/{MaxRetries} for step {StepId} after {Delay}ms",
+                        attempt, maxRetries, step.Id, delay.TotalMilliseconds);
+                    await Task.Delay(delay, cancellationToken);
+                }
+
+                // Apply timeout if specified
+                var timeout = step.TimeoutSeconds.HasValue
+                    ? TimeSpan.FromSeconds(step.TimeoutSeconds.Value)
+                    : TimeSpan.FromMinutes(5); // Default 5 minutes
+
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeoutCts.CancelAfter(timeout);
+
+                // Execute the step based on type
+                var success = await ExecuteStepByTypeAsync(step, timeoutCts.Token);
+
+                if (success)
+                {
+                    stopwatch.Stop();
+                    return new StepExecutionResult
+                    {
+                        StepId = step.Id,
+                        Success = true,
+                        Duration = stopwatch.Elapsed,
+                        RetryCount = retryCount
+                    };
+                }
+                else
+                {
+                    lastException = new Exception($"Step {step.Id} returned false");
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw; // Don't retry if workflow was cancelled
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+                _logger?.LogWarning(ex, "Step {StepId} failed on attempt {Attempt}", step.Id, attempt + 1);
+            }
+        }
+
+        stopwatch.Stop();
+        _logger?.LogError("Step {StepId} failed after {RetryCount} retries", step.Id, retryCount);
+
+        return new StepExecutionResult
+        {
+            StepId = step.Id,
+            Success = false,
+            Duration = stopwatch.Elapsed,
+            ErrorMessage = lastException?.Message ?? "Unknown error",
+            RetryCount = retryCount
+        };
+    }
+
+    /// <summary>
+    /// Executes a step based on its type.
+    /// </summary>
+    private async Task<bool> ExecuteStepByTypeAsync(WorkflowStep step, CancellationToken cancellationToken)
+    {
+        switch (step.Type.ToLowerInvariant())
+        {
+            case "log":
+                return ExecuteLogStep(step);
+
+            case "delay":
+            case "sleep":
+                return await ExecuteDelayStep(step, cancellationToken);
+
+            case "process":
+            case "command":
+            case "exec":
+                return await ExecuteProcessStep(step, cancellationToken);
+
+            case "http":
+            case "webhook":
+                return await ExecuteHttpStep(step, cancellationToken);
+
+            case "file":
+            case "copy":
+            case "move":
+            case "delete":
+                return await ExecuteFileStep(step);
+
+            default:
+                _logger?.LogWarning("Unknown step type: {Type} for step {StepId}", step.Type, step.Id);
+                return false;
+        }
+    }
+
+    private bool ExecuteLogStep(WorkflowStep step)
+    {
+        var message = step.Message ?? "";
+        Console.WriteLine($"[LOG] {message}");
+        _logger?.LogInformation("{Message}", message);
+
+        if (step.SaveOutput != null)
+        {
+            _context[step.SaveOutput] = message;
+        }
+
+        return true;
+    }
+
+    private async Task<bool> ExecuteDelayStep(WorkflowStep step, CancellationToken cancellationToken)
+    {
+        if (TimeSpan.TryParse(step.Duration, out var delay))
+        {
+            Console.WriteLine($"[DELAY] Waiting for {delay}...");
+            await Task.Delay(delay, cancellationToken);
+            return true;
+        }
+
+        _logger?.LogError("Invalid duration format for delay step: {Duration}", step.Duration);
+        return false;
+    }
+
+    private async Task<bool> ExecuteProcessStep(WorkflowStep step, CancellationToken cancellationToken)
+    {
+        var command = step.Command ?? "";
+        var arguments = step.Arguments ?? "";
+
+        Console.WriteLine($"[PROCESS] Executing: {command} {arguments}");
 
         try
         {
-            // Simulate step execution (replace with actual execution logic)
-            await Task.Delay(100, cancellationToken); // Placeholder
-
-            // For now, just log the step
-            _logger?.LogInformation("Step {StepId} completed successfully", step.Id);
-
-            // Save outputs to context
-            if (step.SaveOutput != null)
+            var processInfo = new System.Diagnostics.ProcessStartInfo
             {
-                _context[step.SaveOutput] = $"output-{step.Id}";
+                FileName = command,
+                Arguments = arguments,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+
+            if (!string.IsNullOrEmpty(step.WorkingDirectory))
+            {
+                processInfo.WorkingDirectory = step.WorkingDirectory;
             }
 
-            stopwatch.Stop();
-
-            return new StepExecutionResult
+            using var process = System.Diagnostics.Process.Start(processInfo);
+            if (process == null)
             {
-                StepId = step.Id,
-                Success = true,
-                Duration = stopwatch.Elapsed,
-                RetryCount = retryCount
-            };
+                _logger?.LogError("Failed to start process: {Command}", command);
+                return false;
+            }
+
+            var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var error = await process.StandardError.ReadToEndAsync(cancellationToken);
+
+            await process.WaitForExitAsync(cancellationToken);
+
+            if (step.SaveOutput != null && !string.IsNullOrEmpty(output))
+            {
+                _context[step.SaveOutput] = output.Trim();
+            }
+
+            _context[$"{step.Id}_exitcode"] = process.ExitCode.ToString();
+            _context[$"{step.Id}_success"] = (process.ExitCode == 0).ToString();
+
+            return process.ExitCode == 0;
         }
         catch (Exception ex)
         {
-            stopwatch.Stop();
-            _logger?.LogError(ex, "Step {StepId} failed", step.Id);
+            _logger?.LogError(ex, "Process execution failed: {Command}", command);
+            return false;
+        }
+    }
 
-            return new StepExecutionResult
+    private async Task<bool> ExecuteHttpStep(WorkflowStep step, CancellationToken cancellationToken)
+    {
+        var url = step.Url ?? "";
+        var method = step.Method?.ToUpperInvariant() ?? "GET";
+
+        Console.WriteLine($"[HTTP] {method} {url}");
+
+        try
+        {
+            using var httpClient = new System.Net.Http.HttpClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(step.TimeoutSeconds ?? 30);
+
+            System.Net.Http.HttpResponseMessage response;
+
+            switch (method)
             {
-                StepId = step.Id,
-                Success = false,
-                Duration = stopwatch.Elapsed,
-                ErrorMessage = ex.Message,
-                RetryCount = retryCount
-            };
+                case "GET":
+                    response = await httpClient.GetAsync(url, cancellationToken);
+                    break;
+                case "POST":
+                    response = await httpClient.PostAsync(url, null, cancellationToken);
+                    break;
+                case "PUT":
+                    response = await httpClient.PutAsync(url, null, cancellationToken);
+                    break;
+                case "DELETE":
+                    response = await httpClient.DeleteAsync(url, cancellationToken);
+                    break;
+                default:
+                    _logger?.LogError("Unsupported HTTP method: {Method}", method);
+                    return false;
+            }
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (step.SaveOutput != null)
+            {
+                _context[step.SaveOutput] = content;
+            }
+
+            _context[$"{step.Id}_statuscode"] = ((int)response.StatusCode).ToString();
+            _context[$"{step.Id}_success"] = response.IsSuccessStatusCode.ToString();
+
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "HTTP request failed: {Url}", url);
+            return false;
+        }
+    }
+
+    private Task<bool> ExecuteFileStep(WorkflowStep step)
+    {
+        try
+        {
+            var type = step.Type.ToLowerInvariant();
+
+            switch (type)
+            {
+                case "copy":
+                    if (!string.IsNullOrEmpty(step.SourcePath) && !string.IsNullOrEmpty(step.DestinationPath))
+                    {
+                        Console.WriteLine($"[FILE] Copying {step.SourcePath} to {step.DestinationPath}");
+                        File.Copy(step.SourcePath, step.DestinationPath, overwrite: true);
+                        return Task.FromResult(true);
+                    }
+                    break;
+
+                case "move":
+                    if (!string.IsNullOrEmpty(step.SourcePath) && !string.IsNullOrEmpty(step.DestinationPath))
+                    {
+                        Console.WriteLine($"[FILE] Moving {step.SourcePath} to {step.DestinationPath}");
+                        File.Move(step.SourcePath, step.DestinationPath, overwrite: true);
+                        return Task.FromResult(true);
+                    }
+                    break;
+
+                case "delete":
+                    if (!string.IsNullOrEmpty(step.Path))
+                    {
+                        Console.WriteLine($"[FILE] Deleting {step.Path}");
+                        if (File.Exists(step.Path))
+                        {
+                            File.Delete(step.Path);
+                        }
+                        else if (Directory.Exists(step.Path))
+                        {
+                            Directory.Delete(step.Path, step.Recursive ?? false);
+                        }
+                        return Task.FromResult(true);
+                    }
+                    break;
+            }
+
+            _logger?.LogError("Invalid file operation parameters for step {StepId}", step.Id);
+            return Task.FromResult(false);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "File operation failed for step {StepId}", step.Id);
+            return Task.FromResult(false);
         }
     }
 

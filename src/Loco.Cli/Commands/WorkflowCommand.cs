@@ -21,24 +21,16 @@ namespace Loco.Cli.Commands
                 name: "file",
                 description: "Path to the workflow JSON file");
 
-            var visualizeOption = new Option<bool>(
+            var visualizeOption = new Option<string?>(
                 aliases: new[] { "--visualize", "-v" },
-                description: "Show workflow diagram without executing");
-
-            var compactOption = new Option<bool>(
-                aliases: new[] { "--compact", "-c" },
-                description: "Show compact workflow list");
-
-            var depsOption = new Option<bool>(
-                aliases: new[] { "--deps", "-d" },
-                description: "Show workflow dependencies");
+                description: "Show workflow diagram (modes: full, compact, deps)");
 
             var dryRunOption = new Option<bool>(
                 aliases: new[] { "--dry-run", "-n" },
                 description: "Validate without executing");
 
             var healthOption = new Option<bool>(
-                aliases: new[] { "--health", "-h" },
+                aliases: new[] { "--health" },
                 description: "Run health check on the workflow");
 
             var lintOption = new Option<bool>(
@@ -49,19 +41,23 @@ namespace Loco.Cli.Commands
                 aliases: new[] { "--test", "-t" },
                 description: "Run tests on the workflow");
 
+            var parallelOption = new Option<int>(
+                aliases: new[] { "--parallel", "-p" },
+                getDefaultValue: () => 0,
+                description: "Execute steps in parallel (specify max parallelism, 0=sequential, default when used=4)");
+
             AddArgument(fileArgument);
             AddOption(visualizeOption);
-            AddOption(compactOption);
-            AddOption(depsOption);
             AddOption(dryRunOption);
             AddOption(healthOption);
             AddOption(lintOption);
             AddOption(testOption);
+            AddOption(parallelOption);
 
-            this.SetHandler(ExecuteWorkflowAsync, fileArgument, visualizeOption, compactOption, depsOption, dryRunOption, healthOption, lintOption, testOption);
+            this.SetHandler(ExecuteWorkflowAsync, fileArgument, visualizeOption, dryRunOption, healthOption, lintOption, testOption, parallelOption);
         }
 
-        private async Task<int> ExecuteWorkflowAsync(string filePath, bool visualize, bool compact, bool deps, bool dryRun, bool health, bool lint, bool test)
+        private async Task<int> ExecuteWorkflowAsync(string filePath, string? visualize, bool dryRun, bool health, bool lint, bool test, int maxParallelism)
         {
             try
             {
@@ -99,21 +95,27 @@ namespace Loco.Cli.Commands
                 }
 
                 // Handle visualization options
-                if (visualize)
+                if (!string.IsNullOrEmpty(visualize))
                 {
-                    Console.WriteLine(WorkflowVisualizer.GenerateDiagram(workflowDef));
-                    return 0;
-                }
-
-                if (compact)
-                {
-                    Console.WriteLine(WorkflowVisualizer.GenerateCompactList(workflowDef));
-                    return 0;
-                }
-
-                if (deps)
-                {
-                    Console.WriteLine(WorkflowVisualizer.GenerateDependencyGraph(workflowDef));
+                    switch (visualize.ToLowerInvariant())
+                    {
+                        case "full":
+                        case "diagram":
+                            Console.WriteLine(WorkflowVisualizer.GenerateDiagram(workflowDef));
+                            break;
+                        case "compact":
+                        case "list":
+                            Console.WriteLine(WorkflowVisualizer.GenerateCompactList(workflowDef));
+                            break;
+                        case "deps":
+                        case "dependencies":
+                            Console.WriteLine(WorkflowVisualizer.GenerateDependencyGraph(workflowDef));
+                            break;
+                        default:
+                            // Default to full diagram
+                            Console.WriteLine(WorkflowVisualizer.GenerateDiagram(workflowDef));
+                            break;
+                    }
                     return 0;
                 }
 
@@ -193,7 +195,24 @@ namespace Loco.Cli.Commands
                     return 0;
                 }
 
-                // Load workflow for execution
+                // Execute with parallel engine if requested
+                if (maxParallelism > 0)
+                {
+                    var parallelism = maxParallelism > 0 ? maxParallelism : 4; // Default to 4 if not specified
+                    Console.WriteLine($"Executing workflow in PARALLEL mode (max parallelism: {parallelism})...");
+                    Console.WriteLine(new string('-', 60));
+                    Console.WriteLine();
+
+                    var parallelEngine = new ParallelExecutionEngine(logger, parallelism);
+                    var result = await parallelEngine.ExecuteAsync(workflowDef);
+
+                    Console.WriteLine();
+                    Console.WriteLine(ParallelExecutionEngine.GenerateExecutionReport(result));
+
+                    return result.Success ? 0 : 1;
+                }
+
+                // Load workflow for sequential execution
                 var workflowLoader = new WorkflowLoader(logger);
                 var workflow = await workflowLoader.LoadFromFileAsync(filePath);
 

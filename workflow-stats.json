@@ -25,12 +25,12 @@
   },
   {
     "WorkflowId": "hello-world",
-    "TotalExecutions": 15,
-    "SuccessfulExecutions": 15,
+    "TotalExecutions": 16,
+    "SuccessfulExecutions": 16,
     "FailedExecutions": 0,
-    "LastExecutionTime": "2025-10-18T19:55:44.042481Z",
-    "TotalDuration": "00:00:45.4349512",
-    "AverageDuration": "00:00:03.0289967",
+    "LastExecutionTime": "2025-10-19T02:29:49.5025056Z",
+    "TotalDuration": "00:00:48.4678639",
+    "AverageDuration": "00:00:03.0292414",
     "MinDuration": "00:00:03.0162908",
     "MaxDuration": "00:00:03.0357967",
     "SuccessRate": 100
@@ -81,6 +81,18 @@
     "AverageDuration": "00:00:06.3280952",
     "MinDuration": "00:00:06.3280952",
     "MaxDuration": "00:00:06.3280952",
+    "SuccessRate": 100
+  },
+  {
+    "WorkflowId": "parallel-deployment",
+    "TotalExecutions": 1,
+    "SuccessfulExecutions": 1,
+    "FailedExecutions": 0,
+    "LastExecutionTime": "2025-10-19T02:29:32.3909415Z",
+    "TotalDuration": "00:00:00.0120620",
+    "AverageDuration": "00:00:00.0120620",
+    "MinDuration": "00:00:00.0120620",
+    "MaxDuration": "00:00:00.0120620",
     "SuccessRate": 100
   },
   {

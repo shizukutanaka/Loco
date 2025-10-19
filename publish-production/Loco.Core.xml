@@ -5484,6 +5484,9 @@
             Represents a single step in a workflow.
             </summary>
             <summary>
+            Additional properties for WorkflowStep to support parallel execution engine.
+            </summary>
+            <summary>
             Extends WorkflowStep with description support.
             </summary>
         </member>
@@ -5520,6 +5523,31 @@
         <member name="P:Loco.Core.Workflows.WorkflowStep.AllowParallel">
             <summary>
             Whether to run this step in parallel with other steps (if dependencies allow).
+            </summary>
+        </member>
+        <member name="P:Loco.Core.Workflows.WorkflowStep.Arguments">
+            <summary>
+            Command-line arguments for process execution.
+            </summary>
+        </member>
+        <member name="P:Loco.Core.Workflows.WorkflowStep.WorkingDirectory">
+            <summary>
+            Working directory for process execution.
+            </summary>
+        </member>
+        <member name="P:Loco.Core.Workflows.WorkflowStep.SourcePath">
+            <summary>
+            Source path for file operations (copy, move).
+            </summary>
+        </member>
+        <member name="P:Loco.Core.Workflows.WorkflowStep.DestinationPath">
+            <summary>
+            Destination path for file operations (copy, move).
+            </summary>
+        </member>
+        <member name="P:Loco.Core.Workflows.WorkflowStep.Recursive">
+            <summary>
+            Whether to perform recursive file/directory operations.
             </summary>
         </member>
         <member name="P:Loco.Core.Workflows.WorkflowStep.Description">
@@ -5736,7 +5764,12 @@
         </member>
         <member name="M:Loco.Core.Workflows.ParallelExecutionEngine.ExecuteStepAsync(Loco.Core.Workflows.WorkflowStep,System.Threading.CancellationToken)">
             <summary>
-            Executes a single step.
+            Executes a single step with retry logic and timeout.
+            </summary>
+        </member>
+        <member name="M:Loco.Core.Workflows.ParallelExecutionEngine.ExecuteStepByTypeAsync(Loco.Core.Workflows.WorkflowStep,System.Threading.CancellationToken)">
+            <summary>
+            Executes a step based on its type.
             </summary>
         </member>
         <member name="M:Loco.Core.Workflows.ParallelExecutionEngine.GenerateExecutionReport(Loco.Core.Workflows.ParallelExecutionResult)">
