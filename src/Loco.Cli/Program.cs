@@ -73,59 +73,12 @@ class Program
                 return await new DiagCommand().InvokeAsync(args.Skip(1).ToArray());
             case "rule":
                 return await new RuleCommand().InvokeAsync(args.Skip(1).ToArray());
-            case "quick":
-                if (args.Length > 1)
-                    return await QuickCommand(args[1], args.Length > 2 ? args[2] : "");
-                Console.WriteLine("Usage: loco quick <log|stats> [message]");
-                return 1;
-            case "cache":
-                if (args.Length > 1)
-                    return await CacheCommand(args.Skip(1).ToArray());
-                Console.WriteLine("Usage: loco cache <set|get|list|clear> [key] [value]");
-                return 1;
-            case "monitor":
-                if (args.Length > 1)
-                    return await MonitorCommand(args.Skip(1).ToArray());
-                Console.WriteLine("Usage: loco monitor <memory|disk|system> [threshold]");
-                return 1;
-            case "process":
-                if (args.Length > 1)
-                    return await ProcessCommand(args.Skip(1).ToArray());
-                Console.WriteLine("Usage: loco process <command> [workingDir] [timeout]");
-                return 1;
-            case "backup":
-                if (args.Length > 2)
-                    return await BackupCommand(args.Skip(1).ToArray());
-                Console.WriteLine("Usage: loco backup <source> <destination>");
-                return 1;
-            case "watch":
-                if (args.Length > 1)
-                    return await WatchCommand(args.Skip(1).ToArray());
-                Console.WriteLine("Usage: loco watch <path> [pattern]");
-                return 1;
-            case "schedule":
-                if (args.Length > 1)
-                    return await ScheduleCommand(args.Skip(1).ToArray());
-                Console.WriteLine("Usage: loco schedule <add|list|remove|run> [options]");
-                return 1;
-            case "config":
-                if (args.Length > 1)
-                    return await ConfigCommand(args.Skip(1).ToArray());
-                Console.WriteLine("Usage: loco config <show|set|reset|verify> [options]");
-                return 1;
             case "preset":
                 return await new PresetCommand().InvokeAsync(args.Skip(1).ToArray());
-            case "info":
-                return await InfoCommand(args.Skip(1).ToArray());
             case "files":
                 return await new FilesCommand().InvokeAsync(args.Skip(1).ToArray());
             case "logs":
                 return await new LogsCommand().InvokeAsync(args.Skip(1).ToArray());
-            case "history":
-                if (args.Length > 1)
-                    return await HistoryCommand(args.Skip(1).ToArray());
-                Console.WriteLine("Usage: loco history <list|stats|clear> [options]");
-                return 1;
             case "update":
             case "check-update":
                 return await new UpdateCommand().InvokeAsync(args.Skip(1).ToArray());
