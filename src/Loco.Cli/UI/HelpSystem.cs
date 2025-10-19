@@ -343,6 +343,59 @@ namespace Loco.Cli.UI
                 SeeAlso = new[] { "diag", "health" }
             });
 
+            // Secrets command
+            AddCommand("secrets", new CommandHelp
+            {
+                Name = "secrets",
+                Category = "Enterprise",
+                ShortDescription = "Manage encrypted secrets",
+                LongDescription = "Securely store and manage encrypted secrets using AES-256 encryption. Import from environment variables or create manually.",
+                Usage = "Loco.Cli.exe secrets <list|add|get|delete|import> [options]",
+                SubCommands = new Dictionary<string, string>
+                {
+                    ["list"] = "List all stored secret names (masked)",
+                    ["add <name> <value>"] = "Add a new secret",
+                    ["get <name>"] = "Retrieve a secret value",
+                    ["delete <name>"] = "Delete a secret",
+                    ["import"] = "Import secrets from environment variables"
+                },
+                Options = new Dictionary<string, string>
+                {
+                    ["--force"] = "Skip confirmation prompt (delete only)"
+                },
+                Examples = new[]
+                {
+                    "Loco.Cli.exe secrets list",
+                    "Loco.Cli.exe secrets add API_KEY sk-1234567890abcdef",
+                    "Loco.Cli.exe secrets get API_KEY",
+                    "Loco.Cli.exe secrets delete API_KEY --force",
+                    "Loco.Cli.exe secrets import"
+                },
+                SeeAlso = new[] { "iac", "workflow", "backup-config" }
+            });
+
+            // Validate command
+            AddCommand("validate", new CommandHelp
+            {
+                Name = "validate",
+                Category = "Development",
+                ShortDescription = "Validate workflow and configuration files",
+                LongDescription = "Validates workflow JSON files and configuration files to ensure they are syntactically correct and semantically valid.",
+                Usage = "Loco.Cli.exe validate <file_path> [options]",
+                Options = new Dictionary<string, string>
+                {
+                    ["--detailed, -d"] = "Show detailed validation report",
+                    ["--json"] = "Output results in JSON format"
+                },
+                Examples = new[]
+                {
+                    "Loco.Cli.exe validate workflows/hello-world.json",
+                    "Loco.Cli.exe validate config.json --detailed",
+                    "Loco.Cli.exe validate infrastructure.yaml --json"
+                },
+                SeeAlso = new[] { "workflow", "iac", "test" }
+            });
+
             // Interactive mode
             AddCommand("interactive", new CommandHelp
             {
@@ -358,45 +411,6 @@ namespace Loco.Cli.UI
                     "Loco.Cli.exe i"
                 },
                 SeeAlso = new[] { "help" }
-            });
-
-            // Update command
-            AddCommand("update", new CommandHelp
-            {
-                Name = "update",
-                Aliases = new[] { "check-update" },
-                Category = "Enterprise",
-                ShortDescription = "Check for available updates",
-                LongDescription = "Checks for software updates (privacy-safe, offline-friendly). Returns exit code 2 for critical updates.",
-                Usage = "Loco.Cli.exe update",
-                Examples = new[]
-                {
-                    "Loco.Cli.exe update",
-                    "Loco.Cli.exe check-update"
-                },
-                SeeAlso = new[] { "version", "health" }
-            });
-
-            // Resource command
-            AddCommand("resource", new CommandHelp
-            {
-                Name = "resource",
-                Aliases = new[] { "resources" },
-                Category = "Enterprise",
-                ShortDescription = "Monitor system resources",
-                LongDescription = "Real-time resource monitoring (memory, CPU, threads, handles). Use 'watch' for continuous monitoring.",
-                Usage = "Loco.Cli.exe resource [watch] [interval_seconds]",
-                SubCommands = new Dictionary<string, string>
-                {
-                    ["watch"] = "Continuous monitoring mode (default 5s interval)"
-                },
-                Examples = new[]
-                {
-                    "Loco.Cli.exe resource",
-                    "Loco.Cli.exe resource watch",
-                    "Loco.Cli.exe resource watch 10"
-                },
-                SeeAlso = new[] { "health", "diag", "monitor" }
             });
 
             // Backup-config command
@@ -424,7 +438,7 @@ namespace Loco.Cli.UI
                     "Loco.Cli.exe backup-config restore 1",
                     "Loco.Cli.exe backup-config auto"
                 },
-                SeeAlso = new[] { "config", "backup" }
+                SeeAlso = new[] { "secrets", "workflow" }
             });
 
             // Version command
@@ -439,7 +453,7 @@ namespace Loco.Cli.UI
                 {
                     "Loco.Cli.exe version"
                 },
-                SeeAlso = new[] { "update", "info" }
+                SeeAlso = new[] { "update", "health" }
             });
 
             // Test command
@@ -475,189 +489,7 @@ namespace Loco.Cli.UI
                     "Loco.Cli.exe test coverage",
                     "Loco.Cli.exe test coverage --output coverage-report --format html"
                 },
-                SeeAlso = new[] { "health", "diag" }
-            });
-
-            // Preset command
-            AddCommand("preset", new CommandHelp
-            {
-                Name = "preset",
-                Category = "Automation",
-                ShortDescription = "Run preset automation workflows",
-                LongDescription = "Execute predefined automation workflows for common tasks like system monitoring, daily maintenance, cleanup, watchdog, and heartbeat checks.",
-                Usage = "Loco.Cli.exe preset [subcommand]",
-                SubCommands = new Dictionary<string, string>
-                {
-                    { "list", "List all available preset workflows" },
-                    { "system", "Run system monitoring preset (memory, disk, CPU)" },
-                    { "daily", "Run daily maintenance preset" },
-                    { "cleanup", "Run cleanup preset for temporary files" },
-                    { "watchdog", "Run directory watchdog preset" },
-                    { "heartbeat", "Run health check heartbeat preset" },
-                    { "create", "Create a new custom preset (future feature)" }
-                },
-                Examples = new[]
-                {
-                    "Loco.Cli.exe preset list",
-                    "Loco.Cli.exe preset system",
-                    "Loco.Cli.exe preset daily",
-                    "Loco.Cli.exe preset cleanup",
-                    "Loco.Cli.exe preset watchdog",
-                    "Loco.Cli.exe preset heartbeat"
-                },
-                SeeAlso = new[] { "workflow", "iac", "rule" }
-            });
-
-            // Rule command
-            AddCommand("rule", new CommandHelp
-            {
-                Name = "rule",
-                Category = "Automation",
-                ShortDescription = "Manage automation rules",
-                LongDescription = "Create, list, enable, disable, and manage automation rules. Rule persistence is planned for future releases.",
-                Usage = "Loco.Cli.exe rule [subcommand] [options]",
-                SubCommands = new Dictionary<string, string>
-                {
-                    { "list", "List all automation rules" },
-                    { "create", "Create a new automation rule" },
-                    { "enable", "Enable a rule" },
-                    { "disable", "Disable a rule" },
-                    { "delete", "Delete a rule" },
-                    { "export", "Export rules to a file" },
-                    { "import", "Import rules from a file" }
-                },
-                Options = new Dictionary<string, string>
-                {
-                    { "--json", "Output in JSON format (list command)" },
-                    { "--force", "Skip confirmation prompt (delete command)" }
-                },
-                Examples = new[]
-                {
-                    "Loco.Cli.exe rule list",
-                    "Loco.Cli.exe rule list --json",
-                    "Loco.Cli.exe rule create MyRule trigger",
-                    "Loco.Cli.exe rule enable rule-123",
-                    "Loco.Cli.exe rule disable rule-123",
-                    "Loco.Cli.exe rule delete rule-123 --force",
-                    "Loco.Cli.exe rule export rules-backup.json",
-                    "Loco.Cli.exe rule import rules-backup.json"
-                },
-                SeeAlso = new[] { "preset", "workflow", "iac" }
-            });
-
-            // Files command
-            AddCommand("files", new CommandHelp
-            {
-                Name = "files",
-                Category = "File Operations",
-                ShortDescription = "File operations and search",
-                LongDescription = "Search for files, analyze directory statistics, clean temporary files, and organize files by type or date.",
-                Usage = "Loco.Cli.exe files [subcommand] [options]",
-                SubCommands = new Dictionary<string, string>
-                {
-                    { "search", "Search for files by pattern" },
-                    { "stats", "Show directory statistics" },
-                    { "clean", "Clean temporary and cache files" },
-                    { "organize", "Organize files by type or date (future feature)" }
-                },
-                Options = new Dictionary<string, string>
-                {
-                    { "--dry-run", "Show what would be deleted without deleting (clean command)" },
-                    { "--by-type", "Organize by file type (organize command)" },
-                    { "--by-date", "Organize by date (organize command)" }
-                },
-                Examples = new[]
-                {
-                    "Loco.Cli.exe files search \"*.txt\"",
-                    "Loco.Cli.exe files search \"*.cs\" src/",
-                    "Loco.Cli.exe files stats",
-                    "Loco.Cli.exe files stats Downloads/",
-                    "Loco.Cli.exe files clean --dry-run",
-                    "Loco.Cli.exe files clean .",
-                    "Loco.Cli.exe files organize --by-type",
-                    "Loco.Cli.exe files organize --by-date"
-                },
-                SeeAlso = new[] { "logs", "backup-config" }
-            });
-
-            // Logs command
-            AddCommand("logs", new CommandHelp
-            {
-                Name = "logs",
-                Category = "Monitoring",
-                ShortDescription = "Log management and viewing",
-                LongDescription = "View, search, analyze, and manage application log files with support for filtering and statistics.",
-                Usage = "Loco.Cli.exe logs [subcommand] [options]",
-                SubCommands = new Dictionary<string, string>
-                {
-                    { "view", "View recent log entries" },
-                    { "stats", "Show log statistics" },
-                    { "search", "Search logs for a pattern" },
-                    { "clear", "Clear old log files" }
-                },
-                Options = new Dictionary<string, string>
-                {
-                    { "lines", "Number of recent lines to display (view command)" },
-                    { "pattern", "Search pattern (search command)" },
-                    { "max-results", "Maximum number of search results (search command)" },
-                    { "days", "Delete logs older than this many days (clear command)" },
-                    { "--force", "Skip confirmation prompt (clear command)" }
-                },
-                Examples = new[]
-                {
-                    "Loco.Cli.exe logs view",
-                    "Loco.Cli.exe logs view 100",
-                    "Loco.Cli.exe logs stats",
-                    "Loco.Cli.exe logs search \"ERROR\"",
-                    "Loco.Cli.exe logs search \"WARNING\" 50",
-                    "Loco.Cli.exe logs clear 30",
-                    "Loco.Cli.exe logs clear 7 --force"
-                },
-                SeeAlso = new[] { "health", "diag", "files" }
-            });
-
-            // Health command
-            AddCommand("health", new CommandHelp
-            {
-                Name = "health",
-                Category = "Monitoring",
-                ShortDescription = "Check system health status",
-                LongDescription = "Perform comprehensive system health checks including memory, disk space, CPU, runtime status, and working directory accessibility.",
-                Usage = "Loco.Cli.exe health [options]",
-                Options = new Dictionary<string, string>
-                {
-                    { "--json", "Output results in JSON format" }
-                },
-                Examples = new[]
-                {
-                    "Loco.Cli.exe health",
-                    "Loco.Cli.exe health --json"
-                },
-                SeeAlso = new[] { "diag", "resource", "logs" }
-            });
-
-            // Diag command
-            AddCommand("diag", new CommandHelp
-            {
-                Name = "diag",
-                Aliases = new[] { "diagnostics" },
-                Category = "Monitoring",
-                ShortDescription = "Generate comprehensive diagnostics report",
-                LongDescription = "Generate detailed diagnostics report including platform information, environment variables, memory usage, disk space, and process details.",
-                Usage = "Loco.Cli.exe diag [options]",
-                Options = new Dictionary<string, string>
-                {
-                    { "--json", "Output results in JSON format" },
-                    { "--verbose", "Include detailed information" }
-                },
-                Examples = new[]
-                {
-                    "Loco.Cli.exe diag",
-                    "Loco.Cli.exe diag --json",
-                    "Loco.Cli.exe diag --verbose",
-                    "Loco.Cli.exe diagnostics --json --verbose"
-                },
-                SeeAlso = new[] { "health", "resource", "logs" }
+                SeeAlso = new[] { "validate", "health", "diag" }
             });
 
             // Add aliases
