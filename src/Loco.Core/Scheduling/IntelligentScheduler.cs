@@ -387,7 +387,7 @@ public class IntelligentScheduler
         // Adjust for resource availability
         if (requirements != null)
         {
-            var resourceDelay = _resourceMonitor.EstimateResourceAvailabilityDelay(requirements);
+            var resourceDelay = _resourceMonitor.EstimateResourceAvailabilityDelay(requirements).GetAwaiter().GetResult();
             baseDelay += resourceDelay;
         }
 
@@ -516,40 +516,181 @@ public class QueueStatistics
 /// </summary>
 internal class ResourceMonitor
 {
+    private System.Diagnostics.Process? _currentProcess;
+    private DateTime _lastCpuCheckTime = DateTime.MinValue;
+    private TimeSpan _lastCpuTime = TimeSpan.Zero;
+    private double _lastCpuPercent = 0;
+
     public async Task<ResourceCheckResult> CheckResourcesAsync(ResourceRequirements? requirements)
     {
         if (requirements == null)
             return new ResourceCheckResult { Available = true };
 
-        // Simple check: always available for now
-        // TODO: Implement actual resource monitoring
-        var availableMemory = GC.GetTotalMemory(false) / 1024 / 1024; // MB
-        var hasMemory = availableMemory > requirements.MemoryMB;
+        // Get current resource utilization
+        var utilization = await GetUtilizationAsync();
+
+        // Check memory requirements
+        var totalMemoryMB = GetTotalSystemMemoryMB();
+        var availableMemoryMB = totalMemoryMB - utilization.MemoryUsedMB;
+        var hasMemory = availableMemoryMB > requirements.MemoryMB;
+
+        // Check CPU requirements (if CPU is heavily loaded, wait)
+        var hasCpu = utilization.CpuPercent < 90; // Allow if CPU usage < 90%
+
+        // Check disk space
+        var availableDiskMB = GetAvailableDiskSpaceMB();
+        var hasDisk = availableDiskMB > 1024; // At least 1GB free
+
+        var available = hasMemory && hasCpu && hasDisk;
 
         return await Task.FromResult(new ResourceCheckResult
         {
-            Available = hasMemory,
-            AvailableMemoryMB = (int)availableMemory
+            Available = available,
+            AvailableMemoryMB = availableMemoryMB,
+            Message = available
+                ? "Resources available"
+                : $"Waiting for resources - Memory: {availableMemoryMB}MB, CPU: {utilization.CpuPercent}%, Disk: {availableDiskMB}MB"
         });
     }
 
-    public Task<ResourceUtilization> GetUtilizationAsync()
+    public async Task<ResourceUtilization> GetUtilizationAsync()
     {
+        // Initialize process reference if needed
+        _currentProcess ??= System.Diagnostics.Process.GetCurrentProcess();
+
+        // Calculate CPU usage
+        var cpuPercent = await CalculateCpuUsageAsync();
+
+        // Get memory usage
+        var memoryUsedMB = (int)(_currentProcess.WorkingSet64 / 1024 / 1024);
+
+        // Get disk usage for current drive
+        var diskUsedMB = GetDiskUsedMB();
+
         var utilization = new ResourceUtilization
         {
-            MemoryUsedMB = (int)(GC.GetTotalMemory(false) / 1024 / 1024),
-            CpuPercent = 0, // TODO: Implement CPU monitoring
-            DiskUsedMB = 0 // TODO: Implement disk monitoring
+            MemoryUsedMB = memoryUsedMB,
+            CpuPercent = (int)cpuPercent,
+            DiskUsedMB = diskUsedMB
         };
 
-        return Task.FromResult(utilization);
+        return utilization;
     }
 
-    public TimeSpan EstimateResourceAvailabilityDelay(ResourceRequirements requirements)
+    public async Task<TimeSpan> EstimateResourceAvailabilityDelay(ResourceRequirements requirements)
     {
-        // Simple heuristic: if resources are tight, add a delay
-        // TODO: Implement sophisticated resource prediction
-        return TimeSpan.FromSeconds(5);
+        // Get current resource state
+        var utilization = await GetUtilizationAsync();
+        var totalMemoryMB = GetTotalSystemMemoryMB();
+        var availableMemoryMB = totalMemoryMB - utilization.MemoryUsedMB;
+
+        // Calculate estimated wait time based on resource pressure
+        var memoryPressure = 1.0 - ((double)availableMemoryMB / totalMemoryMB);
+        var cpuPressure = utilization.CpuPercent / 100.0;
+
+        // Combined pressure metric
+        var pressure = Math.Max(memoryPressure, cpuPressure);
+
+        if (pressure < 0.5)
+        {
+            // Low pressure: minimal delay
+            return TimeSpan.FromSeconds(1);
+        }
+        else if (pressure < 0.75)
+        {
+            // Medium pressure: moderate delay
+            return TimeSpan.FromSeconds(5);
+        }
+        else if (pressure < 0.9)
+        {
+            // High pressure: longer delay
+            return TimeSpan.FromSeconds(15);
+        }
+        else
+        {
+            // Critical pressure: significant delay
+            return TimeSpan.FromSeconds(30);
+        }
+    }
+
+    private async Task<double> CalculateCpuUsageAsync()
+    {
+        if (_currentProcess == null)
+            return 0;
+
+        var currentTime = DateTime.UtcNow;
+        var currentCpuTime = _currentProcess.TotalProcessorTime;
+
+        // First call: initialize
+        if (_lastCpuCheckTime == DateTime.MinValue)
+        {
+            _lastCpuCheckTime = currentTime;
+            _lastCpuTime = currentCpuTime;
+            _lastCpuPercent = 0;
+            return 0;
+        }
+
+        // Calculate CPU usage percentage
+        var timeDiff = (currentTime - _lastCpuCheckTime).TotalMilliseconds;
+        if (timeDiff > 0)
+        {
+            var cpuDiff = (currentCpuTime - _lastCpuTime).TotalMilliseconds;
+            var cpuPercent = (cpuDiff / (timeDiff * Environment.ProcessorCount)) * 100;
+
+            _lastCpuPercent = Math.Min(100, Math.Max(0, cpuPercent));
+        }
+
+        // Update for next calculation
+        _lastCpuCheckTime = currentTime;
+        _lastCpuTime = currentCpuTime;
+
+        return await Task.FromResult(_lastCpuPercent);
+    }
+
+    private int GetTotalSystemMemoryMB()
+    {
+        try
+        {
+            // Use GC.GetGCMemoryInfo for .NET 8
+            var memoryInfo = GC.GetGCMemoryInfo();
+            return (int)(memoryInfo.TotalAvailableMemoryBytes / 1024 / 1024);
+        }
+        catch
+        {
+            // Fallback: assume 8GB if we can't get the actual value
+            return 8192;
+        }
+    }
+
+    private int GetAvailableDiskSpaceMB()
+    {
+        try
+        {
+            var currentDir = Directory.GetCurrentDirectory();
+            var driveInfo = new DriveInfo(Path.GetPathRoot(currentDir) ?? "C:\\");
+            return (int)(driveInfo.AvailableFreeSpace / 1024 / 1024);
+        }
+        catch
+        {
+            // Fallback value
+            return 10240; // 10GB
+        }
+    }
+
+    private int GetDiskUsedMB()
+    {
+        try
+        {
+            var currentDir = Directory.GetCurrentDirectory();
+            var driveInfo = new DriveInfo(Path.GetPathRoot(currentDir) ?? "C:\\");
+            var usedSpace = driveInfo.TotalSize - driveInfo.AvailableFreeSpace;
+            return (int)(usedSpace / 1024 / 1024);
+        }
+        catch
+        {
+            // Fallback value
+            return 0;
+        }
     }
 }
 

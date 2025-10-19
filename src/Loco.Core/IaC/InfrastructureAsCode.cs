@@ -224,16 +224,34 @@ public class InfrastructureAsCode
             foreach (var workflow in infrastructure.Workflows ?? new())
             {
                 _logger?.LogInformation("Deploying workflow: {WorkflowName}", workflow.Name);
-                // TODO: Actual deployment logic
-                result.DeployedResources.Add($"Workflow: {workflow.Name}");
+
+                var workflowDeployed = await DeployWorkflowAsync(workflow, cancellationToken);
+                if (workflowDeployed)
+                {
+                    result.DeployedResources.Add($"Workflow: {workflow.Name}");
+                    _logger?.LogInformation("Successfully deployed workflow: {WorkflowName}", workflow.Name);
+                }
+                else
+                {
+                    result.Errors.Add($"Failed to deploy workflow: {workflow.Name}");
+                }
             }
 
             // Configure secrets
             foreach (var secret in infrastructure.Secrets ?? new())
             {
                 _logger?.LogInformation("Configuring secret: {SecretName}", secret.Name);
-                // TODO: Actual secret configuration
-                result.DeployedResources.Add($"Secret: {secret.Name}");
+
+                var secretConfigured = await ConfigureSecretAsync(secret, cancellationToken);
+                if (secretConfigured)
+                {
+                    result.DeployedResources.Add($"Secret: {secret.Name}");
+                    _logger?.LogInformation("Successfully configured secret: {SecretName}", secret.Name);
+                }
+                else
+                {
+                    result.Errors.Add($"Failed to configure secret: {secret.Name}");
+                }
             }
 
             // Setup monitoring
@@ -297,6 +315,164 @@ public class InfrastructureAsCode
         }
 
         return infrastructure;
+    }
+
+    /// <summary>
+    /// Deploy a single workflow
+    /// ワークフローをデプロイ
+    /// </summary>
+    private async Task<bool> DeployWorkflowAsync(
+        IaCWorkflow workflow,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Create workflow directory if needed
+            var workflowDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "Loco",
+                "workflows"
+            );
+
+            Directory.CreateDirectory(workflowDir);
+
+            // Convert IaC workflow to Loco workflow format
+            var locoWorkflow = new
+            {
+                id = workflow.Name,
+                description = workflow.Description,
+                schedule = workflow.Schedule,
+                steps = workflow.Steps.Select(s => new
+                {
+                    type = s.Type,
+                    name = s.Name,
+                    config = s.Config,
+                    condition = s.If,
+                    retry = s.Retry != null ? new
+                    {
+                        maxRetries = s.Retry.MaxRetries,
+                        initialDelayMs = s.Retry.InitialDelayMs,
+                        strategy = s.Retry.Strategy
+                    } : null
+                }).ToList(),
+                environment = workflow.Environment,
+                retry = workflow.Retry != null ? new
+                {
+                    maxRetries = workflow.Retry.MaxRetries,
+                    initialDelayMs = workflow.Retry.InitialDelayMs,
+                    strategy = workflow.Retry.Strategy
+                } : null
+            };
+
+            // Save workflow definition
+            var workflowFile = Path.Combine(workflowDir, $"{workflow.Name}.json");
+            var json = JsonSerializer.Serialize(locoWorkflow, _jsonOptions);
+            await File.WriteAllTextAsync(workflowFile, json, cancellationToken);
+
+            _logger?.LogInformation("Workflow definition saved to: {FilePath}", workflowFile);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to deploy workflow: {WorkflowName}", workflow.Name);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Configure a secret
+    /// シークレットを設定
+    /// </summary>
+    private async Task<bool> ConfigureSecretAsync(
+        IaCSecret secret,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Create secrets directory if needed
+            var secretsDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "Loco",
+                "secrets"
+            );
+
+            Directory.CreateDirectory(secretsDir);
+
+            // Parse secret source
+            var secretValue = await ResolveSecretValueAsync(secret.Source, cancellationToken);
+
+            if (string.IsNullOrEmpty(secretValue))
+            {
+                _logger?.LogWarning("Secret value is empty for: {SecretName}", secret.Name);
+                return false;
+            }
+
+            // Store secret metadata (not the actual value for security)
+            var secretMetadata = new
+            {
+                name = secret.Name,
+                description = secret.Description,
+                source = secret.Source,
+                configuredAt = DateTime.UtcNow
+            };
+
+            var metadataFile = Path.Combine(secretsDir, $"{secret.Name}.meta.json");
+            var json = JsonSerializer.Serialize(secretMetadata, _jsonOptions);
+            await File.WriteAllTextAsync(metadataFile, json, cancellationToken);
+
+            // Set environment variable for runtime access
+            Environment.SetEnvironmentVariable($"LOCO_SECRET_{secret.Name.ToUpperInvariant()}", secretValue);
+
+            _logger?.LogInformation("Secret configured: {SecretName}", secret.Name);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to configure secret: {SecretName}", secret.Name);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Resolve secret value from source
+    /// ソースからシークレット値を解決
+    /// </summary>
+    private async Task<string> ResolveSecretValueAsync(
+        string source,
+        CancellationToken cancellationToken)
+    {
+        if (source.StartsWith("env:"))
+        {
+            // Load from environment variable
+            var envVarName = source.Substring(4);
+            var value = Environment.GetEnvironmentVariable(envVarName);
+            return value ?? string.Empty;
+        }
+        else if (source.StartsWith("file:"))
+        {
+            // Load from file
+            var filePath = source.Substring(5);
+            if (File.Exists(filePath))
+            {
+                return await File.ReadAllTextAsync(filePath, cancellationToken);
+            }
+            else
+            {
+                _logger?.LogWarning("Secret file not found: {FilePath}", filePath);
+                return string.Empty;
+            }
+        }
+        else if (source.StartsWith("plain:"))
+        {
+            // Plain text (not recommended for production)
+            _logger?.LogWarning("Using plain text secret (not recommended for production)");
+            return source.Substring(6);
+        }
+        else
+        {
+            _logger?.LogError("Unsupported secret source format: {Source}", source);
+            return string.Empty;
+        }
     }
 }
 
