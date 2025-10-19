@@ -1,0 +1,154 @@
+{
+  "name": "dev-environment-setup",
+  "description": "Automated development environment setup and configuration",
+  "version": "1.0",
+  "steps": [
+    {
+      "id": "verify-prerequisites",
+      "name": "Verify System Prerequisites",
+      "type": "monitor",
+      "action": "system",
+      "parameters": {
+        "checkDotNet": true,
+        "checkGit": true,
+        "checkDocker": false,
+        "minMemory": "4GB"
+      }
+    },
+    {
+      "id": "create-project-structure",
+      "name": "Create Project Directory Structure",
+      "type": "file",
+      "action": "mkdir",
+      "parameters": {
+        "paths": [
+          "src",
+          "tests",
+          "docs",
+          "examples",
+          "scripts",
+          ".github/workflows"
+        ],
+        "createParents": true
+      },
+      "dependsOn": ["verify-prerequisites"]
+    },
+    {
+      "id": "clone-templates",
+      "name": "Clone Project Templates",
+      "type": "git",
+      "action": "clone",
+      "parameters": {
+        "repository": "https://github.com/templates/dotnet-template.git",
+        "destination": "templates",
+        "branch": "main"
+      },
+      "dependsOn": ["create-project-structure"]
+    },
+    {
+      "id": "install-dependencies",
+      "name": "Install Project Dependencies",
+      "type": "process",
+      "action": "execute",
+      "parameters": {
+        "command": "dotnet",
+        "args": ["restore"],
+        "workingDir": ".",
+        "timeout": 300
+      },
+      "dependsOn": ["clone-templates"]
+    },
+    {
+      "id": "configure-git",
+      "name": "Configure Git Settings",
+      "type": "process",
+      "action": "batch",
+      "parameters": {
+        "commands": [
+          "git config --local core.autocrlf false",
+          "git config --local pull.rebase false",
+          "git config --local init.defaultBranch main"
+        ]
+      },
+      "dependsOn": ["install-dependencies"]
+    },
+    {
+      "id": "setup-pre-commit",
+      "name": "Setup Pre-commit Hooks",
+      "type": "file",
+      "action": "copy",
+      "parameters": {
+        "source": "scripts/pre-commit",
+        "destination": ".git/hooks/pre-commit",
+        "makeExecutable": true
+      },
+      "dependsOn": ["configure-git"]
+    },
+    {
+      "id": "create-env-file",
+      "name": "Create Environment Configuration",
+      "type": "file",
+      "action": "template",
+      "parameters": {
+        "template": ".env.template",
+        "output": ".env",
+        "variables": {
+          "ENVIRONMENT": "development",
+          "LOG_LEVEL": "Debug",
+          "DATABASE_URL": "sqlite:./dev.db"
+        }
+      },
+      "dependsOn": ["setup-pre-commit"]
+    },
+    {
+      "id": "run-initial-build",
+      "name": "Run Initial Build",
+      "type": "process",
+      "action": "execute",
+      "parameters": {
+        "command": "dotnet",
+        "args": ["build", "-c", "Debug"],
+        "timeout": 300
+      },
+      "dependsOn": ["create-env-file"]
+    },
+    {
+      "id": "run-tests",
+      "name": "Run Unit Tests",
+      "type": "process",
+      "action": "execute",
+      "parameters": {
+        "command": "dotnet",
+        "args": ["test", "--no-build"],
+        "timeout": 180
+      },
+      "dependsOn": ["run-initial-build"]
+    },
+    {
+      "id": "setup-complete",
+      "name": "Setup Completion Report",
+      "type": "log",
+      "action": "info",
+      "parameters": {
+        "message": "Development environment setup completed successfully. Ready to start coding!"
+      },
+      "dependsOn": ["run-tests"]
+    }
+  ],
+  "options": {
+    "maxParallelism": 1,
+    "timeout": 1800,
+    "retryCount": 1,
+    "continueOnError": false
+  },
+  "errorHandling": {
+    "onError": "report-and-stop",
+    "rollback": false
+  },
+  "metadata": {
+    "author": "Loco Team",
+    "tags": ["development", "setup", "automation"],
+    "category": "DevOps",
+    "estimatedDuration": "5-10 minutes"
+  }
+}
