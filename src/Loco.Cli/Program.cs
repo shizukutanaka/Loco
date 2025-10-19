@@ -142,9 +142,7 @@ class Program
                 return 1;
             case "update":
             case "check-update":
-                ConsoleUI.Info("Update checking is not yet implemented.", "アップデート確認はまだ実装されていません。");
-                Console.WriteLine("Please check the GitHub repository manually for updates.");
-                return 0;
+                return await new UpdateCommand().InvokeAsync(args.Skip(1).ToArray());
             case "resource":
             case "resources":
                 return await new ResourceCommand().InvokeAsync(args.Skip(1).ToArray());

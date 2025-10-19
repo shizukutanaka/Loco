@@ -268,6 +268,34 @@ namespace Loco.Cli.UI
                 SeeAlso = new[] { "diag", "health", "workflow" }
             });
 
+            // Update command
+            AddCommand("update", new CommandHelp
+            {
+                Name = "update",
+                Aliases = new[] { "check-update" },
+                Category = "Enterprise",
+                ShortDescription = "Check for available updates",
+                LongDescription = "Check for the latest version of Loco CLI from GitHub releases. View current version information and update instructions.",
+                Usage = "Loco.Cli.exe update [check|info] [options]",
+                SubCommands = new Dictionary<string, string>
+                {
+                    ["check"] = "Check for updates from GitHub (default)",
+                    ["info"] = "Show current version information"
+                },
+                Options = new Dictionary<string, string>
+                {
+                    ["--verbose, -v"] = "Show detailed version information and release notes (check only)"
+                },
+                Examples = new[]
+                {
+                    "Loco.Cli.exe update",
+                    "Loco.Cli.exe update check",
+                    "Loco.Cli.exe update check --verbose",
+                    "Loco.Cli.exe update info"
+                },
+                SeeAlso = new[] { "version", "setup", "diag" }
+            });
+
             // Files command
             AddCommand("files", new CommandHelp
             {
