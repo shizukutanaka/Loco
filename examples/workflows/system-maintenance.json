@@ -1,0 +1,205 @@
+{
+  "id": "system-maintenance",
+  "name": "System Maintenance Workflow",
+  "description": "Comprehensive system maintenance including updates, cleanup, and verification",
+  "version": "1.0",
+  "author": "Loco Team",
+  "tags": ["maintenance", "system", "cleanup"],
+  
+  "variables": {
+    "logRetentionDays": "30",
+    "tempFolderPath": "${TEMP}",
+    "maxLogSizeMB": "100"
+  },
+  
+  "schedule": {
+    "type": "cron",
+    "expression": "0 2 * * 0",
+    "description": "Run every Sunday at 2 AM"
+  },
+  
+  "steps": [
+    {
+      "id": "pre-check",
+      "name": "Pre-Maintenance Health Check",
+      "type": "health",
+      "action": "check",
+      "description": "Verify system is healthy before maintenance",
+      "continueOnError": false
+    },
+    {
+      "id": "disk-space-check",
+      "name": "Check Available Disk Space",
+      "type": "monitor",
+      "action": "disk",
+      "parameters": {
+        "path": "C:\\",
+        "minimumFreeGB": "10"
+      },
+      "continueOnError": false,
+      "description": "Ensure adequate disk space for maintenance"
+    },
+    {
+      "id": "cleanup-temp",
+      "name": "Clean Temporary Files",
+      "type": "file",
+      "action": "cleanup",
+      "parameters": {
+        "path": "${tempFolderPath}",
+        "pattern": "*.*",
+        "olderThanDays": "7",
+        "dryRun": "false"
+      },
+      "timeout": "00:10:00",
+      "description": "Remove temporary files older than 7 days"
+    },
+    {
+      "id": "rotate-logs",
+      "name": "Rotate Application Logs",
+      "type": "log",
+      "action": "rotate",
+      "parameters": {
+        "logDirectory": "logs",
+        "maxSizeMB": "${maxLogSizeMB}",
+        "retentionDays": "${logRetentionDays}",
+        "compress": "true"
+      },
+      "description": "Rotate and compress old log files"
+    },
+    {
+      "id": "archive-old-logs",
+      "name": "Archive Old Logs",
+      "type": "file",
+      "action": "archive",
+      "parameters": {
+        "sourcePath": "logs",
+        "archivePath": "archives/logs-${date:yyyy-MM}",
+        "pattern": "*.log",
+        "olderThanDays": "${logRetentionDays}",
+        "compress": "true",
+        "deleteSource": "true"
+      },
+      "description": "Archive logs older than retention period"
+    },
+    {
+      "id": "check-updates",
+      "name": "Check for System Updates",
+      "type": "system",
+      "action": "check-updates",
+      "parameters": {
+        "autoInstall": "false",
+        "criticalOnly": "true"
+      },
+      "continueOnError": true,
+      "description": "Check for available system updates"
+    },
+    {
+      "id": "verify-backups",
+      "name": "Verify Recent Backups",
+      "type": "backup",
+      "action": "verify",
+      "parameters": {
+        "backupPath": "backups",
+        "maxAgeDays": "7"
+      },
+      "continueOnError": true,
+      "description": "Ensure recent backups exist and are valid"
+    },
+    {
+      "id": "resource-report",
+      "name": "Generate Resource Usage Report",
+      "type": "monitor",
+      "action": "report",
+      "parameters": {
+        "includeMetrics": ["cpu", "memory", "disk", "network"],
+        "outputFile": "reports/resource-usage-${date:yyyy-MM-dd}.json"
+      },
+      "description": "Create detailed resource usage report"
+    },
+    {
+      "id": "disk-after-check",
+      "name": "Verify Disk Space Improvement",
+      "type": "monitor",
+      "action": "disk",
+      "parameters": {
+        "path": "C:\\",
+        "reportOnly": "true"
+      },
+      "description": "Check disk space after cleanup"
+    },
+    {
+      "id": "post-check",
+      "name": "Post-Maintenance Health Check",
+      "type": "health",
+      "action": "check",
+      "parameters": {
+        "comprehensive": "true"
+      },
+      "description": "Verify system is still healthy after maintenance"
+    },
+    {
+      "id": "send-report",
+      "name": "Send Maintenance Report",
+      "type": "notification",
+      "action": "email",
+      "parameters": {
+        "subject": "System Maintenance Complete - ${date:yyyy-MM-dd}",
+        "body": "System maintenance completed successfully. Check attached report for details.",
+        "attachReport": "true"
+      },
+      "continueOnError": true,
+      "runIf": "${step.post-check.success}",
+      "description": "Send completion notification"
+    }
+  ],
+  
+  "onError": {
+    "steps": [
+      {
+        "id": "error-notification",
+        "name": "Send Error Notification",
+        "type": "notification",
+        "action": "email",
+        "parameters": {
+          "subject": "System Maintenance Failed - ${date:yyyy-MM-dd}",
+          "body": "System maintenance encountered errors. Please review logs.",
+          "priority": "high"
+        }
+      },
+      {
+        "id": "create-incident",
+        "name": "Create Incident Ticket",
+        "type": "integration",
+        "action": "create-ticket",
+        "parameters": {
+          "system": "ServiceNow",
+          "priority": "medium",
+          "description": "Automated system maintenance failed"
+        },
+        "continueOnError": true
+      }
+    ]
+  },
+  
+  "cleanup": {
+    "steps": [
+      {
+        "id": "cleanup-temp-files",
+        "name": "Clean Temporary Maintenance Files",
+        "type": "file",
+        "action": "delete",
+        "parameters": {
+          "path": "temp/maintenance"
+        }
+      }
+    ]
+  },
+  
+  "metadata": {
+    "estimatedDuration": "00:15:00",
+    "requiredPermissions": ["FileSystem.Write", "System.Read"],
+    "compatibility": ["Windows", "Linux"],
+    "category": "Maintenance",
+    "complexity": "Medium"
+  }
+}
