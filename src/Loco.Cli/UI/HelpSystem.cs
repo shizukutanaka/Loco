@@ -580,6 +580,86 @@ namespace Loco.Cli.UI
                 SeeAlso = new[] { "logs", "backup-config" }
             });
 
+            // Logs command
+            AddCommand("logs", new CommandHelp
+            {
+                Name = "logs",
+                Category = "Monitoring",
+                ShortDescription = "Log management and viewing",
+                LongDescription = "View, search, analyze, and manage application log files with support for filtering and statistics.",
+                Usage = "Loco.Cli.exe logs [subcommand] [options]",
+                SubCommands = new Dictionary<string, string>
+                {
+                    { "view", "View recent log entries" },
+                    { "stats", "Show log statistics" },
+                    { "search", "Search logs for a pattern" },
+                    { "clear", "Clear old log files" }
+                },
+                Options = new Dictionary<string, string>
+                {
+                    { "lines", "Number of recent lines to display (view command)" },
+                    { "pattern", "Search pattern (search command)" },
+                    { "max-results", "Maximum number of search results (search command)" },
+                    { "days", "Delete logs older than this many days (clear command)" },
+                    { "--force", "Skip confirmation prompt (clear command)" }
+                },
+                Examples = new[]
+                {
+                    "Loco.Cli.exe logs view",
+                    "Loco.Cli.exe logs view 100",
+                    "Loco.Cli.exe logs stats",
+                    "Loco.Cli.exe logs search \"ERROR\"",
+                    "Loco.Cli.exe logs search \"WARNING\" 50",
+                    "Loco.Cli.exe logs clear 30",
+                    "Loco.Cli.exe logs clear 7 --force"
+                },
+                SeeAlso = new[] { "health", "diag", "files" }
+            });
+
+            // Health command
+            AddCommand("health", new CommandHelp
+            {
+                Name = "health",
+                Category = "Monitoring",
+                ShortDescription = "Check system health status",
+                LongDescription = "Perform comprehensive system health checks including memory, disk space, CPU, runtime status, and working directory accessibility.",
+                Usage = "Loco.Cli.exe health [options]",
+                Options = new Dictionary<string, string>
+                {
+                    { "--json", "Output results in JSON format" }
+                },
+                Examples = new[]
+                {
+                    "Loco.Cli.exe health",
+                    "Loco.Cli.exe health --json"
+                },
+                SeeAlso = new[] { "diag", "resource", "logs" }
+            });
+
+            // Diag command
+            AddCommand("diag", new CommandHelp
+            {
+                Name = "diag",
+                Aliases = new[] { "diagnostics" },
+                Category = "Monitoring",
+                ShortDescription = "Generate comprehensive diagnostics report",
+                LongDescription = "Generate detailed diagnostics report including platform information, environment variables, memory usage, disk space, and process details.",
+                Usage = "Loco.Cli.exe diag [options]",
+                Options = new Dictionary<string, string>
+                {
+                    { "--json", "Output results in JSON format" },
+                    { "--verbose", "Include detailed information" }
+                },
+                Examples = new[]
+                {
+                    "Loco.Cli.exe diag",
+                    "Loco.Cli.exe diag --json",
+                    "Loco.Cli.exe diag --verbose",
+                    "Loco.Cli.exe diagnostics --json --verbose"
+                },
+                SeeAlso = new[] { "health", "resource", "logs" }
+            });
+
             // Add aliases
             AddAlias("i", "interactive");
             AddAlias("diagnostics", "diag");

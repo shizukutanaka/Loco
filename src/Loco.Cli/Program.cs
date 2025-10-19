@@ -67,10 +67,10 @@ class Program
             case "start":
                 return await StartEngine(args.Skip(1).ToArray());
             case "health":
-                return await CheckHealth(args.Skip(1).ToArray());
+                return await new HealthCommand().InvokeAsync(args.Skip(1).ToArray());
             case "diag":
             case "diagnostics":
-                return await DiagnosticsCommand(args.Skip(1).ToArray());
+                return await new DiagCommand().InvokeAsync(args.Skip(1).ToArray());
             case "rule":
                 return await new RuleCommand().InvokeAsync(args.Skip(1).ToArray());
             case "quick":
@@ -120,10 +120,7 @@ class Program
             case "files":
                 return await new FilesCommand().InvokeAsync(args.Skip(1).ToArray());
             case "logs":
-                if (args.Length > 1)
-                    return await LogsCommand(args.Skip(1).ToArray());
-                Console.WriteLine("Usage: loco logs <view|stats|search|clear> [options]");
-                return 1;
+                return await new LogsCommand().InvokeAsync(args.Skip(1).ToArray());
             case "history":
                 if (args.Length > 1)
                     return await HistoryCommand(args.Skip(1).ToArray());
