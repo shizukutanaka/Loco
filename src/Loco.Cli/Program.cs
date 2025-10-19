@@ -56,12 +56,10 @@ class Program
 
             var command = args[0].ToLowerInvariant();
 
-        // Interactive mode - not yet implemented
+        // Interactive mode
         if (command == "interactive" || command == "i")
         {
-            ConsoleUI.Info("Interactive mode is not yet implemented.", "インタラクティブモードはまだ実装されていません。");
-            Console.WriteLine("Please use the CLI commands directly (e.g., 'loco start', 'loco rule list').");
-            return 1;
+            return await new InteractiveCommand().InvokeAsync(args.Skip(1).ToArray());
         }
 
         switch (command)
