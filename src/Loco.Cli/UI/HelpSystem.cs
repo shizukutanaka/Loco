@@ -478,6 +478,108 @@ namespace Loco.Cli.UI
                 SeeAlso = new[] { "health", "diag" }
             });
 
+            // Preset command
+            AddCommand("preset", new CommandHelp
+            {
+                Name = "preset",
+                Category = "Automation",
+                ShortDescription = "Run preset automation workflows",
+                LongDescription = "Execute predefined automation workflows for common tasks like system monitoring, daily maintenance, cleanup, watchdog, and heartbeat checks.",
+                Usage = "Loco.Cli.exe preset [subcommand]",
+                SubCommands = new Dictionary<string, string>
+                {
+                    { "list", "List all available preset workflows" },
+                    { "system", "Run system monitoring preset (memory, disk, CPU)" },
+                    { "daily", "Run daily maintenance preset" },
+                    { "cleanup", "Run cleanup preset for temporary files" },
+                    { "watchdog", "Run directory watchdog preset" },
+                    { "heartbeat", "Run health check heartbeat preset" },
+                    { "create", "Create a new custom preset (future feature)" }
+                },
+                Examples = new[]
+                {
+                    "Loco.Cli.exe preset list",
+                    "Loco.Cli.exe preset system",
+                    "Loco.Cli.exe preset daily",
+                    "Loco.Cli.exe preset cleanup",
+                    "Loco.Cli.exe preset watchdog",
+                    "Loco.Cli.exe preset heartbeat"
+                },
+                SeeAlso = new[] { "workflow", "iac", "rule" }
+            });
+
+            // Rule command
+            AddCommand("rule", new CommandHelp
+            {
+                Name = "rule",
+                Category = "Automation",
+                ShortDescription = "Manage automation rules",
+                LongDescription = "Create, list, enable, disable, and manage automation rules. Rule persistence is planned for future releases.",
+                Usage = "Loco.Cli.exe rule [subcommand] [options]",
+                SubCommands = new Dictionary<string, string>
+                {
+                    { "list", "List all automation rules" },
+                    { "create", "Create a new automation rule" },
+                    { "enable", "Enable a rule" },
+                    { "disable", "Disable a rule" },
+                    { "delete", "Delete a rule" },
+                    { "export", "Export rules to a file" },
+                    { "import", "Import rules from a file" }
+                },
+                Options = new Dictionary<string, string>
+                {
+                    { "--json", "Output in JSON format (list command)" },
+                    { "--force", "Skip confirmation prompt (delete command)" }
+                },
+                Examples = new[]
+                {
+                    "Loco.Cli.exe rule list",
+                    "Loco.Cli.exe rule list --json",
+                    "Loco.Cli.exe rule create MyRule trigger",
+                    "Loco.Cli.exe rule enable rule-123",
+                    "Loco.Cli.exe rule disable rule-123",
+                    "Loco.Cli.exe rule delete rule-123 --force",
+                    "Loco.Cli.exe rule export rules-backup.json",
+                    "Loco.Cli.exe rule import rules-backup.json"
+                },
+                SeeAlso = new[] { "preset", "workflow", "iac" }
+            });
+
+            // Files command
+            AddCommand("files", new CommandHelp
+            {
+                Name = "files",
+                Category = "File Operations",
+                ShortDescription = "File operations and search",
+                LongDescription = "Search for files, analyze directory statistics, clean temporary files, and organize files by type or date.",
+                Usage = "Loco.Cli.exe files [subcommand] [options]",
+                SubCommands = new Dictionary<string, string>
+                {
+                    { "search", "Search for files by pattern" },
+                    { "stats", "Show directory statistics" },
+                    { "clean", "Clean temporary and cache files" },
+                    { "organize", "Organize files by type or date (future feature)" }
+                },
+                Options = new Dictionary<string, string>
+                {
+                    { "--dry-run", "Show what would be deleted without deleting (clean command)" },
+                    { "--by-type", "Organize by file type (organize command)" },
+                    { "--by-date", "Organize by date (organize command)" }
+                },
+                Examples = new[]
+                {
+                    "Loco.Cli.exe files search \"*.txt\"",
+                    "Loco.Cli.exe files search \"*.cs\" src/",
+                    "Loco.Cli.exe files stats",
+                    "Loco.Cli.exe files stats Downloads/",
+                    "Loco.Cli.exe files clean --dry-run",
+                    "Loco.Cli.exe files clean .",
+                    "Loco.Cli.exe files organize --by-type",
+                    "Loco.Cli.exe files organize --by-date"
+                },
+                SeeAlso = new[] { "logs", "backup-config" }
+            });
+
             // Add aliases
             AddAlias("i", "interactive");
             AddAlias("diagnostics", "diag");

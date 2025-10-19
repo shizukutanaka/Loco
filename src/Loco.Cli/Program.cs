@@ -72,10 +72,7 @@ class Program
             case "diagnostics":
                 return await DiagnosticsCommand(args.Skip(1).ToArray());
             case "rule":
-                if (args.Length > 1)
-                    return await RuleCommand(args.Skip(1).ToArray());
-                Console.WriteLine("Usage: loco rule <create|list|export|import|enable|disable|delete> [options]");
-                return 1;
+                return await new RuleCommand().InvokeAsync(args.Skip(1).ToArray());
             case "quick":
                 if (args.Length > 1)
                     return await QuickCommand(args[1], args.Length > 2 ? args[2] : "");
@@ -117,17 +114,11 @@ class Program
                 Console.WriteLine("Usage: loco config <show|set|reset|verify> [options]");
                 return 1;
             case "preset":
-                if (args.Length > 1)
-                    return await PresetCommand(args.Skip(1).ToArray());
-                Console.WriteLine("Usage: loco preset <list|create|system|daily|cleanup> [options]");
-                return 1;
+                return await new PresetCommand().InvokeAsync(args.Skip(1).ToArray());
             case "info":
                 return await InfoCommand(args.Skip(1).ToArray());
             case "files":
-                if (args.Length > 1)
-                    return await FilesCommand(args.Skip(1).ToArray());
-                Console.WriteLine("Usage: loco files <search|stats|clean|organize> [options]");
-                return 1;
+                return await new FilesCommand().InvokeAsync(args.Skip(1).ToArray());
             case "logs":
                 if (args.Length > 1)
                     return await LogsCommand(args.Skip(1).ToArray());
