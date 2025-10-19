@@ -1,0 +1,55 @@
+{
+  "name": "system-monitoring",
+  "description": "Monitor system resources and send alerts",
+  "version": "1.0.0",
+  "steps": [
+    {
+      "name": "check-memory",
+      "type": "monitor",
+      "description": "Check available memory",
+      "parameters": {
+        "resource": "memory",
+        "threshold": 512,
+        "unit": "MB"
+      }
+    },
+    {
+      "name": "check-disk",
+      "type": "monitor",
+      "description": "Check disk space",
+      "parameters": {
+        "resource": "disk",
+        "path": "C:\\",
+        "threshold": 10,
+        "unit": "GB"
+      }
+    },
+    {
+      "name": "check-cpu",
+      "type": "monitor",
+      "description": "Check CPU usage",
+      "parameters": {
+        "resource": "cpu",
+        "threshold": 80,
+        "unit": "percent"
+      }
+    },
+    {
+      "name": "log-results",
+      "type": "log",
+      "description": "Log monitoring results",
+      "parameters": {
+        "message": "System monitoring completed successfully",
+        "level": "info"
+      }
+    }
+  ],
+  "schedule": {
+    "interval": "5m",
+    "enabled": true
+  },
+  "notifications": {
+    "onFailure": true,
+    "onSuccess": false
+  }
+}

@@ -1,0 +1,155 @@
+name: web-application-stack
+description: Complete web application infrastructure deployment
+version: 1.0.0
+
+resources:
+  # Web Server
+  - name: web-server
+    type: compute
+    properties:
+      instance_type: t3.medium
+      image: windows-server-2022
+      cpu_cores: 2
+      memory_gb: 4
+      disk_size_gb: 100
+    tags:
+      environment: production
+      application: web
+      tier: frontend
+
+  # Application Server
+  - name: app-server
+    type: compute
+    properties:
+      instance_type: t3.large
+      image: windows-server-2022
+      cpu_cores: 4
+      memory_gb: 8
+      disk_size_gb: 200
+    tags:
+      environment: production
+      application: web
+      tier: backend
+    dependsOn:
+      - database
+
+  # Database Server
+  - name: database
+    type: database
+    properties:
+      engine: sqlserver
+      version: "2022"
+      instance_class: db.m5.large
+      allocated_storage: 500
+      backup_retention_days: 7
+      multi_az: true
+    tags:
+      environment: production
+      application: web
+      tier: database
+
+  # Load Balancer
+  - name: load-balancer
+    type: loadbalancer
+    properties:
+      type: application
+      scheme: internet-facing
+      ip_address_type: ipv4
+    tags:
+      environment: production
+      application: web
+      tier: network
+    dependsOn:
+      - web-server
+
+  # Storage
+  - name: app-storage
+    type: storage
+    properties:
+      type: blob
+      redundancy: geo-redundant
+      capacity_gb: 1000
+      access_tier: hot
+    tags:
+      environment: production
+      application: web
+      tier: storage
+
+networking:
+  vpc:
+    cidr: "10.0.0.0/16"
+    enable_dns: true
+
+  subnets:
+    - name: public-subnet
+      cidr: "10.0.1.0/24"
+      availability_zone: us-east-1a
+      type: public
+
+    - name: private-subnet
+      cidr: "10.0.2.0/24"
+      availability_zone: us-east-1b
+      type: private
+
+  security_groups:
+    - name: web-sg
+      description: Security group for web servers
+      rules:
+        - protocol: tcp
+          port: 443
+          source: 0.0.0.0/0
+          description: HTTPS access
+        - protocol: tcp
+          port: 80
+          source: 0.0.0.0/0
+          description: HTTP access
+
+    - name: app-sg
+      description: Security group for app servers
+      rules:
+        - protocol: tcp
+          port: 8080
+          source: web-sg
+          description: Application port
+
+    - name: db-sg
+      description: Security group for database
+      rules:
+        - protocol: tcp
+          port: 1433
+          source: app-sg
+          description: SQL Server
+
+monitoring:
+  enabled: true
+  metrics:
+    - cpu_utilization
+    - memory_utilization
+    - disk_io
+    - network_throughput
+  alerts:
+    - name: high-cpu
+      metric: cpu_utilization
+      threshold: 80
+      period: 300
+      evaluation_periods: 2
+    - name: low-disk
+      metric: disk_free_percent
+      threshold: 20
+      period: 300
+      evaluation_periods: 1
+
+backup:
+  enabled: true
+  schedule: "0 2 * * *"
+  retention_days: 30
+
+deployment:
+  strategy: rolling
+  max_unavailable: 1
+  health_check:
+    enabled: true
+    interval: 30
+    timeout: 5
+    healthy_threshold: 2
+    unhealthy_threshold: 3

@@ -1,0 +1,81 @@
+{
+  "name": "parallel-processing",
+  "description": "Parallel task execution with dependencies",
+  "version": "1.0.0",
+  "steps": [
+    {
+      "name": "init",
+      "type": "log",
+      "description": "Initialize workflow",
+      "parameters": {
+        "message": "Starting parallel processing workflow",
+        "level": "info"
+      }
+    },
+    {
+      "name": "task-a",
+      "type": "process",
+      "description": "Execute task A",
+      "parallel": true,
+      "parameters": {
+        "command": "echo",
+        "args": ["Task A completed"],
+        "timeout": 30
+      },
+      "dependsOn": ["init"]
+    },
+    {
+      "name": "task-b",
+      "type": "process",
+      "description": "Execute task B",
+      "parallel": true,
+      "parameters": {
+        "command": "echo",
+        "args": ["Task B completed"],
+        "timeout": 30
+      },
+      "dependsOn": ["init"]
+    },
+    {
+      "name": "task-c",
+      "type": "process",
+      "description": "Execute task C",
+      "parallel": true,
+      "parameters": {
+        "command": "echo",
+        "args": ["Task C completed"],
+        "timeout": 30
+      },
+      "dependsOn": ["init"]
+    },
+    {
+      "name": "aggregate",
+      "type": "log",
+      "description": "Aggregate results",
+      "parameters": {
+        "message": "All parallel tasks completed",
+        "level": "info"
+      },
+      "dependsOn": ["task-a", "task-b", "task-c"]
+    },
+    {
+      "name": "finalize",
+      "type": "log",
+      "description": "Finalize workflow",
+      "parameters": {
+        "message": "Workflow completed successfully",
+        "level": "info"
+      },
+      "dependsOn": ["aggregate"]
+    }
+  ],
+  "execution": {
+    "mode": "parallel",
+    "maxConcurrency": 3,
+    "continueOnError": false
+  },
+  "timeout": {
+    "total": 300,
+    "perStep": 60
+  }
+}
