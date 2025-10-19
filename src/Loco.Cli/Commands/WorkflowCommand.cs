@@ -276,5 +276,10 @@ namespace Loco.Cli.Commands
                 return 1;
             }
         }
+
+        public async Task<int> InvokeAsync(string[] args)
+        {
+            return await ((Command)this).InvokeAsync(args);
+        }
     }
 }

@@ -65,7 +65,7 @@ class Program
         switch (command)
         {
             case "start":
-                return await StartEngine(args.Skip(1).ToArray());
+                return await new StartCommand().InvokeAsync(args.Skip(1).ToArray());
             case "health":
                 return await new HealthCommand().InvokeAsync(args.Skip(1).ToArray());
             case "diag":
@@ -150,18 +150,7 @@ class Program
                 return await new IacCommand().InvokeAsync(args.Skip(1).ToArray());
             case "workflow":
             case "wf":
-                if (args.Length > 1)
-                    return await WorkflowCommand(args.Skip(1).ToArray());
-                Console.WriteLine("Usage: loco workflow <list|<file_path>>");
-                Console.WriteLine();
-                Console.WriteLine("Commands:");
-                Console.WriteLine("  loco workflow list                           - List all workflows");
-                Console.WriteLine("  loco workflow <file_path>                    - Execute workflow");
-                Console.WriteLine();
-                Console.WriteLine("Examples:");
-                Console.WriteLine("  loco workflow list");
-                Console.WriteLine("  loco workflow workflows/hello-world.json");
-                return 1;
+                return await new WorkflowCommand().InvokeAsync(args.Skip(1).ToArray());
             case "demo":
             case "ui-demo":
                 await UIDemo.RunAsync();
@@ -310,58 +299,6 @@ class Program
 
     // CreateRuleStore removed - persistent storage not yet implemented
     // private static IRuleStore? CreateRuleStore(string? rulesPath) { ... }
-
-    private static async Task<int> StartEngine(string[] args)
-    {
-        var remaining = args.ToList();
-        if (!TryConsumeOption(remaining, "--rules-path", out var rulesPath))
-        {
-            return 1;
-        }
-
-        if (remaining.Count > 0)
-        {
-            Console.WriteLine($"Unknown start options: {string.Join(' ', remaining)}");
-            return 1;
-        }
-
-        SimpleLightEngine? engine = null;
-        try
-        {
-            var engineResult = CreateEngine(rulesPath);
-            if (engineResult == null)
-            {
-                return 1;
-            }
-
-            engine = engineResult.Value.engine;
-
-            Console.WriteLine("Starting Loco automation engine...");
-            await engine.StartAsync();
-            Console.WriteLine("Engine started successfully. Press Ctrl+C to stop.");
-
-            var tcs = new TaskCompletionSource<bool>();
-            Console.CancelKeyPress += (_, _) => tcs.SetResult(true);
-            await tcs.Task;
-
-            Console.WriteLine("\nShutting down gracefully...");
-            return 0;
-        }
-        catch (OperationCanceledException)
-        {
-            Console.WriteLine("\nEngine shutdown requested by user.");
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Engine error: {ex.Message}");
-            return 1;
-        }
-        finally
-        {
-            engine?.Dispose();
-        }
-    }
 
     private static async Task<int> RunTests(string[] args)
     {
