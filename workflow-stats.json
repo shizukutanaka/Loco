@@ -37,14 +37,14 @@
   },
   {
     "WorkflowId": "workflow-with-includes",
-    "TotalExecutions": 1,
-    "SuccessfulExecutions": 1,
+    "TotalExecutions": 2,
+    "SuccessfulExecutions": 2,
     "FailedExecutions": 0,
-    "LastExecutionTime": "2025-10-19T03:01:03.2979631Z",
-    "TotalDuration": "00:00:00.0100633",
-    "AverageDuration": "00:00:00.0100633",
+    "LastExecutionTime": "2025-10-19T03:20:11.1771556Z",
+    "TotalDuration": "00:00:00.0229879",
+    "AverageDuration": "00:00:00.0114939",
     "MinDuration": "00:00:00.0100633",
-    "MaxDuration": "00:00:00.0100633",
+    "MaxDuration": "00:00:00.0129246",
     "SuccessRate": 100
   },
   {

@@ -187,7 +187,47 @@ namespace Loco.Cli.UI
                     "Loco.Cli.exe workflow workflows/hello-world.json --report",
                     "Loco.Cli.exe wf workflows/process-test.json -v"
                 },
-                SeeAlso = new[] { "preset", "rule", "start" }
+                SeeAlso = new[] { "preset", "rule", "start", "iac" }
+            });
+
+            // IaC command
+            AddCommand("iac", new CommandHelp
+            {
+                Name = "iac",
+                Aliases = new[] { "infrastructure" },
+                Category = "Automation",
+                ShortDescription = "Infrastructure as Code operations",
+                LongDescription = "Manage infrastructure definitions using IaC files (YAML or JSON). Deploy workflows, secrets, and monitoring configurations declaratively.",
+                Usage = "Loco.Cli.exe iac <deploy|validate|generate|convert> [options]",
+                SubCommands = new Dictionary<string, string>
+                {
+                    ["deploy <file>"] = "Deploy infrastructure from IaC file",
+                    ["validate <file>"] = "Validate infrastructure definition",
+                    ["generate [dir]"] = "Generate IaC from existing workflows",
+                    ["convert <input> <output>"] = "Convert between YAML and JSON"
+                },
+                Options = new Dictionary<string, string>
+                {
+                    ["--dry-run, -n"] = "Validate without deploying (deploy only)",
+                    ["--verbose, -v"] = "Show detailed output (deploy only)",
+                    ["--detailed, -d"] = "Show detailed report (validate only)",
+                    ["--output, -o"] = "Output file path (generate only)",
+                    ["--format, -f"] = "Output format: yaml or json (generate only)"
+                },
+                Examples = new[]
+                {
+                    "Loco.Cli.exe iac deploy infrastructure.yaml",
+                    "Loco.Cli.exe iac deploy infrastructure.json --dry-run",
+                    "Loco.Cli.exe iac deploy infrastructure.yaml --verbose",
+                    "Loco.Cli.exe iac validate infrastructure.yaml",
+                    "Loco.Cli.exe iac validate infrastructure.yaml --detailed",
+                    "Loco.Cli.exe iac generate",
+                    "Loco.Cli.exe iac generate workflows --output infra.yaml",
+                    "Loco.Cli.exe iac generate workflows --output infra.json --format json",
+                    "Loco.Cli.exe iac convert infrastructure.yaml infrastructure.json",
+                    "Loco.Cli.exe iac convert infrastructure.json infrastructure.yaml"
+                },
+                SeeAlso = new[] { "workflow", "secrets", "setup" }
             });
 
             // Files command

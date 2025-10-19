@@ -161,6 +161,9 @@ class Program
                 return await new SetupCommand().ExecuteAsync(args.Skip(1).ToArray());
             case "version":
                 return await new VersionCommand().ExecuteAsync(args.Skip(1).ToArray());
+            case "iac":
+            case "infrastructure":
+                return await new IacCommand().InvokeAsync(args.Skip(1).ToArray());
             case "workflow":
             case "wf":
                 if (args.Length > 1)
