@@ -149,8 +149,7 @@ class Program
                 return 0;
             case "resource":
             case "resources":
-                ConsoleUI.Info("Resource command is not yet implemented.", "リソースコマンドはまだ実装されていません。");
-                return 0;
+                return await new ResourceCommand().InvokeAsync(args.Skip(1).ToArray());
             case "backup-config":
             case "config-backup":
                 return await BackupConfigCommand.ExecuteAsync(args.Skip(1).ToArray());

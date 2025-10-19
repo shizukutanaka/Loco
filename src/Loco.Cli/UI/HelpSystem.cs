@@ -230,6 +230,44 @@ namespace Loco.Cli.UI
                 SeeAlso = new[] { "workflow", "secrets", "setup" }
             });
 
+            // Resource command
+            AddCommand("resource", new CommandHelp
+            {
+                Name = "resource",
+                Aliases = new[] { "resources" },
+                Category = "Enterprise",
+                ShortDescription = "Monitor system resources",
+                LongDescription = "Monitor CPU, memory, and disk usage. Check resource availability for workflows and tasks.",
+                Usage = "Loco.Cli.exe resource [monitor|stats|check] [options]",
+                SubCommands = new Dictionary<string, string>
+                {
+                    ["monitor"] = "Show current resource usage (default)",
+                    ["stats"] = "Show resource statistics",
+                    ["check"] = "Check resource availability"
+                },
+                Options = new Dictionary<string, string>
+                {
+                    ["--continuous, -c"] = "Monitor continuously (monitor only)",
+                    ["--interval, -i"] = "Update interval in seconds (monitor only)",
+                    ["--detailed, -d"] = "Show detailed statistics (stats only)",
+                    ["--memory, -m"] = "Required memory in MB (check only)",
+                    ["--cpu"] = "Required CPU percentage (check only)",
+                    ["--disk, -d"] = "Required disk space in MB (check only)"
+                },
+                Examples = new[]
+                {
+                    "Loco.Cli.exe resource",
+                    "Loco.Cli.exe resource monitor",
+                    "Loco.Cli.exe resource monitor --continuous",
+                    "Loco.Cli.exe resource monitor -c -i 2",
+                    "Loco.Cli.exe resource stats",
+                    "Loco.Cli.exe resource stats --detailed",
+                    "Loco.Cli.exe resource check --memory 1024",
+                    "Loco.Cli.exe resource check -m 2048 --cpu 50"
+                },
+                SeeAlso = new[] { "diag", "health", "workflow" }
+            });
+
             // Files command
             AddCommand("files", new CommandHelp
             {

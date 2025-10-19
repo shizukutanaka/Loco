@@ -514,7 +514,7 @@ public class QueueStatistics
 /// Resource monitor for tracking system resources
 /// リソース監視 - システムリソースの追跡
 /// </summary>
-internal class ResourceMonitor
+public class ResourceMonitor
 {
     private System.Diagnostics.Process? _currentProcess;
     private DateTime _lastCpuCheckTime = DateTime.MinValue;
