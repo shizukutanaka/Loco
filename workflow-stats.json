@@ -36,6 +36,18 @@
     "SuccessRate": 100
   },
   {
+    "WorkflowId": "workflow-with-includes",
+    "TotalExecutions": 1,
+    "SuccessfulExecutions": 1,
+    "FailedExecutions": 0,
+    "LastExecutionTime": "2025-10-19T03:01:03.2979631Z",
+    "TotalDuration": "00:00:00.0100633",
+    "AverageDuration": "00:00:00.0100633",
+    "MinDuration": "00:00:00.0100633",
+    "MaxDuration": "00:00:00.0100633",
+    "SuccessRate": 100
+  },
+  {
     "WorkflowId": "multi-environment",
     "TotalExecutions": 3,
     "SuccessfulExecutions": 3,

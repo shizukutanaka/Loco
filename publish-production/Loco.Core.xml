@@ -6588,6 +6588,11 @@
             Parses workflow JSON and creates a SimpleFlow.
             </summary>
         </member>
+        <member name="M:Loco.Core.Workflows.WorkflowLoader.LoadFromDefinition(Loco.Core.Workflows.WorkflowDefinition)">
+            <summary>
+            Loads a workflow from a WorkflowDefinition object.
+            </summary>
+        </member>
         <member name="T:Loco.Core.Workflows.DelayAction">
             <summary>
             Action that delays execution for a specified duration.

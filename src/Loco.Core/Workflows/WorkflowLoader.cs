@@ -41,7 +41,41 @@ namespace Loco.Core.Workflows
                 }
 
                 var json = await File.ReadAllTextAsync(filePath);
-                return LoadFromJson(json);
+
+                // Parse the workflow definition first
+                var definition = JsonSerializer.Deserialize<WorkflowDefinition>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (definition == null)
+                {
+                    _logger?.LogError("Failed to deserialize workflow JSON");
+                    return null;
+                }
+
+                // Process includes if any
+                if (definition.Includes != null && definition.Includes.Any())
+                {
+                    var baseDirectory = Path.GetDirectoryName(filePath) ?? Directory.GetCurrentDirectory();
+                    var includeProcessor = new WorkflowIncludeProcessor(baseDirectory, _logger);
+
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine($"  Processing {definition.Includes.Count} include(s)...");
+                    Console.ResetColor();
+
+                    _logger?.LogInformation("Processing {Count} includes...", definition.Includes.Count);
+                    definition = await includeProcessor.ProcessIncludesAsync(definition);
+
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"  ✓ Includes processed. Total steps: {definition.Steps.Count}");
+                    Console.ResetColor();
+
+                    _logger?.LogInformation("Includes processed. Total steps: {Count}", definition.Steps.Count);
+                }
+
+                // Convert back to JSON and load normally (but skip re-deserialization, use definition directly)
+                return LoadFromDefinition(definition);
             }
             catch (Exception ex)
             {
@@ -68,6 +102,22 @@ namespace Loco.Core.Workflows
                     return null;
                 }
 
+                return LoadFromDefinition(definition);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to load workflow from JSON");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Loads a workflow from a WorkflowDefinition object.
+        /// </summary>
+        private SimpleFlow? LoadFromDefinition(WorkflowDefinition definition)
+        {
+            try
+            {
                 // Validate workflow
                 var validationResult = _validator.Validate(definition);
                 if (!validationResult.IsValid)
@@ -178,7 +228,7 @@ namespace Loco.Core.Workflows
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "Failed to parse workflow JSON");
+                _logger?.LogError(ex, "Failed to load workflow from definition");
                 return null;
             }
         }
