@@ -442,6 +442,42 @@ namespace Loco.Cli.UI
                 SeeAlso = new[] { "update", "info" }
             });
 
+            // Test command
+            AddCommand("test", new CommandHelp
+            {
+                Name = "test",
+                Aliases = new[] { "tests" },
+                Category = "Development",
+                ShortDescription = "Run project tests and generate coverage reports",
+                LongDescription = "Execute unit tests, integration tests, and generate code coverage reports for the Loco project.",
+                Usage = "Loco.Cli.exe test [subcommand] [options]",
+                SubCommands = new Dictionary<string, string>
+                {
+                    { "run", "Run tests with optional filtering" },
+                    { "list", "List all test projects" },
+                    { "coverage", "Run tests with code coverage" }
+                },
+                Options = new Dictionary<string, string>
+                {
+                    { "--filter, -f <FILTER>", "Run only tests matching the filter (test run)" },
+                    { "--project, -p <PROJECT>", "Run tests for specific project (test run)" },
+                    { "--verbose, -v", "Show detailed test output (test run)" },
+                    { "--output, -o <PATH>", "Output directory for coverage report (test coverage)" },
+                    { "--format <FORMAT>", "Coverage report format: html, cobertura, json (test coverage)" }
+                },
+                Examples = new[]
+                {
+                    "Loco.Cli.exe test run",
+                    "Loco.Cli.exe test run --filter \"FullyQualifiedName~ResourceMonitor\"",
+                    "Loco.Cli.exe test run --project Loco.Core.Tests",
+                    "Loco.Cli.exe test run --verbose",
+                    "Loco.Cli.exe test list",
+                    "Loco.Cli.exe test coverage",
+                    "Loco.Cli.exe test coverage --output coverage-report --format html"
+                },
+                SeeAlso = new[] { "health", "diag" }
+            });
+
             // Add aliases
             AddAlias("i", "interactive");
             AddAlias("diagnostics", "diag");
@@ -449,6 +485,7 @@ namespace Loco.Cli.UI
             AddAlias("resources", "resource");
             AddAlias("config-backup", "backup-config");
             AddAlias("wf", "workflow");
+            AddAlias("tests", "test");
         }
 
         public void AddCommand(string name, CommandHelp help)

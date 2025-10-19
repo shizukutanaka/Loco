@@ -66,8 +66,6 @@ class Program
         {
             case "start":
                 return await StartEngine(args.Skip(1).ToArray());
-            case "test":
-                return await RunTests(args.Skip(1).ToArray());
             case "health":
                 return await CheckHealth(args.Skip(1).ToArray());
             case "diag":
@@ -156,6 +154,9 @@ class Program
                 return await new SetupCommand().ExecuteAsync(args.Skip(1).ToArray());
             case "version":
                 return await new VersionCommand().ExecuteAsync(args.Skip(1).ToArray());
+            case "test":
+            case "tests":
+                return await new TestsCommand().InvokeAsync(args.Skip(1).ToArray());
             case "iac":
             case "infrastructure":
                 return await new IacCommand().InvokeAsync(args.Skip(1).ToArray());
