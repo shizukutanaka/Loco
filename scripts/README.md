@@ -71,7 +71,7 @@ scripts\quick-test.bat
 **Validate all example files**
 
 Tests all workflow and IaC examples:
-- Validates 7 workflow JSON files
+- Validates 6 workflow JSON files
 - Validates 4 IaC YAML files
 - Ensures examples load correctly
 - Verifies visualization works
@@ -92,7 +92,99 @@ scripts\run-examples.bat
 
 ---
 
+### 🚀 ci-build.bat
+**CI/CD pipeline build script**
+
+Designed for automated build systems (GitHub Actions, Azure DevOps, Jenkins):
+- Complete clean, restore, build, test cycle
+- Returns proper exit codes for CI/CD
+- Optional packaging with `--package` flag
+- Minimal output for CI logs
+
+**Usage:**
+```batch
+# Standard CI build
+scripts\ci-build.bat
+
+# CI build with packaging
+scripts\ci-build.bat --package
+```
+
+**Exit Codes:**
+- `0` - Build and tests succeeded
+- `1` - Build or tests failed
+
+**Perfect for:** GitHub Actions, Azure Pipelines, Jenkins, GitLab CI
+
+---
+
+### 📋 prepare-release.bat
+**Complete release package preparation**
+
+Creates a production-ready distribution package:
+- Full build and test verification
+- Self-contained executable
+- Documentation and examples included
+- Version information file
+- Ready-to-distribute folder structure
+
+**Usage:**
+```batch
+scripts\prepare-release.bat [version]
+
+# Example:
+scripts\prepare-release.bat 0.1.0
+```
+
+**Output:** `release-v[version]\` directory with:
+- `bin\Loco.Cli.exe` - Self-contained executable
+- `examples\` - All samples
+- `docs\` - Documentation
+- `README.md`, `QUICKSTART.md`
+- `VERSION.txt` - Build metadata
+
+**Next steps after running:**
+1. Test: `cd release-v[version]\bin && Loco.Cli.exe version`
+2. Archive: `tar -czf loco-v[version]-win-x64.tar.gz release-v[version]`
+3. Publish to GitHub Releases
+
+---
+
+### 🛠️ dev-setup.bat
+**Development environment setup**
+
+One-command setup for new developers:
+- Verifies .NET SDK installation
+- Checks Git availability
+- Restores all dependencies
+- Builds and tests project
+- Creates workspace directories
+
+**Usage:**
+```batch
+scripts\dev-setup.bat
+```
+
+**Creates:**
+- `workflows\` - Workflow storage
+- `rules\` - Rule storage
+- `logs\` - Log files
+- `backups\` - Backup storage
+
+**Perfect for:** Onboarding new contributors, fresh git clone setup
+
+---
+
 ## Typical Workflows
+
+### Initial Setup (New Developers)
+```batch
+# One-command environment setup
+scripts\dev-setup.bat
+
+# Verify setup
+scripts\quick-test.bat
+```
 
 ### Development Workflow
 ```batch
@@ -106,25 +198,29 @@ scripts\run-examples.bat
 
 ### Release Workflow
 ```batch
-# Build everything
-scripts\build-all.bat
+# Prepare complete release package
+scripts\prepare-release.bat 0.1.0
 
-# Validate examples
-scripts\run-examples.bat
-
-# Create production build
-scripts\publish.bat
-
-# Test production build
-cd publish
-Loco.Cli.exe --help
+# Test release
+cd release-v0.1.0\bin
+Loco.Cli.exe version
 Loco.Cli.exe health
+cd ..\..
+
+# Create archive for distribution
+tar -czf loco-v0.1.0-win-x64.tar.gz release-v0.1.0
 ```
 
 ### CI/CD Pipeline
 ```batch
-# Full verification
-scripts\build-all.bat && scripts\run-examples.bat
+# GitHub Actions / Azure DevOps / Jenkins
+scripts\ci-build.bat
+
+# With packaging
+scripts\ci-build.bat --package
+
+# Full verification with examples
+scripts\ci-build.bat && scripts\run-examples.bat
 ```
 
 ---
