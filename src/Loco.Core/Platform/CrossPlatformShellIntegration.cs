@@ -190,7 +190,10 @@ public class CrossPlatformShellIntegration
                 {
                     process.Kill(entireProcessTree: true);
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Warning: Failed to kill timed-out process. {ex.Message}");
+                }
 
                 result.Success = false;
                 result.ExitCode = -1;
@@ -448,7 +451,10 @@ public class CrossPlatformShellIntegration
                 return version;
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to detect PowerShell version: {ex.Message}");
+        }
         return "Unknown";
     }
 
@@ -473,7 +479,10 @@ public class CrossPlatformShellIntegration
                 return firstLine;
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to detect Bash version: {ex.Message}");
+        }
         return "Unknown";
     }
 
@@ -497,7 +506,10 @@ public class CrossPlatformShellIntegration
                 return version;
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to detect Zsh version: {ex.Message}");
+        }
         return "Unknown";
     }
 

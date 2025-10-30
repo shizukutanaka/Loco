@@ -163,7 +163,8 @@ public class SandboxedProcess : IDisposable
         }
         catch (OperationCanceledException)
         {
-            try { _process.Kill(); } catch { }
+            try { _process.Kill(); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Failed to kill timed-out process: {ex.Message}"); }
             result.Success = false;
             result.StandardError = $"Process timed out after {_timeout.TotalSeconds} seconds";
         }

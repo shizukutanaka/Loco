@@ -344,7 +344,10 @@ namespace Loco.Core.Execution
                         {
                             await step.CompensationAction(new Dictionary<string, object>(), cancellationToken);
                         }
-                        catch { /* Ignore compensation errors */ }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Warning: Compensation action failed for step {step.Name}: {ex.Message}");
+                        }
                     }
                     break;
             }
