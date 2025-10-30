@@ -8,7 +8,6 @@ using Microsoft.Extensions.Logging;
 using Loco.Core.Models;
 using Loco.Core.Interfaces;
 using Loco.Core.Configuration;
-using Loco.Core.OCR;
 
 namespace Loco.Core
 {
@@ -26,11 +25,10 @@ namespace Loco.Core
         private readonly LocoConfig _config;
         private readonly SimpleScheduler _scheduler;
         private readonly IRuleStore? _ruleStore;
-        private readonly IOcrService? _ocrService;
         private bool _isRunning;
         private bool _disposed;
 
-        public SimpleLightEngine(ILogger? logger = null, LocoConfig? config = null, IRuleStore? ruleStore = null, IOcrService? ocrService = null)
+        public SimpleLightEngine(ILogger? logger = null, LocoConfig? config = null, IRuleStore? ruleStore = null)
         {
             _logger = logger;
             _config = config ?? new LocoConfig();
@@ -38,7 +36,6 @@ namespace Loco.Core
             _executionSemaphore = new SemaphoreSlim(_config.MaxConcurrentFlows, _config.MaxConcurrentFlows);
             _scheduler = new SimpleScheduler(logger);
             _ruleStore = ruleStore;
-            _ocrService = ocrService;
         }
 
         /// <summary>
@@ -353,9 +350,6 @@ namespace Loco.Core
                     // Handle built-in action types
                     switch (action.Type.ToLowerInvariant())
                     {
-                        case "ocr":
-                        case "extracttext":
-                            return await ExecuteOcrActionAsync(action, cancellationToken);
                         case "log":
                             return await ExecuteLogActionAsync(action, cancellationToken);
                         default:
@@ -471,63 +465,6 @@ namespace Loco.Core
                 throw new ObjectDisposedException(nameof(SimpleLightEngine));
         }
 
-        private async Task<bool> ExecuteOcrActionAsync(LightAction action, CancellationToken cancellationToken)
-        {
-            if (_ocrService == null)
-            {
-                _logger?.LogError("OCR service not available for action: {ActionType}", action.Type);
-                return false;
-            }
-
-            try
-            {
-                var imagePath = action.Parameters?["imagePath"] as string;
-                var outputVariable = action.Parameters?["outputVariable"] as string;
-
-                if (string.IsNullOrEmpty(imagePath))
-                {
-                    _logger?.LogError("Image path not specified for OCR action");
-                    return false;
-                }
-
-                _logger?.LogInformation("Extracting text from image: {ImagePath}", imagePath);
-
-                var options = new OcrOptions();
-                if (action.Parameters?.ContainsKey("language") == true)
-                    options.Language = action.Parameters["language"] as string ?? "auto";
-                if (action.Parameters?.ContainsKey("confidenceThreshold") == true)
-                    options.ConfidenceThreshold = Convert.ToInt32(action.Parameters["confidenceThreshold"]);
-
-                var result = await _ocrService.ExtractTextAsync(imagePath, options, cancellationToken);
-
-                if (result.Success)
-                {
-                    _logger?.LogInformation("OCR extraction successful. Confidence: {Confidence}%, Text length: {TextLength}",
-                        result.Confidence, result.ExtractedText?.Length ?? 0);
-
-                    // Store result in context variables if outputVariable specified
-                    if (!string.IsNullOrEmpty(outputVariable))
-                    {
-                        // Note: In a real implementation, you'd need access to the context
-                        // For now, just log the result
-                        _logger?.LogInformation("OCR result: {ExtractedText}", result.ExtractedText);
-                    }
-
-                    return true;
-                }
-                else
-                {
-                    _logger?.LogError("OCR extraction failed: {ErrorMessage}", result.ErrorMessage);
-                    return false;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "OCR action execution failed");
-                return false;
-            }
-        }
-
         private async Task<bool> ExecuteLogActionAsync(LightAction action, CancellationToken cancellationToken)
         {
             try
@@ -559,3 +496,13 @@ namespace Loco.Core
                 return false;
             }
         }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _executionSemaphore?.Dispose();
+            _disposed = true;
+            GC.SuppressFinalize(this);
+        }
+    }
+}

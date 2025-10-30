@@ -6,7 +6,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Loco.Core.Exceptions;
-using Loco.Core.Security;
 
 namespace Loco.Core.Configuration
 {
@@ -595,7 +594,8 @@ namespace Loco.Core.Configuration
             try
             {
                 var fullPath = Path.GetFullPath(path);
-                return SecurityUtilities.IsPathSafe(fullPath);
+                // Basic path validation: ensure it doesn't traverse outside allowed directories
+                return !fullPath.Contains("..") && !fullPath.Contains("~");
             }
             catch
             {

@@ -88,9 +88,6 @@ class Program
             case "backup-config":
             case "config-backup":
                 return await BackupConfigCommand.ExecuteAsync(args.Skip(1).ToArray());
-            case "secrets":
-            case "secret":
-                return await new SecretsCommand().ExecuteAsync(args.Skip(1).ToArray());
             case "setup":
                 return await new SetupCommand().ExecuteAsync(args.Skip(1).ToArray());
             case "version":
