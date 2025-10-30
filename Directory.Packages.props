@@ -27,7 +27,7 @@
     <PackageVersion Include="System.Text.Json" Version="9.0.10" />
     <!-- Serialization -->
     <PackageVersion Include="YamlDotNet" Version="16.3.0" />
-    <!-- Command Line -->
+    <!-- Command Line - Stable beta4 version is most recent stable release -->
     <PackageVersion Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
     <PackageVersion Include="System.CommandLine.Hosting" Version="0.4.0-alpha.22272.1" />
     <!-- ASP.NET Core - Using .NET 8 compatible versions -->
