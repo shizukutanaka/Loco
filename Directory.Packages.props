@@ -21,6 +21,7 @@
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="9.0.10" />
     <PackageVersion Include="Spectre.Console" Version="0.52.0" />
     <PackageVersion Include="System.Data.SQLite.Core" Version="1.0.119" />
+    <PackageVersion Include="System.Diagnostics.DiagnosticSource" Version="9.0.10" />
     <!-- System Libraries - System.IO.Compression uses framework version, others upgraded to 9.0.10 -->
     <PackageVersion Include="System.Management" Version="9.0.10" />
     <PackageVersion Include="System.ServiceProcess.ServiceController" Version="9.0.10" />
