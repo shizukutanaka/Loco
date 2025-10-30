@@ -4,17 +4,33 @@ using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Linq;
 using System.Threading.Tasks;
-using Loco.Core.Backup;
+// using Loco.Core.Backup; // TODO: Re-enable when UnifiedBackupSystem is implemented
 
 namespace Loco.Cli.Commands;
 
 /// <summary>
 /// バックアップコマンド
 /// Backup command
+/// NOTE: Currently disabled - requires UnifiedBackupSystem implementation
 /// </summary>
 public static class BackupCommand
 {
     public static Command Create()
+    {
+        var command = new Command("backup", "Backup and restore operations (Not yet implemented) / バックアップと復元操作（未実装）");
+
+        command.SetHandler(() =>
+        {
+            Console.WriteLine("⚠️  Backup functionality is not yet implemented.");
+            Console.WriteLine("バックアップ機能はまだ実装されていません。");
+            return Task.CompletedTask;
+        });
+
+        return command;
+    }
+
+    #if false  // Commented out until UnifiedBackupSystem is implemented
+    public static Command CreateOLD()
     {
         var command = new Command("backup", "Backup and restore operations / バックアップと復元操作")
         {
@@ -268,4 +284,5 @@ public static class BackupCommand
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         return Path.Combine(localAppData, "Loco", "Backups");
     }
+    #endif
 }

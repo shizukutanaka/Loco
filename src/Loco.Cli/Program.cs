@@ -104,6 +104,9 @@ class Program
             case "workflow":
             case "wf":
                 return await new WorkflowCommand().InvokeAsync(args.Skip(1).ToArray());
+            // case "ai":
+            //     // AI command - Coming soon!
+            //     return 0;
             case "demo":
             case "ui-demo":
                 await UIDemo.RunAsync();

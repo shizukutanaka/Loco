@@ -1,0 +1,88 @@
+{
+  "version": "1.0",
+  "id": "mac-productivity-001",
+  "name": "Deep Work Mode",
+  "description": "Productivity mode for Mac - closes distracting apps, enables DND, plays focus music",
+  "platforms": ["mac"],
+  "enabled": true,
+  "triggers": [
+    {
+      "type": "hotkey",
+      "parameters": {
+        "key": "F9",
+        "modifiers": ["cmd", "shift"]
+      },
+      "description": "Trigger with Cmd+Shift+F9"
+    }
+  ],
+  "constraints": [],
+  "actions": [
+    {
+      "id": "action-close-distractions",
+      "type": "applescript",
+      "parameters": {
+        "script": "tell application \"Slack\" to quit\ntell application \"Discord\" to quit\ntell application \"Messages\" to quit"
+      },
+      "description": "Close distracting applications",
+      "onError": {
+        "strategy": "continue",
+        "logError": true
+      }
+    },
+    {
+      "id": "action-dnd",
+      "type": "run_program",
+      "parameters": {
+        "program": "/usr/bin/shortcuts",
+        "arguments": ["run", "Enable Do Not Disturb"]
+      },
+      "description": "Enable Do Not Disturb mode",
+      "retry": {
+        "maxAttempts": 2,
+        "delayMs": 1000,
+        "backoffStrategy": "fixed"
+      }
+    },
+    {
+      "id": "action-spotify",
+      "type": "applescript",
+      "parameters": {
+        "script": "tell application \"Spotify\"\n  activate\n  play track \"spotify:playlist:37i9dQZF1DWZeKCadgRdKQ\"\nend tell"
+      },
+      "description": "Start Deep Focus playlist on Spotify",
+      "onError": {
+        "strategy": "continue",
+        "logError": false
+      }
+    },
+    {
+      "id": "action-timer",
+      "type": "shell",
+      "parameters": {
+        "command": "osascript -e 'display notification \"Deep work session started. Duration: 90 minutes\" with title \"Productivity Mode\"'"
+      },
+      "description": "Display notification with timer start"
+    },
+    {
+      "id": "action-schedule-break",
+      "type": "shell",
+      "parameters": {
+        "command": "echo 'osascript -e \"display notification \\\"Time for a break!\\\" with title \\\"Productivity Mode\\\"\"' | at now + 90 minutes"
+      },
+      "description": "Schedule break reminder in 90 minutes",
+      "onError": {
+        "strategy": "continue",
+        "logError": false
+      }
+    }
+  ],
+  "metadata": {
+    "author": "Loco Team",
+    "category": "productivity",
+    "tags": ["focus", "deep work", "mac", "productivity"],
+    "macOSVersion": "12.0+",
+    "dependencies": ["Spotify", "Shortcuts.app"]
+  },
+  "createdAt": "2025-10-24T00:00:00Z",
+  "updatedAt": "2025-10-24T00:00:00Z"
+}

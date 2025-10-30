@@ -1,0 +1,131 @@
+{
+  "version": "1.0",
+  "id": "windows-file-backup-001",
+  "name": "Automated File Backup",
+  "description": "Automatically backs up documents folder to cloud storage on Windows",
+  "platforms": ["windows"],
+  "enabled": true,
+  "triggers": [
+    {
+      "type": "time",
+      "parameters": {
+        "schedule": "0 20 * * *",
+        "description": "Every day at 8:00 PM"
+      },
+      "description": "Daily backup at 8 PM"
+    },
+    {
+      "type": "file_system",
+      "parameters": {
+        "path": "C:\\Users\\*\\Documents",
+        "event": "modified",
+        "debounce": 3600000
+      },
+      "description": "Backup when documents folder is modified (debounced 1 hour)"
+    }
+  ],
+  "constraints": [
+    {
+      "type": "network",
+      "operator": "equals",
+      "value": "connected",
+      "description": "Only run when network is available"
+    },
+    {
+      "type": "idle",
+      "operator": "greater_than",
+      "value": 300,
+      "description": "Only run after 5 minutes of idle time"
+    }
+  ],
+  "actions": [
+    {
+      "id": "action-compress",
+      "type": "file_operation",
+      "parameters": {
+        "operation": "compress",
+        "source": "%USERPROFILE%\\Documents",
+        "destination": "%TEMP%\\backup-%DATE%.zip",
+        "recursive": true,
+        "excludePatterns": ["*.tmp", "*.log", "node_modules"]
+      },
+      "description": "Compress documents folder",
+      "retry": {
+        "maxAttempts": 3,
+        "delayMs": 2000,
+        "backoffStrategy": "exponential"
+      },
+      "onError": {
+        "strategy": "stop",
+        "logError": true
+      }
+    },
+    {
+      "id": "action-upload",
+      "type": "http_request",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cloudprovider.com/upload",
+        "headers": {
+          "Authorization": "Bearer ${BACKUP_TOKEN}",
+          "Content-Type": "application/zip"
+        },
+        "body": {
+          "file": "%TEMP%\\backup-%DATE%.zip"
+        },
+        "timeout": 300000
+      },
+      "description": "Upload backup to cloud storage",
+      "retry": {
+        "maxAttempts": 5,
+        "delayMs": 5000,
+        "backoffStrategy": "exponential"
+      },
+      "onError": {
+        "strategy": "fallback",
+        "fallbackAction": {
+          "id": "action-local-backup",
+          "type": "file_operation",
+          "parameters": {
+            "operation": "move",
+            "source": "%TEMP%\\backup-%DATE%.zip",
+            "destination": "D:\\LocalBackups\\backup-%DATE%.zip"
+          },
+          "description": "Fallback to local backup"
+        }
+      }
+    },
+    {
+      "id": "action-cleanup",
+      "type": "file_operation",
+      "parameters": {
+        "operation": "delete",
+        "path": "%TEMP%\\backup-%DATE%.zip"
+      },
+      "description": "Clean up temporary backup file",
+      "onError": {
+        "strategy": "continue",
+        "logError": false
+      }
+    },
+    {
+      "id": "action-notify",
+      "type": "notification",
+      "parameters": {
+        "title": "Backup Complete",
+        "message": "Documents have been backed up successfully",
+        "type": "info",
+        "duration": 5
+      },
+      "description": "Notify user of successful backup"
+    }
+  ],
+  "metadata": {
+    "author": "Loco Team",
+    "category": "backup",
+    "tags": ["backup", "files", "automation", "windows"],
+    "requiredPermissions": ["file_system", "network"]
+  },
+  "createdAt": "2025-10-24T00:00:00Z",
+  "updatedAt": "2025-10-24T00:00:00Z"
+}

@@ -1,0 +1,93 @@
+{
+  "version": "1.0",
+  "id": "android-morning-routine-001",
+  "name": "Morning Routine",
+  "description": "Automated morning routine for Android - enables WiFi, sets volume, sends notification",
+  "platforms": ["android"],
+  "enabled": true,
+  "triggers": [
+    {
+      "type": "time",
+      "parameters": {
+        "schedule": "0 7 * * 1-5",
+        "description": "Weekdays at 7:00 AM"
+      },
+      "description": "Trigger every weekday morning at 7 AM"
+    }
+  ],
+  "constraints": [
+    {
+      "type": "battery",
+      "operator": "greater_than",
+      "value": 20,
+      "description": "Only run if battery is above 20%"
+    },
+    {
+      "type": "location",
+      "operator": "equals",
+      "value": "home",
+      "parameters": {
+        "radius": 100
+      },
+      "description": "Only run when at home location"
+    }
+  ],
+  "actions": [
+    {
+      "id": "action-wifi",
+      "type": "wifi_toggle",
+      "parameters": {
+        "state": "on"
+      },
+      "description": "Enable WiFi",
+      "onError": {
+        "strategy": "continue",
+        "logError": true
+      }
+    },
+    {
+      "id": "action-volume",
+      "type": "volume",
+      "parameters": {
+        "stream": "media",
+        "level": 8
+      },
+      "description": "Set media volume to 8",
+      "onError": {
+        "strategy": "continue",
+        "logError": true
+      }
+    },
+    {
+      "id": "action-notification",
+      "type": "notification",
+      "parameters": {
+        "title": "Good Morning!",
+        "message": "Your morning routine has been activated",
+        "priority": "high",
+        "icon": "alarm"
+      },
+      "description": "Send wake-up notification",
+      "retry": {
+        "maxAttempts": 2,
+        "delayMs": 500,
+        "backoffStrategy": "fixed"
+      }
+    },
+    {
+      "id": "action-brightness",
+      "type": "brightness",
+      "parameters": {
+        "level": 100
+      },
+      "description": "Set screen brightness to maximum"
+    }
+  ],
+  "metadata": {
+    "author": "Loco Team",
+    "category": "productivity",
+    "tags": ["morning", "routine", "automation"]
+  },
+  "createdAt": "2025-10-24T00:00:00Z",
+  "updatedAt": "2025-10-24T00:00:00Z"
+}

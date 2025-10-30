@@ -1,0 +1,82 @@
+{
+  "version": "1.0",
+  "id": "ios-focus-mode-001",
+  "name": "Work Focus Mode",
+  "description": "Automated focus mode for iOS - activates during work hours, blocks distractions",
+  "platforms": ["ios"],
+  "enabled": true,
+  "triggers": [
+    {
+      "type": "time",
+      "parameters": {
+        "schedule": "0 9 * * 1-5",
+        "description": "Weekdays at 9:00 AM"
+      },
+      "description": "Start work focus at 9 AM on weekdays"
+    },
+    {
+      "type": "location",
+      "parameters": {
+        "name": "Office",
+        "latitude": 37.7749,
+        "longitude": -122.4194,
+        "radius": 200
+      },
+      "description": "Activate when arriving at office"
+    }
+  ],
+  "constraints": [
+    {
+      "type": "time",
+      "operator": "less_than",
+      "value": "18:00",
+      "description": "Only during work hours (before 6 PM)"
+    }
+  ],
+  "actions": [
+    {
+      "id": "action-focus",
+      "type": "focus_mode",
+      "parameters": {
+        "mode": "work",
+        "duration": 240
+      },
+      "description": "Enable Work focus mode for 4 hours",
+      "onError": {
+        "strategy": "stop",
+        "logError": true
+      }
+    },
+    {
+      "id": "action-notification",
+      "type": "notification",
+      "parameters": {
+        "title": "Work Mode Activated",
+        "message": "Focus mode enabled. Notifications limited.",
+        "sound": "default"
+      },
+      "description": "Notify user about focus mode activation"
+    },
+    {
+      "id": "action-shortcut",
+      "type": "run_shortcut",
+      "parameters": {
+        "name": "Daily Planning",
+        "input": {}
+      },
+      "description": "Run daily planning shortcut",
+      "onError": {
+        "strategy": "continue",
+        "logError": true
+      }
+    }
+  ],
+  "metadata": {
+    "author": "Loco Team",
+    "category": "productivity",
+    "tags": ["focus", "work", "ios"],
+    "iosVersion": "15.0+"
+  },
+  "createdAt": "2025-10-24T00:00:00Z",
+  "updatedAt": "2025-10-24T00:00:00Z"
+}

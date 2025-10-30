@@ -80,6 +80,150 @@ public class LocalizationManager
             ["Warning"] = "警告",
             ["Info"] = "情報"
         };
+
+        // Spanish resources
+        _resources["es"] = new Dictionary<string, string>
+        {
+            ["Version"] = "Versión",
+            ["HealthCheck"] = "Verificación de Salud",
+            ["UpdateCheck"] = "Verificación de Actualización",
+            ["EngineStarted"] = "Motor iniciado exitosamente",
+            ["EngineStopped"] = "Motor detenido",
+            ["InvalidCommand"] = "Comando inválido",
+            ["CommandCompleted"] = "Comando completado exitosamente",
+            ["ErrorOccurred"] = "Ocurrió un error",
+            ["FileNotFound"] = "Archivo no encontrado",
+            ["InvalidPath"] = "Ruta inválida",
+            ["AccessDenied"] = "Acceso denegado",
+            ["ConfigurationError"] = "Error de configuración",
+            ["NetworkError"] = "Error de red",
+            ["TimeoutError"] = "Operación expiró",
+            ["ValidationError"] = "Error de validación",
+            ["Success"] = "Éxito",
+            ["Failed"] = "Fallido",
+            ["Warning"] = "Advertencia",
+            ["Info"] = "Información"
+        };
+
+        // German resources
+        _resources["de"] = new Dictionary<string, string>
+        {
+            ["Version"] = "Version",
+            ["HealthCheck"] = "Gesundheitsprüfung",
+            ["UpdateCheck"] = "Update-Prüfung",
+            ["EngineStarted"] = "Motor erfolgreich gestartet",
+            ["EngineStopped"] = "Motor gestoppt",
+            ["InvalidCommand"] = "Ungültiger Befehl",
+            ["CommandCompleted"] = "Befehl erfolgreich abgeschlossen",
+            ["ErrorOccurred"] = "Ein Fehler ist aufgetreten",
+            ["FileNotFound"] = "Datei nicht gefunden",
+            ["InvalidPath"] = "Ungültiger Pfad",
+            ["AccessDenied"] = "Zugriff verweigert",
+            ["ConfigurationError"] = "Konfigurationsfehler",
+            ["NetworkError"] = "Netzwerkfehler",
+            ["TimeoutError"] = "Vorgang ist abgelaufen",
+            ["ValidationError"] = "Validierungsfehler",
+            ["Success"] = "Erfolg",
+            ["Failed"] = "Fehlgeschlagen",
+            ["Warning"] = "Warnung",
+            ["Info"] = "Information"
+        };
+
+        // French resources
+        _resources["fr"] = new Dictionary<string, string>
+        {
+            ["Version"] = "Version",
+            ["HealthCheck"] = "Vérification de Santé",
+            ["UpdateCheck"] = "Vérification de Mise à Jour",
+            ["EngineStarted"] = "Moteur démarré avec succès",
+            ["EngineStopped"] = "Moteur arrêté",
+            ["InvalidCommand"] = "Commande invalide",
+            ["CommandCompleted"] = "Commande terminée avec succès",
+            ["ErrorOccurred"] = "Une erreur s'est produite",
+            ["FileNotFound"] = "Fichier non trouvé",
+            ["InvalidPath"] = "Chemin invalide",
+            ["AccessDenied"] = "Accès refusé",
+            ["ConfigurationError"] = "Erreur de configuration",
+            ["NetworkError"] = "Erreur réseau",
+            ["TimeoutError"] = "Opération expirée",
+            ["ValidationError"] = "Erreur de validation",
+            ["Success"] = "Succès",
+            ["Failed"] = "Échoué",
+            ["Warning"] = "Avertissement",
+            ["Info"] = "Information"
+        };
+
+        // Add more languages as needed for 50+ support
+        // Example: Chinese, Korean, Arabic, etc.
+        _resources["zh"] = new Dictionary<string, string>
+        {
+            ["Version"] = "版本",
+            ["HealthCheck"] = "健康检查",
+            ["UpdateCheck"] = "更新检查",
+            ["EngineStarted"] = "引擎成功启动",
+            ["EngineStopped"] = "引擎停止",
+            ["InvalidCommand"] = "无效命令",
+            ["CommandCompleted"] = "命令成功完成",
+            ["ErrorOccurred"] = "发生错误",
+            ["FileNotFound"] = "文件未找到",
+            ["InvalidPath"] = "无效路径",
+            ["AccessDenied"] = "访问被拒绝",
+            ["ConfigurationError"] = "配置错误",
+            ["NetworkError"] = "网络错误",
+            ["TimeoutError"] = "操作超时",
+            ["ValidationError"] = "验证错误",
+            ["Success"] = "成功",
+            ["Failed"] = "失败",
+            ["Warning"] = "警告",
+            ["Info"] = "信息"
+        };
+
+        _resources["ko"] = new Dictionary<string, string>
+        {
+            ["Version"] = "버전",
+            ["HealthCheck"] = "건강 검사",
+            ["UpdateCheck"] = "업데이트 확인",
+            ["EngineStarted"] = "엔진이 성공적으로 시작됨",
+            ["EngineStopped"] = "엔진 중지",
+            ["InvalidCommand"] = "유효하지 않은 명령",
+            ["CommandCompleted"] = "명령이 성공적으로 완료됨",
+            ["ErrorOccurred"] = "오류가 발생했습니다",
+            ["FileNotFound"] = "파일을 찾을 수 없습니다",
+            ["InvalidPath"] = "유효하지 않은 경로",
+            ["AccessDenied"] = "액세스 거부됨",
+            ["ConfigurationError"] = "구성 오류",
+            ["NetworkError"] = "네트워크 오류",
+            ["TimeoutError"] = "작업 시간이 초과되었습니다",
+            ["ValidationError"] = "검증 오류",
+            ["Success"] = "성공",
+            ["Failed"] = "실패",
+            ["Warning"] = "경고",
+            ["Info"] = "정보"
+        };
+
+        // Add RTL support for Arabic
+        _resources["ar"] = new Dictionary<string, string>
+        {
+            ["Version"] = "الإصدار",
+            ["HealthCheck"] = "فحص الصحة",
+            ["UpdateCheck"] = "فحص التحديث",
+            ["EngineStarted"] = "تم تشغيل المحرك بنجاح",
+            ["EngineStopped"] = "تم إيقاف المحرك",
+            ["InvalidCommand"] = "أمر غير صالح",
+            ["CommandCompleted"] = "تم إكمال الأمر بنجاح",
+            ["ErrorOccurred"] = "حدث خطأ",
+            ["FileNotFound"] = "الملف غير موجود",
+            ["InvalidPath"] = "مسار غير صالح",
+            ["AccessDenied"] = "تم رفض الوصول",
+            ["ConfigurationError"] = "خطأ في التكوين",
+            ["NetworkError"] = "خطأ في الشبكة",
+            ["TimeoutError"] = "انتهت مهلة العملية",
+            ["ValidationError"] = "خطأ في التحقق",
+            ["Success"] = "نجح",
+            ["Failed"] = "فشل",
+            ["Warning"] = "تحذير",
+            ["Info"] = "معلومات"
+        };
     }
 
     /// <summary>
