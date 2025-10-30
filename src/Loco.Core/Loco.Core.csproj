@@ -32,28 +32,10 @@
     <PackageReference Include="YamlDotNet" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Remove="Marketplace\**\*.cs" />
-    <Compile Remove="Sharing\**\*.cs" />
-    <Compile Remove="Installer\**\*.cs" />
-    <Compile Remove="AutoUpdate\**\*.cs" />
-    <Compile Remove="Internationalization\**\*.cs" />
-    <Compile Remove="Performance\**\*.cs" />
-    <Compile Remove="Interfaces\IOcrService.cs" />
-    <Compile Remove="Interfaces\ITranslationService.cs" />
-    <Compile Remove="Models\OcrModels.cs" />
-    <Compile Remove="OCR\**\*.cs" />
-    <Compile Remove="Orchestration\**\*.cs" />
-    <Compile Remove="Security\AccessControl.cs" />
-    <Compile Remove="Security\AccessControlManager.cs" />
-    <Compile Remove="Security\AdvancedEncryption.cs" />
-    <Compile Remove="Security\AdvancedSecurityManager.cs" />
-    <Compile Remove="Sync\**\*.cs" />
-    <Compile Remove="Telemetry\**\*.cs" />
-    <Compile Remove="Versioning\**\*.cs" />
-    <Compile Remove="Debugging\**\*.cs" />
-    <Compile Remove="Workflow\**\*.cs" />
-  </ItemGroup>
+  <!-- NOTE: All excluded code has been removed from the repository -->
+  <!-- Dead code cleanup completed - see git history for details -->
+  <!-- Target: Production-ready codebase without unused/incomplete features -->
+
 
 
 
