@@ -80,8 +80,14 @@ namespace Loco.Core.Tests.Security
             Assert.NotEqual(hash1, hash2);
         }
 
+        [Fact]
+        public void HashPassword_Null_ThrowsArgumentException()
+        {
+            // Act & Assert
+            Assert.Throws<ArgumentNullException>(() => SecurityUtilities.HashPassword(null!));
+        }
+
         [Theory]
-        [InlineData(null)]
         [InlineData("")]
         public void HashPassword_NullOrEmpty_ThrowsArgumentException(string password)
         {
