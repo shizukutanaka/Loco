@@ -159,150 +159,15 @@ namespace Loco.Core.Configuration
 
         public void ValidateConfiguration()
         {
-            var validationErrors = new List<string>();
-
-            // Validate numeric ranges
-            if (MaxConcurrentFlows < 1 || MaxConcurrentFlows > 1000)
-                validationErrors.Add("MaxConcurrentFlows must be between 1 and 1000");
-
-            if (MemoryLimitMB < 64 || MemoryLimitMB > 8192)
-                validationErrors.Add("MemoryLimitMB must be between 64 and 8192");
-
-            if (CacheSizeMB < 16 || CacheSizeMB > 1024)
-                validationErrors.Add("CacheSizeMB must be between 16 and 1024");
-
-            if (LogRetentionDays < 1 || LogRetentionDays > 365)
-                validationErrors.Add("LogRetentionDays must be between 1 and 365");
-
-            if (DefaultTimeoutSeconds < 1 || DefaultTimeoutSeconds > 3600)
-                validationErrors.Add("DefaultTimeoutSeconds must be between 1 and 3600");
-
-            if (RateLimitPerMinute < 1 || RateLimitPerMinute > 10000)
-                validationErrors.Add("RateLimitPerMinute must be between 1 and 10000");
-
-            if (HealthCheckIntervalSeconds < 10 || HealthCheckIntervalSeconds > 3600)
-                validationErrors.Add("HealthCheckIntervalSeconds must be between 10 and 3600");
-
-            if (CircuitBreakerThreshold < 1 || CircuitBreakerThreshold > 100)
-                validationErrors.Add("CircuitBreakerThreshold must be between 1 and 100");
-
-            if (CircuitBreakerTimeoutSeconds < 10 || CircuitBreakerTimeoutSeconds > 3600)
-                validationErrors.Add("CircuitBreakerTimeoutSeconds must be between 10 and 3600");
-
-            if (CompressionThresholdKB < 1 || CompressionThresholdKB > 1048576)
-                validationErrors.Add("CompressionThresholdKB must be between 1 and 1048576");
-
-            if (AllowedPaths.Length > 32)
-                validationErrors.Add("AllowedPaths cannot exceed 32 entries");
-
-            if (ForbiddenPaths.Length > 32)
-                validationErrors.Add("ForbiddenPaths cannot exceed 32 entries");
-
-            // Create required directories if they don't exist
-            if (!IsSafePath(WorkingDirectory))
+            var validator = new ConfigurationValidator();
+            try
             {
-                validationErrors.Add($"WorkingDirectory '{WorkingDirectory}' is not allowed.");
+                validator.ValidateConfiguration(this);
             }
-            else if (!Directory.Exists(WorkingDirectory))
+            catch (LocoConfigurationException ex)
             {
-                try
-                {
-                    Directory.CreateDirectory(WorkingDirectory);
-                }
-                catch (Exception ex)
-                {
-                    validationErrors.Add($"Failed to create WorkingDirectory: {WorkingDirectory} - {ex.Message}");
-                }
-            }
-
-            if (!string.IsNullOrEmpty(CacheDirectory))
-            {
-                if (!IsSafePath(CacheDirectory))
-                {
-                    validationErrors.Add($"CacheDirectory '{CacheDirectory}' is not allowed.");
-                }
-                else if (!Directory.Exists(CacheDirectory))
-                {
-                    try
-                    {
-                        Directory.CreateDirectory(CacheDirectory);
-                    }
-                    catch (Exception ex)
-                    {
-                        validationErrors.Add($"Failed to create CacheDirectory: {CacheDirectory} - {ex.Message}");
-                    }
-                }
-            }
-
-            if (!string.IsNullOrEmpty(LogDirectory))
-            {
-                if (!IsSafePath(LogDirectory))
-                {
-                    validationErrors.Add($"LogDirectory '{LogDirectory}' is not allowed.");
-                }
-                else if (!Directory.Exists(LogDirectory))
-                {
-                    try
-                    {
-                        Directory.CreateDirectory(LogDirectory);
-                    }
-                    catch (Exception ex)
-                    {
-                        validationErrors.Add($"Failed to create LogDirectory: {LogDirectory} - {ex.Message}");
-                    }
-                }
-            }
-
-            // Validate path conflicts
-            var normalizedForbidden = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var forbidden in ForbiddenPaths)
-            {
-                if (string.IsNullOrWhiteSpace(forbidden))
-                    continue;
-
-                if (!IsSafePath(forbidden))
-                {
-                    validationErrors.Add($"Forbidden path '{forbidden}' is not allowed.");
-                    continue;
-                }
-
-                normalizedForbidden.Add(NormalizeForComparison(forbidden));
-            }
-
-            foreach (var allowed in AllowedPaths)
-            {
-                if (string.IsNullOrWhiteSpace(allowed))
-                    continue;
-
-                if (!IsSafePath(allowed))
-                {
-                    validationErrors.Add($"Allowed path '{allowed}' is not allowed.");
-                    continue;
-                }
-
-                var normalizedAllowed = NormalizeForComparison(allowed);
-                foreach (var forbidden in normalizedForbidden)
-                {
-                    if (IsSameOrChildPath(normalizedAllowed, forbidden))
-                    {
-                        validationErrors.Add($"Allowed path '{allowed}' conflicts with forbidden path '{forbidden}'.");
-                        break;
-                    }
-                }
-            }
-
-            // Validate log level
-            var validLogLevels = new[] { "Trace", "Debug", "Information", "Warning", "Error", "Critical" };
-            if (!validLogLevels.Contains(LogLevel))
-            {
-                validationErrors.Add($"LogLevel must be one of: {string.Join(", ", validLogLevels)}");
-            }
-
-            if (validationErrors.Count > 0)
-            {
-                var errorMessage = $"Configuration validation failed: {string.Join("; ", validationErrors)}";
-                _pathResolutionWarnings.Add(errorMessage);
-                throw new LocoConfigurationException(errorMessage);
+                _pathResolutionWarnings.Add(ex.Message);
+                throw;
             }
         }
 
@@ -586,7 +451,7 @@ namespace Loco.Core.Configuration
             _pathResolutionWarnings.Clear();
         }
 
-        private static bool IsSafePath(string? path)
+        public static bool IsSafePath(string? path)
         {
             if (string.IsNullOrWhiteSpace(path))
                 return false;
