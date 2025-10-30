@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Loco.Cli.Commands;
 using Loco.Cli.UI;
+using Loco.Cli.Services;
 
 namespace Loco.Cli;
 
@@ -13,8 +14,9 @@ namespace Loco.Cli;
 /// </summary>
 class Program
 {
-    private static readonly HelpSystem HelpSystem = new();
-    private static readonly LocalizationManager Localization = new();
+    private static ServiceContainer? _serviceContainer;
+    private static HelpSystem? _helpSystem;
+    private static LocalizationManager? _localization;
 
     /// <summary>
     /// Main entry point
@@ -24,11 +26,12 @@ class Program
         try
         {
             InitializeEnvironment();
+            InitializeServices();
             InitializeLocalization();
 
             if (args.Length == 0)
             {
-                HelpSystem.ShowHelp();
+                _helpSystem?.ShowHelp();
                 return 0;
             }
 
@@ -54,19 +57,35 @@ class Program
     }
 
     /// <summary>
+    /// Initialize dependency injection services
+    /// </summary>
+    private static void InitializeServices()
+    {
+        _serviceContainer = new ServiceContainer();
+        _helpSystem = _serviceContainer.GetService<HelpSystem>();
+        _localization = _serviceContainer.GetService<LocalizationManager>();
+    }
+
+    /// <summary>
     /// Initialize localization based on system culture
     /// </summary>
     private static void InitializeLocalization()
     {
-        var bestCulture = Localization.DetectBestCulture();
-        Localization.CurrentCulture = bestCulture;
+        if (_localization == null)
+            throw new InvalidOperationException("Localization service not initialized");
+
+        var bestCulture = _localization.DetectBestCulture();
+        _localization.CurrentCulture = bestCulture;
     }
 
     /// <summary>
-    /// Route command to appropriate handler
+    /// Route command to appropriate handler using dependency injection
     /// </summary>
     private static async Task<int> RouteCommand(string[] args)
     {
+        if (_serviceContainer == null)
+            throw new InvalidOperationException("Service container not initialized");
+
         var commandName = args[0].ToLowerInvariant();
 
         // Handle help command
@@ -74,36 +93,25 @@ class Program
         {
             if (args.Length > 1)
             {
-                HelpSystem.ShowHelp(args[1]);
+                _helpSystem?.ShowHelp(args[1]);
             }
             else
             {
-                HelpSystem.ShowHelp();
+                _helpSystem?.ShowHelp();
             }
             return 0;
         }
 
-        // Route to commands
-        return commandName switch
+        // Create factory and execute command
+        var factory = new CommandFactory(_serviceContainer);
+        try
         {
-            "start" => await new StartCommand().InvokeAsync(args.Skip(1).ToArray()),
-            "health" => await new HealthCommand().InvokeAsync(args.Skip(1).ToArray()),
-            "diag" or "diagnostics" => await new DiagCommand().InvokeAsync(args.Skip(1).ToArray()),
-            "rule" => await new RuleCommand().InvokeAsync(args.Skip(1).ToArray()),
-            "preset" => await new PresetCommand().InvokeAsync(args.Skip(1).ToArray()),
-            "files" => await new FilesCommand().InvokeAsync(args.Skip(1).ToArray()),
-            "logs" => await new LogsCommand().InvokeAsync(args.Skip(1).ToArray()),
-            "update" or "check-update" => await new UpdateCommand().InvokeAsync(args.Skip(1).ToArray()),
-            "resource" or "resources" => await new ResourceCommand().InvokeAsync(args.Skip(1).ToArray()),
-            "backup-config" or "config-backup" => await BackupConfigCommand.ExecuteAsync(args.Skip(1).ToArray()),
-            "setup" => await new SetupCommand().ExecuteAsync(args.Skip(1).ToArray()),
-            "version" => await new VersionCommand().ExecuteAsync(args.Skip(1).ToArray()),
-            "test" or "tests" => await new TestsCommand().InvokeAsync(args.Skip(1).ToArray()),
-            "iac" or "infrastructure" => await new IacCommand().InvokeAsync(args.Skip(1).ToArray()),
-            "workflow" or "wf" => await new WorkflowCommand().InvokeAsync(args.Skip(1).ToArray()),
-            "interactive" or "i" => await new InteractiveCommand().InvokeAsync(args.Skip(1).ToArray()),
-            _ => HandleUnknownCommand(commandName)
-        };
+            return await factory.ExecuteAsync(commandName, args.Skip(1).ToArray());
+        }
+        catch (CommandNotFoundException)
+        {
+            return HandleUnknownCommand(commandName);
+        }
     }
 
     /// <summary>
@@ -111,13 +119,16 @@ class Program
     /// </summary>
     private static int HandleUnknownCommand(string commandName)
     {
+        if (_localization == null)
+            throw new InvalidOperationException("Localization service not initialized");
+
         ConsoleUI.Error(
             $"Unknown command: {commandName}",
-            Localization.GetString("errors.invalidCommand", $"不明なコマンド: {commandName}")
+            _localization.GetString("errors.invalidCommand", $"不明なコマンド: {commandName}")
         );
 
         Console.WriteLine("\nSuggestions / 提案:");
-        var suggestions = HelpSystem.SearchCommands(commandName);
+        var suggestions = _helpSystem?.SearchCommands(commandName) ?? Array.Empty<string>();
         if (suggestions.Length > 0)
         {
             Console.ForegroundColor = ConsoleUI.Colors.Info;
@@ -138,9 +149,13 @@ class Program
     /// </summary>
     private static void HandleFatalError(Exception ex)
     {
-        ConsoleUI.Error($"Fatal error: {ex.Message}", $"致命的なエラー: {ex.Message}");
+        ConsoleUI.Error(
+            $"Fatal error: {ex.Message}",
+            $"致命的なエラー: {ex.Message}"
+        );
         Console.ForegroundColor = ConsoleUI.Colors.Muted;
         Console.WriteLine($"\nStack trace:\n{ex.StackTrace}");
         Console.ResetColor();
     }
 }
+
