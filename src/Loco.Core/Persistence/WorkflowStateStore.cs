@@ -78,11 +78,14 @@ public class WorkflowStateStore : IDisposable
     private readonly SemaphoreSlim _saveLock = new(1, 1);
     private readonly JsonSerializerOptions _jsonOptions;
     private bool _disposed;
+    private bool _isInitialized;
+    private readonly SemaphoreSlim _initializationLock = new(1, 1);
 
     public WorkflowStateStore(string storagePath, ILogger? logger = null, int autoSaveIntervalMs = 5000)
     {
         _storagePath = storagePath;
         _logger = logger;
+        _isInitialized = false;
 
         _jsonOptions = new JsonSerializerOptions
         {
@@ -101,10 +104,35 @@ public class WorkflowStateStore : IDisposable
             TimeSpan.FromMilliseconds(autoSaveIntervalMs));
 
         _logger?.LogInformation("WorkflowStateStore initialized at {Path}", _storagePath);
-
-        // Load existing states
-        _ = Task.Run(() => LoadAllStatesAsync());
     }
+
+    /// <summary>
+    /// Initializes the state store by loading existing states from disk.
+    /// Must be called before using other methods to ensure states are loaded.
+    /// </summary>
+    public async Task InitializeAsync()
+    {
+        await _initializationLock.WaitAsync();
+        try
+        {
+            if (_isInitialized)
+                return;
+
+            _logger?.LogInformation("Loading workflow states from storage...");
+            await LoadAllStatesAsync();
+            _isInitialized = true;
+            _logger?.LogInformation("Workflow state loading completed. {Count} states loaded.", _activeStates.Count);
+        }
+        finally
+        {
+            _initializationLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Checks if the store is initialized.
+    /// </summary>
+    public bool IsInitialized => _isInitialized;
 
     /// <summary>
     /// Creates a new workflow execution state.
@@ -519,6 +547,7 @@ public class WorkflowStateStore : IDisposable
         {
             _autoSaveTimer?.Dispose();
             _saveLock?.Dispose();
+            _initializationLock?.Dispose();
 
             // Final save
             foreach (var state in _activeStates.Values)
