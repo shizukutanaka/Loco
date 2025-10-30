@@ -38,8 +38,9 @@
 
   <ItemGroup>
     <Compile Remove="Workflow\**\*.cs" />
-    <Compile Remove="Security\**\*.cs" />
     <Compile Remove="Sync\**\*.cs" />
+    <Compile Remove="Security\AdvancedSecurityManagerTests.cs" />
+    <Compile Remove="Security\PathSecurityTests.cs" />
   </ItemGroup>
 
 </Project>

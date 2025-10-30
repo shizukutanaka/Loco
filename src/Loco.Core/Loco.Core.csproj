@@ -58,7 +58,11 @@
     <Compile Remove="OCR\**\*.cs" />
     <Compile Remove="Orchestration\**\*.cs" />
     <Compile Remove="Platforms\**\*.cs" />
-    <Compile Remove="Security\**\*.cs" />
+    <Compile Remove="Security\AccessControl.cs" />
+    <Compile Remove="Security\AccessControlManager.cs" />
+    <Compile Remove="Security\AdvancedEncryption.cs" />
+    <Compile Remove="Security\AdvancedSecurityManager.cs" />
+    <Compile Remove="Security\AISecurityGovernance.cs" />
     <Compile Remove="Simulation\**\*.cs" />
     <Compile Remove="Sync\**\*.cs" />
     <Compile Remove="Telemetry\**\*.cs" />
