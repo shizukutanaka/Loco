@@ -30,6 +30,12 @@ namespace Loco.Core.Interfaces
         Task UpsertRuleAsync(SimpleRule rule);
 
         /// <summary>
+        /// 複数のルールをバッチで追加・更新（パフォーマンス最適化）
+        /// Batch upsert multiple rules for better performance
+        /// </summary>
+        Task UpsertRulesAsync(IEnumerable<SimpleRule> rules);
+
+        /// <summary>
         /// ルールを削除
         /// Delete a rule
         /// </summary>

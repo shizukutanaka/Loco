@@ -1,0 +1,185 @@
+{
+  "id": "health-monitor-workflow",
+  "name": "System Health Monitoring",
+  "description": "Continuously monitors system health and alerts on anomalies",
+  "triggers": [
+    {
+      "type": "schedule",
+      "config": {
+        "cron": "*/5 * * * *",
+        "timezone": "UTC"
+      }
+    },
+    {
+      "type": "metric_threshold",
+      "config": {
+        "metric": "cpu_usage",
+        "threshold": 80,
+        "comparison": "greater_than",
+        "duration_seconds": 60
+      }
+    },
+    {
+      "type": "metric_threshold",
+      "config": {
+        "metric": "memory_usage",
+        "threshold": 85,
+        "comparison": "greater_than",
+        "duration_seconds": 60
+      }
+    }
+  ],
+  "steps": [
+    {
+      "id": "step-1",
+      "order": 1,
+      "name": "Collect System Metrics",
+      "type": "monitoring",
+      "action_name": "collect_system_metrics",
+      "configuration": {
+        "metrics": [
+          "cpu_usage",
+          "memory_usage",
+          "disk_io",
+          "network_io",
+          "process_count"
+        ],
+        "collection_interval_ms": 1000,
+        "samples": 5
+      }
+    },
+    {
+      "id": "step-2",
+      "order": 2,
+      "name": "Check Service Health",
+      "type": "health_check",
+      "action_name": "check_services",
+      "configuration": {
+        "services": [
+          {
+            "name": "database",
+            "endpoint": "http://localhost:5432",
+            "timeout_ms": 5000
+          },
+          {
+            "name": "cache",
+            "endpoint": "http://localhost:6379",
+            "timeout_ms": 5000
+          },
+          {
+            "name": "api",
+            "endpoint": "http://localhost:5000/health",
+            "timeout_ms": 5000
+          }
+        ]
+      }
+    },
+    {
+      "id": "step-3",
+      "order": 3,
+      "name": "Analyze Metrics",
+      "type": "analysis",
+      "action_name": "analyze_trends",
+      "configuration": {
+        "lookback_hours": 24,
+        "anomaly_detection": true,
+        "anomaly_threshold": 2.5,
+        "baseline_percentile": 95
+      }
+    },
+    {
+      "id": "step-4",
+      "order": 4,
+      "name": "Generate Health Report",
+      "type": "report",
+      "action_name": "generate_health_report",
+      "configuration": {
+        "include_metrics": true,
+        "include_services": true,
+        "include_recommendations": true,
+        "output_format": "json"
+      }
+    },
+    {
+      "id": "step-5",
+      "order": 5,
+      "name": "Alert if Unhealthy",
+      "type": "conditional",
+      "action_name": "conditional_alert",
+      "configuration": {
+        "condition": "health_score < 70",
+        "alert_channel": "pagerduty",
+        "severity": "critical"
+      }
+    },
+    {
+      "id": "step-6",
+      "order": 6,
+      "name": "Auto-Remediation",
+      "type": "remediation",
+      "action_name": "auto_remediate",
+      "configuration": {
+        "enabled": true,
+        "restart_unhealthy_services": true,
+        "clear_cache_on_memory_high": true,
+        "kill_zombie_processes": true,
+        "log_all_actions": true
+      }
+    }
+  ],
+  "constraints": [
+    {
+      "type": "time_window",
+      "exclude_hours": [0, 1, 2, 3, 4, 5],
+      "description": "Don't remediate during maintenance window"
+    }
+  ],
+  "error_handlers": [
+    {
+      "step_id": "step-2",
+      "error_type": "timeout",
+      "action": "continue",
+      "config": {
+        "mark_service_down": true
+      }
+    },
+    {
+      "step_id": "step-6",
+      "error_type": "remediation_failed",
+      "action": "escalate",
+      "config": {
+        "escalation_channel": "email",
+        "escalation_recipients": ["ops@example.com"]
+      }
+    }
+  ],
+  "notifications": [
+    {
+      "event": "anomaly_detected",
+      "channel": "slack",
+      "webhook_url": "${SLACK_WEBHOOK_URL}",
+      "message_template": "Anomaly detected: ${anomaly_type} (${anomaly_severity})"
+    },
+    {
+      "event": "service_down",
+      "channel": "pagerduty",
+      "service_id": "${PAGERDUTY_SERVICE_ID}",
+      "urgency": "high"
+    },
+    {
+      "event": "remediation_applied",
+      "channel": "email",
+      "recipients": ["ops-log@example.com"],
+      "include_logs": true
+    }
+  ],
+  "retention_policy": {
+    "keep_reports_days": 90,
+    "keep_detailed_metrics_hours": 24,
+    "keep_audit_logs_days": 365
+  },
+  "enabled": true,
+  "version": "1.0.0",
+  "created_at": "2025-01-01T00:00:00Z",
+  "updated_at": "2025-01-01T00:00:00Z"
+}

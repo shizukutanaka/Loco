@@ -1,0 +1,62 @@
+{
+  "name": "loco-client",
+  "version": "1.0.0",
+  "description": "Enterprise-grade workflow automation client for Loco",
+  "keywords": [
+    "workflow",
+    "automation",
+    "orchestration",
+    "business-process",
+    "typescript",
+    "async",
+    "client",
+    "sdk"
+  ],
+  "author": "Loco Team",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "type-check": "tsc --noEmit",
+    "prepublishOnly": "npm run build && npm run test"
+  },
+  "dependencies": {
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "jest": "^29.0.0",
+    "prettier": "^3.0.0",
+    "ts-jest": "^29.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/loco-automation/typescript-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/loco-automation/typescript-sdk/issues"
+  },
+  "homepage": "https://docs.loco.io/sdk/typescript"
+}

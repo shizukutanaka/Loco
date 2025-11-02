@@ -1,0 +1,50 @@
+name: Build
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        dotnet-version: ['8.0.x']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ matrix.dotnet-version }}
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Test
+      run: dotnet test --configuration Release --no-build --logger "console;verbosity=detailed" --collect:"XPlat Code Coverage"
+
+    - name: Upload coverage reports
+      if: matrix.os == 'ubuntu-latest'
+      uses: codecov/codecov-action@v3
+      with:
+        files: './coverage.cobertura.xml'
+        flags: unittests
+        name: codecov-umbrella
+
+    - name: Pack NuGet packages
+      run: dotnet pack --configuration Release --no-build --output ./artifacts
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: packages-${{ matrix.os }}
+        path: ./artifacts
+        retention-days: 7

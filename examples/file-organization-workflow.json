@@ -1,0 +1,130 @@
+{
+  "id": "file-org-workflow",
+  "name": "File Organization and Cleanup",
+  "description": "Automatically organizes and cleans up files in the downloads folder",
+  "triggers": [
+    {
+      "type": "schedule",
+      "config": {
+        "cron": "0 */6 * * *",
+        "timezone": "UTC"
+      }
+    },
+    {
+      "type": "file_system_event",
+      "config": {
+        "path": "${HOME}/Downloads",
+        "event_type": "file_created",
+        "debounce_ms": 5000
+      }
+    }
+  ],
+  "steps": [
+    {
+      "id": "step-1",
+      "order": 1,
+      "name": "List Files in Downloads",
+      "type": "file",
+      "action_name": "list_files",
+      "configuration": {
+        "directory": "${HOME}/Downloads",
+        "recursive": false,
+        "include_hidden": false
+      }
+    },
+    {
+      "id": "step-2",
+      "order": 2,
+      "name": "Organize by Type",
+      "type": "file",
+      "action_name": "organize_by_extension",
+      "configuration": {
+        "source_directory": "${HOME}/Downloads",
+        "target_directory": "${HOME}/Downloads/Organized",
+        "rules": [
+          {
+            "extension": "pdf",
+            "subdirectory": "Documents"
+          },
+          {
+            "extension": ["jpg", "jpeg", "png", "gif"],
+            "subdirectory": "Images"
+          },
+          {
+            "extension": ["mp4", "mkv", "avi"],
+            "subdirectory": "Videos"
+          },
+          {
+            "extension": ["zip", "tar", "gz", "7z"],
+            "subdirectory": "Archives"
+          }
+        ]
+      }
+    },
+    {
+      "id": "step-3",
+      "order": 3,
+      "name": "Clean Old Files",
+      "type": "file",
+      "action_name": "cleanup_old_files",
+      "configuration": {
+        "directory": "${HOME}/Downloads",
+        "age_days": 30,
+        "exclude_patterns": ["Important*", "*.lock"],
+        "dry_run": false
+      }
+    },
+    {
+      "id": "step-4",
+      "order": 4,
+      "name": "Generate Report",
+      "type": "report",
+      "action_name": "generate_file_report",
+      "configuration": {
+        "directory": "${HOME}/Downloads/Organized",
+        "output_format": "json",
+        "include_statistics": true
+      }
+    },
+    {
+      "id": "step-5",
+      "order": 5,
+      "name": "Send Notification",
+      "type": "notification",
+      "action_name": "send_notification",
+      "configuration": {
+        "title": "Files Organized Successfully",
+        "body": "Your downloads folder has been organized.",
+        "include_summary": true
+      }
+    }
+  ],
+  "constraints": [
+    {
+      "type": "time_window",
+      "start_hour": 9,
+      "end_hour": 17,
+      "description": "Only run during business hours"
+    },
+    {
+      "type": "system_resource",
+      "min_disk_free_gb": 10,
+      "max_cpu_percent": 50,
+      "description": "Don't run if system resources are low"
+    }
+  ],
+  "error_handlers": [
+    {
+      "step_id": "step-3",
+      "error_type": "permission",
+      "action": "skip",
+      "config": {
+        "log_error": true
+      }
+    }
+  ],
+  "enabled": true,
+  "version": "1.0.0",
+  "created_at": "2025-01-01T00:00:00Z",
+  "updated_at": "2025-01-01T00:00:00Z"
+}

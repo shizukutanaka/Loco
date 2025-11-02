@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Microsoft Extensions - Upgraded to 9.0 for latest features and security -->
+    <PackageVersion Include="Microsoft.AspNetCore.Http" Version="2.3.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.CommandLine" Version="9.0.10" />

@@ -1,0 +1,126 @@
+{
+  "id": "backup-workflow",
+  "name": "Daily System Backup",
+  "description": "Backs up important system files and databases daily",
+  "triggers": [
+    {
+      "type": "schedule",
+      "config": {
+        "cron": "0 2 * * *",
+        "timezone": "UTC"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "id": "step-1",
+      "order": 1,
+      "name": "Check Disk Space",
+      "type": "system",
+      "action_name": "check_disk_space",
+      "configuration": {
+        "min_free_gb": 100
+      },
+      "retry_policy": {
+        "max_retries": 3,
+        "backoff_multiplier": 2
+      }
+    },
+    {
+      "id": "step-2",
+      "order": 2,
+      "name": "Create Database Dump",
+      "type": "database",
+      "action_name": "dump_database",
+      "configuration": {
+        "host": "${DB_HOST}",
+        "port": 5432,
+        "database": "production",
+        "format": "sql"
+      },
+      "timeout_seconds": 300,
+      "retry_policy": {
+        "max_retries": 2,
+        "backoff_multiplier": 1.5
+      }
+    },
+    {
+      "id": "step-3",
+      "order": 3,
+      "name": "Compress Backup",
+      "type": "file",
+      "action_name": "compress_files",
+      "configuration": {
+        "source_path": "/tmp/database.sql",
+        "destination": "/backups/database-${DATE}.tar.gz",
+        "compression": "gzip",
+        "compression_level": 9
+      }
+    },
+    {
+      "id": "step-4",
+      "order": 4,
+      "name": "Upload to Cloud",
+      "type": "cloud",
+      "action_name": "upload_s3",
+      "configuration": {
+        "bucket": "my-backups",
+        "key": "database-${DATE}.tar.gz",
+        "region": "us-east-1",
+        "server_side_encryption": true
+      },
+      "retry_policy": {
+        "max_retries": 5,
+        "backoff_multiplier": 2
+      }
+    },
+    {
+      "id": "step-5",
+      "order": 5,
+      "name": "Verify Backup",
+      "type": "validation",
+      "action_name": "verify_integrity",
+      "configuration": {
+        "hash_algorithm": "sha256",
+        "compare_with": "/backups/database-${DATE}.tar.gz.sha256"
+      }
+    }
+  ],
+  "error_handlers": [
+    {
+      "step_id": "step-4",
+      "error_type": "network",
+      "action": "retry",
+      "config": {
+        "max_retries": 10,
+        "backoff_strategy": "exponential"
+      }
+    },
+    {
+      "step_id": "step-2",
+      "error_type": "timeout",
+      "action": "fallback",
+      "config": {
+        "fallback_action": "use_cached_backup"
+      }
+    }
+  ],
+  "notifications": [
+    {
+      "event": "completion",
+      "channel": "email",
+      "recipients": ["ops@example.com"],
+      "include_logs": true
+    },
+    {
+      "event": "failure",
+      "channel": "slack",
+      "webhook_url": "${SLACK_WEBHOOK_URL}",
+      "mention": "@channel"
+    }
+  ],
+  "enabled": true,
+  "version": "1.0.0",
+  "created_at": "2025-01-01T00:00:00Z",
+  "updated_at": "2025-01-01T00:00:00Z"
+}
