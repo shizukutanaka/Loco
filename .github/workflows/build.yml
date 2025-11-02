@@ -43,7 +43,7 @@ jobs:
       run: dotnet pack --configuration Release --no-build --output ./artifacts
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v5
       with:
         name: packages-${{ matrix.os }}
         path: ./artifacts
