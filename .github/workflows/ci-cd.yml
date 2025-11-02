@@ -146,7 +146,7 @@ jobs:
         Compress-Archive -Path publish-gui-win-x64\* -DestinationPath loco-gui-windows-x64.zip
 
     - name: Upload release assets
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
           loco-cli-windows-x64.zip
