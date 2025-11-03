@@ -28,12 +28,22 @@
     <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="OpenTelemetry" />
     <PackageReference Include="OpenTelemetry.Exporter.Console" />
+    <PackageReference Include="OpenTelemetry.Exporter.Otlp" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <PackageReference Include="OpenTelemetry.Api.ProviderBuilderExtensions" />
     <PackageReference Include="System.Diagnostics.DiagnosticSource" />
     <PackageReference Include="System.Text.Json" />
     <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="System.Management" />
     <PackageReference Include="System.ServiceProcess.ServiceController" />
     <PackageReference Include="YamlDotNet" />
+    <PackageReference Include="Hangfire.Core" Version="1.8.6" />
+    <PackageReference Include="Hangfire.SqlServer" Version="1.8.6" />
+    <PackageReference Include="Hangfire.Storage.SQLite" Version="0.3.18" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
   </ItemGroup>
 
   <!-- NOTE: All excluded code has been removed from the repository -->
