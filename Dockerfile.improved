@@ -1,0 +1,167 @@
+# Multi-stage build for Loco - Production-grade Dockerfile with Security & Performance
+# Stage 1: Builder
+FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS builder
+
+WORKDIR /src
+
+# Copy solution and project files
+COPY *.sln .
+COPY src/Loco.Cli/*.csproj ./src/Loco.Cli/
+COPY src/Loco.Core/*.csproj ./src/Loco.Core/
+COPY src/Loco.Api/*.csproj ./src/Loco.Api/
+COPY src/Loco.Web/*.csproj ./src/Loco.Web/
+COPY tests/Loco.Core.Tests/*.csproj ./tests/Loco.Core.Tests/
+COPY tests/Loco.Cli.Tests/*.csproj ./tests/Loco.Cli.Tests/
+COPY tests/Loco.Api.Tests/*.csproj ./tests/Loco.Api.Tests/
+
+# Restore dependencies
+RUN dotnet restore
+
+# Copy all source code
+COPY . .
+
+# Build with performance optimizations
+RUN dotnet build -c Release --no-restore \
+    -p:DebugType=none \
+    -p:DebugSymbols=false \
+    -p:PublishReadyToRun=true
+
+# Run tests to ensure quality
+RUN dotnet test -c Release --no-build --verbosity normal
+
+# Publish CLI app with trimming for smaller image
+RUN dotnet publish src/Loco.Cli/Loco.Cli.csproj \
+    -c Release -o /app/cli --no-restore \
+    -p:DebugType=none \
+    -p:DebugSymbols=false \
+    -p:PublishReadyToRun=true
+
+# Publish API app with trimming
+RUN dotnet publish src/Loco.Api/Loco.Api.csproj \
+    -c Release -o /app/api --no-restore \
+    -p:DebugType=none \
+    -p:DebugSymbols=false \
+    -p:PublishReadyToRun=true
+
+# Publish Web app with trimming
+RUN dotnet publish src/Loco.Web/Loco.Web.csproj \
+    -c Release -o /app/web --no-restore \
+    -p:DebugType=none \
+    -p:DebugSymbols=false \
+    -p:PublishReadyToRun=true
+
+# Stage 2: CLI Runtime
+FROM mcr.microsoft.com/dotnet/runtime:8.0-alpine AS cli
+
+LABEL maintainer="Loco Team"
+LABEL description="Loco CLI - Enterprise Workflow Automation Engine Command Line Interface"
+LABEL version="1.0.0"
+
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+WORKDIR /app
+
+# Create non-root user for security
+RUN addgroup -g 1001 locouser && \
+    adduser -D -u 1001 -G locouser locouser
+
+# Copy published application
+COPY --from=builder --chown=locouser:locouser /app/cli .
+
+# Switch to non-root user
+USER locouser
+
+ENV DOTNET_ENVIRONMENT=Production
+ENV DOTNET_EnableDiagnosticSourceSpan=false
+
+ENTRYPOINT ["dotnet", "Loco.Cli.dll"]
+
+# Stage 3: API Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS api
+
+LABEL maintainer="Loco Team"
+LABEL description="Loco API - Enterprise Workflow Automation Engine REST API"
+LABEL version="1.0.0"
+
+# Install curl for health checks and ca-certificates
+RUN apk add --no-cache curl ca-certificates
+
+WORKDIR /app
+
+# Create logs directory
+RUN mkdir -p logs
+
+# Create non-root user for security
+RUN addgroup -g 1001 locouser && \
+    adduser -D -u 1001 -G locouser locouser
+
+# Copy published application
+COPY --from=builder --chown=locouser:locouser /app/api .
+COPY --chown=locouser:locouser --from=builder /app/api/appsettings.*.json ./
+
+# Set permissions
+RUN chmod -R 755 /app && \
+    chmod -R 755 logs
+
+# Switch to non-root user
+USER locouser
+
+# Expose ports
+EXPOSE 80
+EXPOSE 443
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost/health || exit 1
+
+# Environment variables
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENV ASPNETCORE_URLS=http://+:80
+ENV DOTNET_EnableDiagnosticSourceSpan=false
+
+ENTRYPOINT ["dotnet", "Loco.Api.dll"]
+
+# Stage 4: Web Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS web
+
+LABEL maintainer="Loco Team"
+LABEL description="Loco Web - Enterprise Workflow Automation Engine Web UI"
+LABEL version="1.0.0"
+
+# Install curl for health checks and ca-certificates
+RUN apk add --no-cache curl ca-certificates
+
+WORKDIR /app
+
+# Create logs directory
+RUN mkdir -p logs
+
+# Create non-root user for security
+RUN addgroup -g 1001 locouser && \
+    adduser -D -u 1001 -G locouser locouser
+
+# Copy published application
+COPY --from=builder --chown=locouser:locouser /app/web .
+
+# Set permissions
+RUN chmod -R 755 /app && \
+    chmod -R 755 logs
+
+# Switch to non-root user
+USER locouser
+
+# Expose ports
+EXPOSE 80
+EXPOSE 443
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost/health || exit 1
+
+# Environment variables
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENV ASPNETCORE_URLS=http://+:80
+ENV DOTNET_EnableDiagnosticSourceSpan=false
+
+ENTRYPOINT ["dotnet", "Loco.Web.dll"]
