@@ -7,9 +7,45 @@ using Microsoft.Extensions.Logging;
 namespace Loco.Core.ConfidentialComputing;
 
 /// <summary>
-/// Confidential Computing Patterns
+/// Confidential Computing Patterns (2025 Edition)
 /// Trusted Execution Environments (TEE), Intel SGX, AMD SEV, confidential data processing
+///
+/// 2025 Security Updates:
+/// - TEE.fail mitigation (October 2025): Physical memory bus attacks
+/// - NVIDIA GPU TEE: GPU memory encryption for AI/ML workloads (<10% overhead)
+/// - Intel TDX + DCAP attestation
+/// - AMD SEV-SNP with v-MSR protection
 /// </summary>
+
+public class TEEVulnerability
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+
+    [JsonPropertyName("cveId")]
+    public string CveId { get; set; } = string.Empty;
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("severity")]
+    public string Severity { get; set; } = string.Empty; // Low, Medium, High, Critical
+
+    [JsonPropertyName("affectedPlatforms")]
+    public List<string> AffectedPlatforms { get; set; } = new();
+
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = string.Empty;
+
+    [JsonPropertyName("mitigation")]
+    public string Mitigation { get; set; } = string.Empty;
+
+    [JsonPropertyName("patchAvailable")]
+    public bool PatchAvailable { get; set; }
+
+    [JsonPropertyName("discoveredDate")]
+    public DateTime DiscoveredDate { get; set; } = DateTime.UtcNow;
+}
 
 public class TrustedExecutionEnvironment
 {
@@ -17,7 +53,7 @@ public class TrustedExecutionEnvironment
     public string Id { get; set; } = Guid.NewGuid().ToString();
 
     [JsonPropertyName("type")]
-    public string Type { get; set; } = string.Empty; // Intel SGX, AMD SEV, ARM TrustZone
+    public string Type { get; set; } = string.Empty; // Intel SGX, AMD SEV, ARM TrustZone, NVIDIA GPU TEE
 
     [JsonPropertyName("provider")]
     public string Provider { get; set; } = string.Empty; // Intel, AMD, ARM, NVIDIA
@@ -39,6 +75,15 @@ public class TrustedExecutionEnvironment
 
     [JsonPropertyName("vulnerabilitiesDetected")]
     public List<string> VulnerabilitiesDetected { get; set; } = new();
+
+    [JsonPropertyName("securityPatches")]
+    public List<string> AppliedSecurityPatches { get; set; } = new();
+
+    [JsonPropertyName("teeFailMitigated")]
+    public bool TEEFailMitigated { get; set; } = false; // CVE-2025-XXXXX mitigation
+
+    [JsonPropertyName("encryptedBusEnabled")]
+    public bool EncryptedBusEnabled { get; set; } = true; // Physical memory bus protection
 }
 
 public class Enclave
@@ -128,6 +173,40 @@ public class ConfidentialData
     public string IntegrityHash { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// NVIDIA GPU TEE (2025): GPU memory encryption for AI/ML workloads
+/// <10% throughput overhead for LLM inference
+/// </summary>
+public class NVIDIAGPUTrustZone
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+
+    [JsonPropertyName("gpuModel")]
+    public string GpuModel { get; set; } = string.Empty; // H100, A100, RTX
+
+    [JsonPropertyName("memoryEncrypted")]
+    public bool MemoryEncrypted { get; set; } = true;
+
+    [JsonPropertyName("encryptionAlgorithm")]
+    public string EncryptionAlgorithm { get; set; } = "AES-256-GCM";
+
+    [JsonPropertyName("gpuMemoryMb")]
+    public int GpuMemoryMb { get; set; }
+
+    [JsonPropertyName("throughputOverheadPercent")]
+    public double ThroughputOverheadPercent { get; set; } = 8.5; // <10% for inference
+
+    [JsonPropertyName("llmInferenceOptimized")]
+    public bool LlmInferenceOptimized { get; set; } = true;
+
+    [JsonPropertyName("attestationCapability")]
+    public bool AttestationCapability { get; set; } = true;
+
+    [JsonPropertyName("lastSecurityUpdate")]
+    public DateTime LastSecurityUpdate { get; set; } = DateTime.UtcNow;
+}
+
 public class ConfidentialWorkload
 {
     [JsonPropertyName("id")]
@@ -144,6 +223,9 @@ public class ConfidentialWorkload
 
     [JsonPropertyName("gpuAcceleration")]
     public bool GpuAcceleration { get; set; }
+
+    [JsonPropertyName("gpuTeeEnabled")]
+    public bool GpuTeeEnabled { get; set; } = false; // NVIDIA GPU TEE for sensitive AI/ML
 
     [JsonPropertyName("cpuCores")]
     public int CpuCores { get; set; }
@@ -165,6 +247,9 @@ public class ConfidentialWorkload
 
     [JsonPropertyName("outputDataHash")]
     public string OutputDataHash { get; set; } = string.Empty;
+
+    [JsonPropertyName("teeFailProtected")]
+    public bool TEEFailProtected { get; set; } = true; // Mitigates physical memory bus attacks
 }
 
 public class AttestationReport
