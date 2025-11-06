@@ -272,9 +272,27 @@ Loco is licensed under the MIT License. See [LICENSE](LICENSE) file for details.
 
 See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
 
+## Documentation
+
+### Getting Started
+- 📖 [Getting Started Guide](docs/GETTING_STARTED.md) - 15-minute quick start
+- 🏗️ [Architecture](#architecture) - System overview
+- 📚 [Workflow Documentation](src/Loco.Core/Workflows/README.md) - 10 templates and engine details
+- 🔌 [Integration Documentation](src/Loco.Core/Integrations/README.md) - 15 production connectors
+- 🚀 [Advanced Scenarios](examples/ADVANCED_SCENARIOS.md) - 4 composite workflows with ROI
+
+### Migration Guides
+- 🔄 [Migrate from Zapier](docs/MIGRATION_GUIDE_ZAPIER.md) - Save 60-90% on costs
+- 🔄 [Migrate from n8n](docs/MIGRATION_GUIDE_N8N.md) - 50-100x performance gain
+
+### Project Documentation
+- 📊 [Project Summary](docs/PROJECT_SUMMARY.md) - Complete implementation overview
+- 🏆 [Competitive Analysis](docs/COMPETITIVE_ANALYSIS_2025.md) - Market positioning
+- ✅ [Phase 1-3 Completion Report](PHASE_1-3_COMPLETION_REPORT.md) - Detailed achievements
+
 ## Support
 
-- 📖 [Documentation](#architecture)
+- 📖 [Documentation](#documentation) - Complete guides and references
 - 🐛 [Issue Tracker](https://github.com/loco-automation/loco/issues)
 - 💬 [Discussions](https://github.com/loco-automation/loco/discussions)
 - 📧 Email: support@loco.io
