@@ -1,0 +1,134 @@
+SPECIFIC FILES RECOMMENDED FOR DELETION
+========================================
+
+ABSOLUTE DELETE (Academic/Out of Scope):
+
+Distributed Consensus (569 lines total):
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Consensus\DistributedConsensusPatterns.cs
+
+eBPF Patterns:
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\eBPF\eBPFPatterns.cs
+
+WebAssembly Patterns:
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\WebAssembly\WebAssemblyPatterns.cs
+
+Confidential Computing (591 lines):
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\ConfidentialComputing\ConfidentialComputingPatterns.cs
+
+ML/AI Patterns (not relevant):
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\FederatedLearning\FederatedLearningPatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\MLOps\MLOpsPatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\AIOps\AIOpsPatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\MachineLearning\MlModelServingPatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\EdgeComputing\EdgeComputingPatterns.cs
+
+Domain-Specific (not relevant):
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\GraphDatabase\GraphDatabasePatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Search\VectorDatabasePatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\SupplyChain\SupplyChainSecurityPatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Sustainability\SustainabilityPatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\DataGovernance\DataGovernancePatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\IncidentManagement\IncidentResponsePatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\NetworkSlicing\NetworkSlicingPatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\FinOps\FinOpsPatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\AutonomousSystems\AutonomousSystemsPatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\PlatformEngineering\PlatformEngineeringPatterns.cs
+
+Over-Engineered Enterprise Patterns:
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\DDD\DomainDrivenDesignPatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\EventSourcing\CqrsEventSoucing.cs (672 lines - MASSIVE)
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Sagas\SagaOrchestrator.cs
+
+Kubernetes Networking (535 lines):
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Kubernetes\KubernetesNetworkingPatterns.cs
+
+Temporal Workflows (566 lines):
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Temporal\TemporalWorkflowPatterns.cs
+
+
+DUPLICATE HEALTH CHECKS - Keep only Practical/SimpleHealthCheck.cs:
+DELETE:
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Health\AdvancedHealthChecks.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Health\DefaultHealthChecks.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Health\EnhancedHealthCheck.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Health\HealthCheckService.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Diagnostics\AdvancedHealthCheck.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Diagnostics\HealthCheckEnhanced.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Workflows\WorkflowHealthCheck.cs
+
+
+DUPLICATE RESILIENCE - Keep only Practical/SimpleRetryPattern.cs and RetryPolicy.cs:
+DELETE:
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Resilience\ResiliencePatternsWithPolly.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Resilience\TimeoutPolicy.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Resilience\BulkheadPolicy.cs
+
+
+DUPLICATE AUDIT:
+DELETE ENTIRE DIRECTORY:
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Auditing\
+
+(Keep C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Audit\)
+
+
+PROBLEMATIC LARGE FILES TO REFACTOR OR DELETE:
+
+Should be split/refactored:
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Testing\TestRunner.cs (1,101 lines)
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Utilities\AdvancedUtilities.cs (929 lines - DELETE)
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Testing\WorkflowTestingFramework.cs (823 lines)
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Integration\SystemIntegration.cs (790 lines)
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Scheduling\IntelligentScheduler.cs (737 lines)
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Validation\ConfigValidator.cs (703 lines)
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Execution\WorkflowExecutionEngine.cs (699 lines)
+
+
+CONSOLIDATE IN WORKFLOWS (37 files - too many):
+
+Consolidate metrics files:
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Workflows\WorkflowMetrics.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Workflows\WorkflowStatistics.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Workflows\WorkflowStats.cs
+-> Keep only 1, delete 2
+
+Consolidate validation:
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Workflows\WorkflowValidator.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Workflows\WorkflowLinter.cs
+-> Merge into 1
+
+Consolidate monitoring:
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Workflows\WorkflowProfiler.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Workflows\WorkflowMonitor.cs
+-> Merge into 1
+
+Consolidate logging:
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Workflows\WorkflowOutputLogger.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Diagnostics\DetailedLogger.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Logging\StructuredLogger.cs
+-> Keep 1 approach
+
+
+OTHER OVER-ENGINEERED PATTERNS TO CONSIDER:
+(Evaluate based on actual usage in product)
+
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\ChaosEngineering\ChaosEngineeringPatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Deployment\ProgressiveDeploymentPatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Kubernetes\AdvancedKubernetesPatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Serverless\ServerlessPatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\ServiceMesh\ServiceMeshPatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\StreamProcessing\StreamProcessingPatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Validation\NullSafetyPatterns.cs
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Webhooks\WebhookReliabilityPatterns.cs
+
+
+SUMMARY OF ABSOLUTE DELETIONS:
+- 15 entire pattern directories
+- 8 health check duplicates (keep 1)
+- 3 resilience duplicates (keep 1)
+- 1 entire Auditing directory
+- 1 AdvancedUtilities.cs file (massive, use stdlib)
+- 20+ other consolidated files in Workflows
+
+TOTAL: 80-100 files for deletion/consolidation (35-40% of codebase)
+RESULT: Cleaner, simpler, more maintainable codebase
+
