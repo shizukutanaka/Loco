@@ -18,6 +18,7 @@ Loco is a lightweight, production-ready workflow automation engine designed for 
 - **📚 Well-Tested**: 130+ unit tests, property-based testing, chaos engineering tests
 - **🤖 AI-Native**: Built-in support for OpenAI, Anthropic Claude with cost tracking
 - **🔌 Pre-built Integrations**: 5+ ready-to-use connectors (HTTP, Database, Email, Slack, GitHub)
+- **📊 Visual Workflows**: JSON-based workflow builder with no-code/low-code support
 
 ## Quick Start
 
@@ -101,6 +102,7 @@ const execution = await client.workflows.waitForExecution("workflow-id", result.
 
 - **Loco.Core**: Core workflow engine, rule management, and storage abstractions
   - **Practical Patterns**: 37 lightweight, production-ready patterns (see below)
+  - **Visual Workflow Engine**: JSON-based workflow builder with 6 templates - [Docs](src/Loco.Core/Workflows/README.md)
   - **AI Integration**: Multi-provider AI framework (OpenAI, Claude) - [Docs](src/Loco.Core/AI/AIIntegrationFramework.cs)
   - **Pre-built Integrations**: 5 ready-to-use connectors (HTTP, Database, Email, Slack, GitHub) - [Docs](src/Loco.Core/Integrations/README.md)
 - **Loco.Api**: REST API with OpenAPI/Swagger documentation
@@ -144,6 +146,7 @@ loco/
 ├── src/
 │   ├── Loco.Core/           # Core engine
 │   │   ├── Practical/       # 🎯 37 lightweight patterns (143KB docs)
+│   │   ├── Workflows/       # 📊 Visual workflow engine (JSON-based, 6 templates)
 │   │   ├── AI/              # 🤖 AI integration framework (OpenAI, Claude)
 │   │   └── Integrations/    # 🔌 Pre-built connectors (HTTP, DB, Email, Slack, GitHub)
 │   ├── Loco.Api/            # REST API server
