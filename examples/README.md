@@ -1,8 +1,42 @@
 # Loco Workflow Examples
 
-This directory contains example workflow definitions that demonstrate how to use Loco for common automation tasks.
+This directory contains example workflow definitions and code examples that demonstrate how to use Loco for automation tasks, from simple workflows to complex enterprise scenarios.
 
-## Available Examples
+## 📚 Documentation Index
+
+- **[Advanced Scenarios](ADVANCED_SCENARIOS.md)** - Real-world composite workflows combining multiple templates and integrations
+- **[Complete Automation Example](CompleteAutomationExample.cs)** - Full integration demonstration
+- **Basic Examples** (below) - Simple workflow JSON definitions
+
+## 🚀 Advanced Scenarios (NEW)
+
+**See [ADVANCED_SCENARIOS.md](ADVANCED_SCENARIOS.md) for complete documentation**
+
+### E-Commerce Order Processing Pipeline
+Complete order fulfillment automation using Stripe, Redis, Database, SendGrid, and Slack.
+- **Business Value**: 10x faster processing, zero duplicates
+- **Throughput**: 2,000 orders/sec
+- **Code**: [AdvancedWorkflowScenarios.cs](AdvancedWorkflowScenarios.cs)
+
+### SaaS Customer Lifecycle Automation
+Fully automated customer journey from signup to active user.
+- **Business Value**: 2 hours → 30 seconds per customer
+- **Integrations**: Stripe, SendGrid, Slack, Google Sheets, Redis
+- **Code**: [AdvancedWorkflowScenarios.cs](AdvancedWorkflowScenarios.cs)
+
+### DevOps Incident Response Pipeline
+Automated incident detection, classification, and response.
+- **Business Value**: 15 min → 2 min MTTR
+- **Integrations**: GitHub, Telegram, Slack, AWS S3
+- **Code**: [AdvancedWorkflowScenarios.cs](AdvancedWorkflowScenarios.cs)
+
+### Marketing Campaign Automation
+AI-powered real-time campaign monitoring and engagement.
+- **Business Value**: 20% → 95% mention coverage, 3x engagement ROI
+- **Integrations**: Twitter, OpenAI GPT-4, Discord, Google Sheets
+- **Code**: [AdvancedWorkflowScenarios.cs](AdvancedWorkflowScenarios.cs)
+
+## 📋 Basic Workflow Examples
 
 ### 1. Backup Workflow (`backup-workflow.json`)
 
