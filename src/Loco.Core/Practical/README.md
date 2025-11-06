@@ -2,6 +2,18 @@
 
 A collection of simple, practical, and production-ready patterns following the design philosophies of **John Carmack**, **Rob Pike**, and **Robert C. Martin**.
 
+## 📚 Complete Documentation
+
+- **[INDEX.md](INDEX.md)** - Master index and navigation guide
+- **[EXAMPLES.md](EXAMPLES.md)** - Real-world application examples
+- **[INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md)** - How to combine patterns
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Debug and fix issues
+- **[MIGRATION_GUIDE.md](MIGRATION_GUIDE.md)** - Migrate from heavy frameworks
+- **[BENCHMARKS.md](BENCHMARKS.md)** - Performance data and metrics
+- **[SUMMARY.md](SUMMARY.md)** - Project overview and design philosophy
+
+**New to Loco?** → Start with this README, then check [EXAMPLES.md](EXAMPLES.md)
+
 ## Design Principles
 
 - **Simplicity First**: "Simplicity is prerequisite for reliability" - John Carmack
