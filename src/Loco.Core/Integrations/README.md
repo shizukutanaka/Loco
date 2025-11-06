@@ -9,9 +9,11 @@ Pre-built connectors for common services - addressing the #2 competitive gap ide
 - **n8n**: 400+ integrations, 230K+ users
 - **Make**: 2,800+ integrations
 
-**Our Approach**: Start with the top 5 most-requested integrations, following the same lightweight philosophy as Practical Patterns.
+**Our Approach**: Start with the top 10 most-requested integrations, following the same lightweight philosophy as Practical Patterns.
 
 ## 📦 Available Integrations
+
+### Core Integrations (Phase 1)
 
 ### 1. HTTP/REST API Integration
 
@@ -246,6 +248,251 @@ Console.WriteLine($"Issue created: #{issueResult.Data}");
 
 **Supported Actions**: create_issue, list_issues, get_repo, create_pr
 **Features**: Full GitHub API v3 support, automatic rate limiting handling
+
+---
+
+### Extended Integrations (Phase 2)
+
+### 6. Discord Integration
+
+**Send messages to Discord channels via webhooks.**
+
+```csharp
+// Setup (get webhook URL from Discord channel settings → Integrations)
+var discord = new DiscordIntegration("https://discord.com/api/webhooks/YOUR/WEBHOOK/URL");
+
+// Test connection
+var connected = await discord.TestConnectionAsync();
+
+// Send simple message
+var result = await discord.ExecuteAsync(new IntegrationRequest
+{
+    Parameters = new()
+    {
+        ["content"] = "🚀 Deployment completed successfully!",
+        ["username"] = "Loco Bot"
+    }
+});
+
+// Send rich embed
+var embedResult = await discord.ExecuteAsync(new IntegrationRequest
+{
+    Parameters = new()
+    {
+        ["content"] = "System Alert",
+        ["embeds"] = new[]
+        {
+            new Dictionary<string, object>
+            {
+                ["title"] = "Error Detected",
+                ["description"] = "Database connection timeout",
+                ["color"] = 15158332, // Red color
+                ["fields"] = new[]
+                {
+                    new { name = "Server", value = "prod-01", inline = true },
+                    new { name = "Time", value = DateTime.UtcNow.ToString(), inline = true }
+                }
+            }
+        }
+    }
+});
+
+Console.WriteLine($"Message sent: {result.Success}");
+```
+
+**Features**: Simple text messages, rich embeds, custom username/avatar, TTS support
+
+### 7. Twilio Integration
+
+**Send SMS and make phone calls via Twilio API.**
+
+```csharp
+// Setup (requires Account SID, Auth Token, and a Twilio phone number)
+var twilio = new TwilioIntegration(
+    accountSid: "ACxxxxxxxxxx",
+    authToken: "your-auth-token",
+    fromNumber: "+1234567890"
+);
+
+// Test connection
+var connected = await twilio.TestConnectionAsync();
+
+// Send SMS
+var smsResult = await twilio.ExecuteAsync(new IntegrationRequest
+{
+    Action = "send_sms",
+    Parameters = new()
+    {
+        ["to"] = "+1987654321",
+        ["body"] = "Your verification code is: 123456"
+    }
+});
+
+// Make phone call
+var callResult = await twilio.ExecuteAsync(new IntegrationRequest
+{
+    Action = "make_call",
+    Parameters = new()
+    {
+        ["to"] = "+1987654321",
+        ["url"] = "http://demo.twilio.com/docs/voice.xml" // TwiML URL
+    }
+});
+
+Console.WriteLine($"SMS sent: {smsResult.Success}");
+```
+
+**Supported Actions**: send_sms, make_call
+**Features**: SMS delivery, voice calls, TwiML support, delivery tracking
+
+### 8. AWS S3 Integration
+
+**Upload, download, and manage files in Amazon S3.**
+
+```csharp
+// Setup (requires AWS Access Key ID, Secret Access Key, and bucket name)
+var s3 = new S3Integration(
+    accessKeyId: "AKIAXXXXXXXXXX",
+    secretAccessKey: "your-secret-key",
+    bucketName: "my-bucket",
+    region: "us-east-1"
+);
+
+// Test connection
+var connected = await s3.TestConnectionAsync();
+
+// Upload file
+var uploadResult = await s3.ExecuteAsync(new IntegrationRequest
+{
+    Action = "upload",
+    Parameters = new()
+    {
+        ["key"] = "reports/report-2025.txt",
+        ["content"] = "File content here...",
+        ["contentType"] = "text/plain"
+    }
+});
+
+// Download file
+var downloadResult = await s3.ExecuteAsync(new IntegrationRequest
+{
+    Action = "download",
+    Parameters = new()
+    {
+        ["key"] = "reports/report-2025.txt"
+    }
+});
+
+// List files
+var listResult = await s3.ExecuteAsync(new IntegrationRequest
+{
+    Action = "list",
+    Parameters = new()
+    {
+        ["prefix"] = "reports/",
+        ["maxKeys"] = 100
+    }
+});
+
+// Delete file
+var deleteResult = await s3.ExecuteAsync(new IntegrationRequest
+{
+    Action = "delete",
+    Parameters = new()
+    {
+        ["key"] = "reports/old-report.txt"
+    }
+});
+
+Console.WriteLine($"Upload successful: {uploadResult.Success}");
+```
+
+**Supported Actions**: upload, download, delete, list
+**Features**: File management, metadata support, prefix filtering, multi-region support
+
+### 9. SendGrid Integration
+
+**Send transactional emails at scale via SendGrid API.**
+
+```csharp
+// Setup (requires SendGrid API Key)
+var sendgrid = new SendGridIntegration("SG.xxxxxxxxxx");
+
+// Test connection
+var connected = await sendgrid.TestConnectionAsync();
+
+// Send email
+var result = await sendgrid.ExecuteAsync(new IntegrationRequest
+{
+    Parameters = new()
+    {
+        ["from"] = "noreply@company.com",
+        ["to"] = "user@example.com;admin@example.com",
+        ["subject"] = "Welcome to Loco!",
+        ["body"] = "<h1>Welcome!</h1><p>Thanks for signing up.</p>",
+        ["isHtml"] = true
+    }
+});
+
+Console.WriteLine($"Email sent: {result.Success}");
+```
+
+**Features**: HTML emails, multiple recipients, high deliverability, transactional email templates
+
+### 10. Telegram Integration
+
+**Send messages and media via Telegram Bot API.**
+
+```csharp
+// Setup (requires Telegram Bot Token from @BotFather)
+var telegram = new TelegramIntegration("123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11");
+
+// Test connection
+var connected = await telegram.TestConnectionAsync();
+
+// Send message
+var messageResult = await telegram.ExecuteAsync(new IntegrationRequest
+{
+    Action = "send_message",
+    Parameters = new()
+    {
+        ["chat_id"] = "123456789",
+        ["text"] = "🚀 Deployment completed!",
+        ["parse_mode"] = "HTML"
+    }
+});
+
+// Send photo
+var photoResult = await telegram.ExecuteAsync(new IntegrationRequest
+{
+    Action = "send_photo",
+    Parameters = new()
+    {
+        ["chat_id"] = "123456789",
+        ["photo"] = "https://example.com/image.jpg",
+        ["caption"] = "System status dashboard"
+    }
+});
+
+// Send document
+var docResult = await telegram.ExecuteAsync(new IntegrationRequest
+{
+    Action = "send_document",
+    Parameters = new()
+    {
+        ["chat_id"] = "123456789",
+        ["document"] = "https://example.com/report.pdf",
+        ["caption"] = "Monthly report"
+    }
+});
+
+Console.WriteLine($"Message sent: {messageResult.Success}");
+```
+
+**Supported Actions**: send_message, send_photo, send_document
+**Features**: Text messages, media sharing, HTML/Markdown formatting, bot commands
+
+---
 
 ## 🔧 Integration Registry
 
