@@ -16,6 +16,8 @@ Loco is a lightweight, production-ready workflow automation engine designed for 
 - **📊 Observability**: OpenTelemetry integration, structured logging with correlation IDs
 - **🛡️ Reliability**: Error recovery, automatic retries, health checks
 - **📚 Well-Tested**: 130+ unit tests, property-based testing, chaos engineering tests
+- **🤖 AI-Native**: Built-in support for OpenAI, Anthropic Claude with cost tracking
+- **🔌 Pre-built Integrations**: 5+ ready-to-use connectors (HTTP, Database, Email, Slack, GitHub)
 
 ## Quick Start
 
@@ -99,6 +101,8 @@ const execution = await client.workflows.waitForExecution("workflow-id", result.
 
 - **Loco.Core**: Core workflow engine, rule management, and storage abstractions
   - **Practical Patterns**: 37 lightweight, production-ready patterns (see below)
+  - **AI Integration**: Multi-provider AI framework (OpenAI, Claude) - [Docs](src/Loco.Core/AI/AIIntegrationFramework.cs)
+  - **Pre-built Integrations**: 5 ready-to-use connectors (HTTP, Database, Email, Slack, GitHub) - [Docs](src/Loco.Core/Integrations/README.md)
 - **Loco.Api**: REST API with OpenAPI/Swagger documentation
 - **Loco.Cli**: Command-line interface for local automation
 - **SDKs**: Client libraries for Python and TypeScript/JavaScript
@@ -139,7 +143,9 @@ const execution = await client.workflows.waitForExecution("workflow-id", result.
 loco/
 ├── src/
 │   ├── Loco.Core/           # Core engine
-│   │   └── Practical/       # 🎯 37 lightweight patterns (143KB docs)
+│   │   ├── Practical/       # 🎯 37 lightweight patterns (143KB docs)
+│   │   ├── AI/              # 🤖 AI integration framework (OpenAI, Claude)
+│   │   └── Integrations/    # 🔌 Pre-built connectors (HTTP, DB, Email, Slack, GitHub)
 │   ├── Loco.Api/            # REST API server
 │   ├── Loco.Cli/            # CLI application
 │   └── Loco.Scheduler/      # Scheduled task execution
