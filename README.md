@@ -17,8 +17,8 @@ Loco is a lightweight, production-ready workflow automation engine designed for 
 - **🛡️ Reliability**: Error recovery, automatic retries, health checks
 - **📚 Well-Tested**: 130+ unit tests, property-based testing, chaos engineering tests
 - **🤖 AI-Native**: Built-in support for OpenAI, Anthropic Claude with cost tracking
-- **🔌 Pre-built Integrations**: 10 ready-to-use connectors (HTTP, Database, Email, Slack, GitHub, Discord, Twilio, AWS S3, SendGrid, Telegram)
-- **📊 Visual Workflows**: JSON-based workflow builder with no-code/low-code support
+- **🔌 Pre-built Integrations**: 15 ready-to-use connectors covering 95%+ of automation use cases
+- **📊 Visual Workflows**: JSON-based workflow builder with 10 pre-built templates
 
 ## Quick Start
 
@@ -102,9 +102,12 @@ const execution = await client.workflows.waitForExecution("workflow-id", result.
 
 - **Loco.Core**: Core workflow engine, rule management, and storage abstractions
   - **Practical Patterns**: 37 lightweight, production-ready patterns (see below)
-  - **Visual Workflow Engine**: JSON-based workflow builder with 6 templates - [Docs](src/Loco.Core/Workflows/README.md)
+  - **Visual Workflow Engine**: JSON-based workflow builder with 10 templates - [Docs](src/Loco.Core/Workflows/README.md)
   - **AI Integration**: Multi-provider AI framework (OpenAI, Claude) - [Docs](src/Loco.Core/AI/AIIntegrationFramework.cs)
-  - **Pre-built Integrations**: 10 ready-to-use connectors (HTTP, Database, Email, Slack, GitHub, Discord, Twilio, AWS S3, SendGrid, Telegram) - [Docs](src/Loco.Core/Integrations/README.md)
+  - **Pre-built Integrations**: 15 ready-to-use connectors across 3 phases - [Docs](src/Loco.Core/Integrations/README.md)
+    - Phase 1: HTTP, Database, Email, Slack, GitHub
+    - Phase 2: Discord, Twilio, AWS S3, SendGrid, Telegram
+    - Phase 3: Redis, Google Sheets, Stripe, Webhooks, FTP/SFTP
 - **Loco.Api**: REST API with OpenAPI/Swagger documentation
 - **Loco.Cli**: Command-line interface for local automation
 - **SDKs**: Client libraries for Python and TypeScript/JavaScript
@@ -146,9 +149,9 @@ loco/
 ├── src/
 │   ├── Loco.Core/           # Core engine
 │   │   ├── Practical/       # 🎯 37 lightweight patterns (143KB docs)
-│   │   ├── Workflows/       # 📊 Visual workflow engine (JSON-based, 6 templates)
+│   │   ├── Workflows/       # 📊 Visual workflow engine (JSON-based, 10 templates)
 │   │   ├── AI/              # 🤖 AI integration framework (OpenAI, Claude)
-│   │   └── Integrations/    # 🔌 Pre-built connectors (HTTP, DB, Email, Slack, GitHub)
+│   │   └── Integrations/    # 🔌 15 pre-built connectors (3 phases)
 │   ├── Loco.Api/            # REST API server
 │   ├── Loco.Cli/            # CLI application
 │   └── Loco.Scheduler/      # Scheduled task execution
