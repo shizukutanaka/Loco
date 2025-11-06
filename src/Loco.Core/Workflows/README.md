@@ -384,35 +384,55 @@ var aiTemplates = WorkflowTemplates.SearchTemplates(tag: "ai");
 
 ### Available Templates
 
-1. **Database Backup to Email** (Easy)
+1. **Database Backup to Email** (Easy, 5min)
    - Export database and email backup file
    - Category: Data Management
    - Tags: database, email, backup, scheduled
 
-2. **API Health Check with Slack** (Easy)
+2. **API Health Check with Slack** (Easy, 3min)
    - Monitor API and alert on failures
    - Category: Monitoring
    - Tags: api, health, slack, monitoring
 
-3. **GitHub Issue to Slack** (Medium)
+3. **GitHub Issue to Slack** (Medium, 10min)
    - Forward GitHub issues to Slack
    - Category: Development
-   - Tags: github, slack, webhook
+   - Tags: github, slack, webhook, collaboration
 
-4. **Data ETL Pipeline** (Medium)
+4. **Data ETL Pipeline** (Medium, 15min)
    - Extract from API, transform, load to database
    - Category: Data Integration
-   - Tags: etl, api, database
+   - Tags: etl, api, database, data-pipeline
 
-5. **AI Content Moderation** (Advanced)
+5. **AI Content Moderation** (Advanced, 20min)
    - Use OpenAI to moderate content
    - Category: AI/ML
-   - Tags: ai, openai, moderation
+   - Tags: ai, openai, moderation, content
 
-6. **Multi-Channel Notification** (Easy)
+6. **Multi-Channel Notification** (Easy, 10min)
    - Send alerts via email, Slack, SMS
    - Category: Notifications
-   - Tags: alerts, multi-channel
+   - Tags: alerts, multi-channel, email, slack, sms
+
+7. **Social Media Brand Monitoring** (Medium, 15min)
+   - Track brand mentions on Twitter with AI sentiment analysis
+   - Category: Marketing
+   - Tags: social-media, twitter, discord, ai, sentiment
+
+8. **Automated Customer Onboarding** (Medium, 12min)
+   - Welcome sequence for new customers with tasks and emails
+   - Category: Customer Success
+   - Tags: onboarding, email, sendgrid, slack, automation
+
+9. **Application Error Tracking** (Advanced, 18min)
+   - Monitor logs, track errors, auto-create GitHub issues
+   - Category: DevOps
+   - Tags: errors, monitoring, telegram, github, logging
+
+10. **Automated Compliance Reporting** (Advanced, 25min)
+    - Monthly compliance reports with AI analysis
+    - Category: Compliance
+    - Tags: compliance, reporting, ai, s3, sendgrid
 
 ## 🔌 Integration with Loco Integrations
 
@@ -574,7 +594,7 @@ Console.WriteLine($"Duration: {result.EndTime - result.StartTime}");
 - ✅ Node types (trigger, action, condition, transform, loop)
 - ✅ Error handling and retry
 - ✅ Workflow validation
-- ✅ 6 pre-built templates
+- ✅ 10 pre-built templates (6 categories)
 - ✅ Integration with Loco connectors
 
 **Next (v1.1):**
@@ -582,7 +602,7 @@ Console.WriteLine($"Duration: {result.EndTime - result.StartTime}");
 - 🔄 Sub-workflows (reusable components)
 - 🔄 Advanced expressions (JSONPath, regex)
 - 🔄 Workflow versioning
-- 🔄 10 more templates
+- 🔄 5 more integrations (Redis, Google Sheets, Stripe, Webhooks, FTP)
 
 **Future (v2.0):**
 - 🔮 Visual web editor (React-based)
