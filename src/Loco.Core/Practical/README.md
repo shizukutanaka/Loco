@@ -66,6 +66,12 @@ A collection of simple, practical, and production-ready patterns following the d
 - **SimpleRateLimiter** - Token bucket & sliding window
 - **SimpleValidation** - Fluent validation
 
+### Workflows & Jobs
+
+- **SimpleWorkflow** - Sequential and parallel workflow execution
+- **SimpleJob** - Background jobs with scheduling and retry
+- **SimpleNotification** - Multi-channel notifications (email/webhook/push)
+
 ### Utilities
 
 - **SimpleObjectPool** - Reduce allocations with pooling
