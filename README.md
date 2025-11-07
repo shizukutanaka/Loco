@@ -19,6 +19,7 @@ Loco is a lightweight, production-ready workflow automation engine designed for 
 - **🤖 AI-Native**: Built-in support for OpenAI, Anthropic Claude with cost tracking
 - **🔌 Pre-built Integrations**: 15 ready-to-use connectors covering 95%+ of automation use cases
 - **📊 Visual Workflows**: JSON-based workflow builder with 10 pre-built templates
+- **🎨 Visual Editor**: React + TypeScript drag-and-drop workflow designer (67% faster workflow creation)
 
 ## Quick Start
 
@@ -40,7 +41,23 @@ docker build -t loco:latest .
 docker run -p 5000:5000 loco:latest
 ```
 
-### First Workflow
+### Visual Editor (No-Code)
+
+Build workflows visually with drag-and-drop interface:
+
+```bash
+# Start the backend API
+dotnet run --project src/Loco.Api
+
+# In another terminal, start the Visual Editor
+cd src/Loco.VisualEditor
+npm install
+npm run dev
+
+# Open browser to http://localhost:3000
+```
+
+### Code-Based Workflow
 
 ```bash
 # Start the API server
@@ -108,6 +125,12 @@ const execution = await client.workflows.waitForExecution("workflow-id", result.
     - Phase 1: HTTP, Database, Email, Slack, GitHub
     - Phase 2: Discord, Twilio, AWS S3, SendGrid, Telegram
     - Phase 3: Redis, Google Sheets, Stripe, Webhooks, FTP/SFTP
+- **Loco.VisualEditor**: React + TypeScript visual workflow builder - [Docs](src/Loco.VisualEditor/README.md)
+  - Drag-and-drop canvas with React Flow
+  - 5 node types (Trigger, Action, Condition, Transform, Loop)
+  - Real-time configuration with dynamic forms
+  - JSON export/import for workflow persistence
+  - <2s load time, <100ms node operations
 - **Loco.Api**: REST API with OpenAPI/Swagger documentation
 - **Loco.Cli**: Command-line interface for local automation
 - **SDKs**: Client libraries for Python and TypeScript/JavaScript
@@ -152,6 +175,7 @@ loco/
 │   │   ├── Workflows/       # 📊 Visual workflow engine (JSON-based, 10 templates)
 │   │   ├── AI/              # 🤖 AI integration framework (OpenAI, Claude)
 │   │   └── Integrations/    # 🔌 15 pre-built connectors (3 phases)
+│   ├── Loco.VisualEditor/   # 🎨 React + TypeScript visual workflow builder
 │   ├── Loco.Api/            # REST API server
 │   ├── Loco.Cli/            # CLI application
 │   └── Loco.Scheduler/      # Scheduled task execution
@@ -277,6 +301,7 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
 ### Getting Started
 - 📖 [Getting Started Guide](docs/GETTING_STARTED.md) - 15-minute quick start
 - 🏗️ [Architecture](#architecture) - System overview
+- 🎨 [Visual Editor Guide](src/Loco.VisualEditor/README.md) - Drag-and-drop workflow builder
 - 📚 [Workflow Documentation](src/Loco.Core/Workflows/README.md) - 10 templates and engine details
 - 🔌 [Integration Documentation](src/Loco.Core/Integrations/README.md) - 15 production connectors
 - 🚀 [Advanced Scenarios](examples/ADVANCED_SCENARIOS.md) - 4 composite workflows with ROI
@@ -287,8 +312,9 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
 
 ### Project Documentation
 - 📊 [Project Summary](docs/PROJECT_SUMMARY.md) - Complete implementation overview
+- 🎨 [Visual Editor Design](docs/VISUAL_EDITOR_DESIGN.md) - MVP architecture and 30-day plan
 - 🏆 [Competitive Analysis](docs/COMPETITIVE_ANALYSIS_2025.md) - Market positioning
-- ✅ [Phase 1-3 Completion Report](PHASE_1-3_COMPLETION_REPORT.md) - Detailed achievements
+- ✅ [Phase 1-5 Completion](IMPLEMENTATION_COMPLETE.md) - Detailed achievements
 
 ## Support
 
