@@ -8,6 +8,7 @@ import { NodeSearch } from '@/components/NodeSearch/NodeSearch';
 import { ToastContainer } from '@/components/Toast/Toast';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useAutoSave } from '@/hooks/useAutoSave';
+import { useOfflineDetection } from '@/hooks/useOfflineDetection';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -16,6 +17,7 @@ function App() {
   const { exportWorkflow, loadWorkflow } = useWorkflowStore();
   const { loadDraft, clearDraft } = useAutoSave();
   const toast = useToast();
+  useOfflineDetection(); // Detect offline/online status and show toast notifications
 
   // Load draft on mount
   useEffect(() => {

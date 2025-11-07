@@ -8,6 +8,8 @@
 
 import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
 import { ApiResponse, ApiError, AuthConfig } from './types';
+import { logApiError, logNetworkError } from '@/utils/errorLogger';
+import { retryNetworkOperation } from '@/utils/retry';
 
 // ============================================================================
 // API Client Class
@@ -16,6 +18,7 @@ import { ApiResponse, ApiError, AuthConfig } from './types';
 export class LocoApiClient {
   private client: AxiosInstance;
   private authConfig: AuthConfig;
+  private enableRetry: boolean = true;
 
   constructor(baseURL: string = '/api/v1', authConfig?: AuthConfig) {
     this.authConfig = authConfig || {};
@@ -59,12 +62,26 @@ export class LocoApiClient {
   // ==========================================================================
 
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    try {
-      const response = await this.client.get<ApiResponse<T>>(url, config);
-      return response.data;
-    } catch (error) {
-      return this.handleError<T>(error);
+    const operation = async () => {
+      try {
+        const response = await this.client.get<ApiResponse<T>>(url, config);
+        return response.data;
+      } catch (error) {
+        return this.handleError<T>(error);
+      }
+    };
+
+    if (this.enableRetry) {
+      return retryNetworkOperation(operation, {
+        maxRetries: 2,
+        initialDelay: 1000,
+        onRetry: (attempt) => {
+          console.log(`Retrying GET ${url} (attempt ${attempt})`);
+        },
+      });
     }
+
+    return operation();
   }
 
   async post<T>(
@@ -131,6 +148,10 @@ export class LocoApiClient {
     this.authConfig = {};
   }
 
+  setRetryEnabled(enabled: boolean): void {
+    this.enableRetry = enabled;
+  }
+
   // ==========================================================================
   // Error Handling
   // ==========================================================================
@@ -139,23 +160,49 @@ export class LocoApiClient {
     if (error.response) {
       // Server responded with error status
       const data = error.response.data as ApiResponse<unknown>;
-      return data.error || {
+      const apiError = data.error || {
         code: `HTTP_${error.response.status}`,
         message: error.message || 'An error occurred',
         details: { status: error.response.status },
       };
+
+      // Log API error
+      logApiError(`API request failed: ${apiError.message}`, error, {
+        url: error.config?.url,
+        method: error.config?.method,
+        status: error.response.status,
+        code: apiError.code,
+      });
+
+      return apiError;
     } else if (error.request) {
       // Request made but no response received
-      return {
+      const networkError: ApiError = {
         code: 'NETWORK_ERROR',
         message: 'Unable to reach the server. Please check your connection.',
       };
+
+      // Log network error
+      logNetworkError('Network request failed', error, {
+        url: error.config?.url,
+        method: error.config?.method,
+      });
+
+      return networkError;
     } else {
       // Error in request configuration
-      return {
+      const requestError: ApiError = {
         code: 'REQUEST_ERROR',
         message: error.message || 'Failed to make the request',
       };
+
+      // Log request error
+      logApiError('Request configuration error', error, {
+        url: error.config?.url,
+        method: error.config?.method,
+      });
+
+      return requestError;
     }
   }
 
