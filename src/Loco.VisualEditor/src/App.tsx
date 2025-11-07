@@ -1,21 +1,44 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Toolbar } from '@/components/Toolbar/Toolbar';
 import { NodePalette } from '@/components/NodePalette/NodePalette';
 import { WorkflowCanvasWrapper } from '@/components/Canvas/WorkflowCanvas';
 import { PropertyPanel } from '@/components/PropertyPanel/PropertyPanel';
 import { ValidationPanel } from '@/components/ValidationPanel/ValidationPanel';
 import { NodeSearch } from '@/components/NodeSearch/NodeSearch';
+import { ToastContainer } from '@/components/Toast/Toast';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useAutoSave } from '@/hooks/useAutoSave';
 import { useWorkflowStore } from '@/store/workflowStore';
+import { useToast } from '@/contexts/ToastContext';
 
 function App() {
   const [isNodeSearchOpen, setIsNodeSearchOpen] = useState(false);
-  const { exportWorkflow } = useWorkflowStore();
+  const { exportWorkflow, loadWorkflow } = useWorkflowStore();
+  const { loadDraft, clearDraft } = useAutoSave();
+  const toast = useToast();
+
+  // Load draft on mount
+  useEffect(() => {
+    const draft = loadDraft();
+    if (draft) {
+      const shouldRestore = window.confirm(
+        'A saved workflow draft was found. Would you like to restore it?'
+      );
+      if (shouldRestore) {
+        loadWorkflow(draft);
+        toast.info('Workflow draft restored successfully');
+      } else {
+        clearDraft();
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
     onSave: () => {
-      alert('Save functionality will be connected to backend API');
+      // Save is handled by Toolbar component
+      // Trigger a custom event to notify Toolbar
+      window.dispatchEvent(new CustomEvent('workflow:save'));
     },
     onExport: () => {
       const workflow = exportWorkflow();
@@ -45,6 +68,7 @@ function App() {
       </div>
       <ValidationPanel />
       <NodeSearch isOpen={isNodeSearchOpen} onClose={() => setIsNodeSearchOpen(false)} />
+      <ToastContainer />
     </div>
   );
 }

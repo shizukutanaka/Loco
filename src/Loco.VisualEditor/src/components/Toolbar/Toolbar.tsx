@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
+import { useToast } from '@/contexts/ToastContext';
 import {
   FolderOpen,
   Save,
@@ -8,15 +9,30 @@ import {
   Plus,
   Settings,
   LayoutTemplate,
+  Loader2,
 } from 'lucide-react';
 import { TemplateGallery } from '@/components/TemplateGallery/TemplateGallery';
+import { createWorkflow, updateWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
 
 export function Toolbar() {
   const { workflow, newWorkflow, exportWorkflow, updateWorkflowMetadata } =
     useWorkflowStore();
+  const toast = useToast();
   const [isEditingName, setIsEditingName] = useState(false);
   const [workflowName, setWorkflowName] = useState(workflow?.name || 'New Workflow');
   const [isTemplateGalleryOpen, setIsTemplateGalleryOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
+
+  // Listen for keyboard shortcut events
+  useEffect(() => {
+    const handleSaveEvent = () => {
+      handleSaveWorkflow();
+    };
+
+    window.addEventListener('workflow:save', handleSaveEvent);
+    return () => window.removeEventListener('workflow:save', handleSaveEvent);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleNewWorkflow = () => {
     if (confirm('Create a new workflow? Current workflow will be cleared.')) {
@@ -62,14 +78,89 @@ export function Toolbar() {
     input.click();
   };
 
-  const handleSaveWorkflow = () => {
-    // This would call the API to save the workflow
-    alert('Save workflow functionality will be connected to backend API');
+  const handleSaveWorkflow = async () => {
+    setIsSaving(true);
+    try {
+      const workflowData = exportWorkflow();
+
+      // Check if workflow has an ID (existing) or needs to be created (new)
+      const isNewWorkflow = !workflowData.id || workflowData.id.startsWith('workflow-');
+
+      if (isNewWorkflow) {
+        // Create new workflow
+        const request = workflowToCreateRequest(workflowData);
+        const response = await createWorkflow(request);
+
+        if (response.success && response.data) {
+          console.log('Workflow created successfully:', response.data.id);
+          toast.success(`Workflow "${workflowData.name}" created successfully!`);
+          // TODO: Update workflow ID in store with the server-generated ID
+        } else {
+          console.error('Failed to create workflow:', response.error?.message);
+          toast.error(`Failed to save workflow: ${response.error?.message || 'Unknown error'}`);
+        }
+      } else {
+        // Update existing workflow
+        const response = await updateWorkflow(workflowData.id, {
+          id: workflowData.id,
+          name: workflowData.name,
+          description: workflowData.description,
+          nodes: workflowData.nodes,
+          edges: workflowData.edges,
+          metadata: workflowData.metadata,
+        });
+
+        if (response.success && response.data) {
+          console.log('Workflow updated successfully:', response.data.id);
+          toast.success(`Workflow "${workflowData.name}" saved successfully!`);
+        } else {
+          console.error('Failed to update workflow:', response.error?.message);
+          toast.error(`Failed to save workflow: ${response.error?.message || 'Unknown error'}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error saving workflow:', error);
+      toast.error('An unexpected error occurred while saving the workflow');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleRunWorkflow = () => {
-    // This would call the API to execute the workflow
-    alert('Run workflow functionality will be connected to backend API');
+  const handleRunWorkflow = async () => {
+    setIsRunning(true);
+    try {
+      const workflowData = exportWorkflow();
+
+      // Check if workflow has a valid ID
+      if (!workflowData.id || workflowData.id.startsWith('workflow-')) {
+        toast.warning('Please save the workflow before running it');
+        setIsRunning(false);
+        return;
+      }
+
+      // Execute workflow
+      const response = await executeWorkflow({
+        workflowId: workflowData.id,
+        input: {},
+      });
+
+      if (response.success && response.data) {
+        console.log('Workflow execution started:', response.data.executionId);
+        console.log('Status:', response.data.status);
+        toast.success(`Workflow "${workflowData.name}" is running...`);
+        toast.info(`Execution ID: ${response.data.executionId}`, 7000);
+        // TODO: Show execution status in UI
+        // TODO: Poll for execution status
+      } else {
+        console.error('Failed to execute workflow:', response.error?.message);
+        toast.error(`Failed to run workflow: ${response.error?.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error executing workflow:', error);
+      toast.error('An unexpected error occurred while running the workflow');
+    } finally {
+      setIsRunning(false);
+    }
   };
 
   const handleNameBlur = () => {
@@ -153,22 +244,32 @@ export function Toolbar() {
 
           <button
             onClick={handleSaveWorkflow}
-            className="flex items-center gap-2 px-4 py-2 text-white bg-loco-primary hover:bg-blue-700 rounded-lg transition-colors"
+            disabled={isSaving}
+            className="flex items-center gap-2 px-4 py-2 text-white bg-loco-primary hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Save Workflow"
           >
-            <Save className="w-4 h-4" />
-            <span className="text-sm font-medium">Save</span>
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            <span className="text-sm font-medium">{isSaving ? 'Saving...' : 'Save'}</span>
           </button>
 
           <div className="h-8 w-px bg-gray-300 mx-2"></div>
 
           <button
             onClick={handleRunWorkflow}
-            className="flex items-center gap-2 px-4 py-2 text-white bg-loco-success hover:bg-green-700 rounded-lg transition-colors"
+            disabled={isRunning}
+            className="flex items-center gap-2 px-4 py-2 text-white bg-loco-success hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Run Workflow"
           >
-            <Play className="w-4 h-4" />
-            <span className="text-sm font-medium">Run</span>
+            {isRunning ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Play className="w-4 h-4" />
+            )}
+            <span className="text-sm font-medium">{isRunning ? 'Running...' : 'Run'}</span>
           </button>
 
           <button
