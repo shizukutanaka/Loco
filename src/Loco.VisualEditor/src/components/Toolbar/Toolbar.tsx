@@ -14,12 +14,16 @@ import {
   List,
   Calendar,
   Globe,
+  GitCommit,
+  History,
 } from 'lucide-react';
 import { createWorkflow, updateWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
 import { WorkflowList } from '@/components/WorkflowList/WorkflowList';
 import { TagEditor } from '@/components/TagEditor/TagEditor';
 import { ScheduleManager } from '@/components/ScheduleManager/ScheduleManager';
 import { WebhookManager } from '@/components/WebhookManager/WebhookManager';
+import { CommitDialog } from '@/components/CommitDialog/CommitDialog';
+import { VersionHistory } from '@/components/VersionHistory/VersionHistory';
 
 // Lazy load TemplateGallery (large component with template data)
 const TemplateGallery = lazy(() => import('@/components/TemplateGallery/TemplateGallery').then(module => ({
@@ -43,6 +47,8 @@ export function Toolbar() {
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
   const [isScheduleManagerOpen, setIsScheduleManagerOpen] = useState(false);
   const [isWebhookManagerOpen, setIsWebhookManagerOpen] = useState(false);
+  const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
 
@@ -321,6 +327,28 @@ export function Toolbar() {
             <span className="text-sm font-medium">Webhooks</span>
           </button>
 
+          <div className="h-8 w-px bg-gray-300"></div>
+
+          <button
+            onClick={() => setIsCommitDialogOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Commit Changes"
+          >
+            <GitCommit className="w-4 h-4" />
+            <span className="text-sm font-medium">Commit</span>
+          </button>
+
+          <button
+            onClick={() => setIsVersionHistoryOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Version History"
+          >
+            <History className="w-4 h-4" />
+            <span className="text-sm font-medium">History</span>
+          </button>
+
+          <div className="h-8 w-px bg-gray-300"></div>
+
           <button
             onClick={handleImportJSON}
             className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
@@ -418,6 +446,33 @@ export function Toolbar() {
       <WebhookManager
         isOpen={isWebhookManagerOpen}
         onClose={() => setIsWebhookManagerOpen(false)}
+      />
+
+      <CommitDialog
+        workflowId={workflow?.id || ''}
+        workflowName={workflow?.name || 'New Workflow'}
+        isOpen={isCommitDialogOpen}
+        onClose={() => setIsCommitDialogOpen(false)}
+        onCommit={(message) => {
+          console.log('Workflow committed:', message);
+        }}
+        changes={{
+          nodesAdded: 0,
+          nodesRemoved: 0,
+          nodesModified: 0,
+          edgesAdded: 0,
+          edgesRemoved: 0,
+        }}
+      />
+
+      <VersionHistory
+        workflowId={workflow?.id || ''}
+        workflowName={workflow?.name || 'New Workflow'}
+        isOpen={isVersionHistoryOpen}
+        onClose={() => setIsVersionHistoryOpen(false)}
+        onRestore={(versionId) => {
+          console.log('Restoring version:', versionId);
+        }}
       />
     </>
   );

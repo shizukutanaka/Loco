@@ -20,6 +20,7 @@ import {
   Tag,
   Calendar,
   Globe,
+  History,
 } from 'lucide-react';
 import { listWorkflows, deleteWorkflow, getWorkflow, createWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
 import { useWorkflowStore } from '@/store/workflowStore';
@@ -27,6 +28,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useExecutionStore } from '@/store/executionStore';
 import { ScheduleEditor, WorkflowSchedule } from '@/components/ScheduleEditor/ScheduleEditor';
 import { WebhookCreator } from '@/components/WebhookCreator/WebhookCreator';
+import { VersionHistory } from '@/components/VersionHistory/VersionHistory';
 import type { Webhook } from '@/components/WebhookManager/WebhookManager';
 
 // ============================================================================
@@ -75,6 +77,10 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
   // Webhook creator state
   const [webhookWorkflow, setWebhookWorkflow] = useState<{ id: string; name: string } | null>(null);
   const [isWebhookCreatorOpen, setIsWebhookCreatorOpen] = useState(false);
+
+  // Version history state
+  const [historyWorkflow, setHistoryWorkflow] = useState<{ id: string; name: string } | null>(null);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
 
   // Fetch workflows
   useEffect(() => {
@@ -313,6 +319,12 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
     }
   };
 
+  // View version history
+  const handleViewHistory = (workflowId: string, workflowName: string) => {
+    setHistoryWorkflow({ id: workflowId, name: workflowName });
+    setIsVersionHistoryOpen(true);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -506,6 +518,13 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
                       <Globe className="w-4 h-4" />
                     </button>
                     <button
+                      onClick={() => handleViewHistory(workflow.id, workflow.name)}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                      title="Version History"
+                    >
+                      <History className="w-4 h-4" />
+                    </button>
+                    <button
                       onClick={() => handleDuplicate(workflow.id)}
                       className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
                       title="Duplicate"
@@ -552,6 +571,23 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
             setWebhookWorkflow(null);
           }}
           onSave={handleSaveWebhook}
+        />
+      )}
+
+      {isVersionHistoryOpen && historyWorkflow && (
+        <VersionHistory
+          workflowId={historyWorkflow.id}
+          workflowName={historyWorkflow.name}
+          isOpen={isVersionHistoryOpen}
+          onClose={() => {
+            setIsVersionHistoryOpen(false);
+            setHistoryWorkflow(null);
+          }}
+          onRestore={(versionId) => {
+            console.log('Restoring version:', versionId);
+            setIsVersionHistoryOpen(false);
+            setHistoryWorkflow(null);
+          }}
         />
       )}
     </div>
