@@ -5,10 +5,12 @@ import { WorkflowCanvasWrapper } from '@/components/Canvas/WorkflowCanvas';
 import { PropertyPanel } from '@/components/PropertyPanel/PropertyPanel';
 import { NodeSearch } from '@/components/NodeSearch/NodeSearch';
 import { ToastContainer } from '@/components/Toast/Toast';
+import { ExecutionPanel } from '@/components/ExecutionPanel/ExecutionPanel';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useOfflineDetection } from '@/hooks/useOfflineDetection';
 import { useWorkflowStore } from '@/store/workflowStore';
+import { useExecutionStore } from '@/store/executionStore';
 import { useToast } from '@/contexts/ToastContext';
 
 // Lazy load ValidationPanel (heavy validation logic)
@@ -19,6 +21,7 @@ const ValidationPanel = lazy(() => import('@/components/ValidationPanel/Validati
 function App() {
   const [isNodeSearchOpen, setIsNodeSearchOpen] = useState(false);
   const { exportWorkflow, loadWorkflow } = useWorkflowStore();
+  const { currentExecutionId, isExecutionPanelOpen, closeExecutionPanel } = useExecutionStore();
   const { loadDraft, clearDraft } = useAutoSave();
   const toast = useToast();
   useOfflineDetection(); // Detect offline/online status and show toast notifications
@@ -67,10 +70,18 @@ function App() {
   return (
     <div className="h-screen flex flex-col">
       <Toolbar />
-      <div className="flex-1 flex overflow-hidden">
-        <NodePalette />
-        <WorkflowCanvasWrapper />
-        <PropertyPanel />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex overflow-hidden">
+          <NodePalette />
+          <WorkflowCanvasWrapper />
+          <PropertyPanel />
+        </div>
+        {isExecutionPanelOpen && (
+          <ExecutionPanel
+            executionId={currentExecutionId}
+            onClose={closeExecutionPanel}
+          />
+        )}
       </div>
       <Suspense fallback={null}>
         <ValidationPanel />

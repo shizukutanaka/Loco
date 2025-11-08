@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
+import { useExecutionStore } from '@/store/executionStore';
 import { useToast } from '@/contexts/ToastContext';
 import {
   FolderOpen,
@@ -10,8 +11,10 @@ import {
   Settings,
   LayoutTemplate,
   Loader2,
+  List,
 } from 'lucide-react';
 import { createWorkflow, updateWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
+import { WorkflowList } from '@/components/WorkflowList/WorkflowList';
 
 // Lazy load TemplateGallery (large component with template data)
 const TemplateGallery = lazy(() => import('@/components/TemplateGallery/TemplateGallery').then(module => ({
@@ -21,10 +24,12 @@ const TemplateGallery = lazy(() => import('@/components/TemplateGallery/Template
 export function Toolbar() {
   const { workflow, newWorkflow, exportWorkflow, updateWorkflowMetadata } =
     useWorkflowStore();
+  const { setCurrentExecution, addToHistory } = useExecutionStore();
   const toast = useToast();
   const [isEditingName, setIsEditingName] = useState(false);
   const [workflowName, setWorkflowName] = useState(workflow?.name || 'New Workflow');
   const [isTemplateGalleryOpen, setIsTemplateGalleryOpen] = useState(false);
+  const [isWorkflowListOpen, setIsWorkflowListOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
 
@@ -151,10 +156,22 @@ export function Toolbar() {
       if (response.success && response.data) {
         console.log('Workflow execution started:', response.data.executionId);
         console.log('Status:', response.data.status);
+
+        // Add to execution history
+        addToHistory({
+          executionId: response.data.executionId,
+          workflowId: workflowData.id,
+          workflowName: workflowData.name,
+          status: response.data.status,
+          startedAt: response.data.startedAt,
+          completedAt: response.data.completedAt,
+        });
+
+        // Open execution panel
+        setCurrentExecution(response.data.executionId);
+
         toast.success(`Workflow "${workflowData.name}" is running...`);
         toast.info(`Execution ID: ${response.data.executionId}`, 7000);
-        // TODO: Show execution status in UI
-        // TODO: Poll for execution status
       } else {
         console.error('Failed to execute workflow:', response.error?.message);
         toast.error(`Failed to run workflow: ${response.error?.message || 'Unknown error'}`);
@@ -229,6 +246,15 @@ export function Toolbar() {
           </button>
 
           <button
+            onClick={() => setIsWorkflowListOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            title="My Workflows"
+          >
+            <List className="w-4 h-4" />
+            <span className="text-sm font-medium">My Workflows</span>
+          </button>
+
+          <button
             onClick={handleImportJSON}
             className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             title="Import JSON"
@@ -297,6 +323,11 @@ export function Toolbar() {
           />
         </Suspense>
       )}
+
+      <WorkflowList
+        isOpen={isWorkflowListOpen}
+        onClose={() => setIsWorkflowListOpen(false)}
+      />
     </>
   );
 }
