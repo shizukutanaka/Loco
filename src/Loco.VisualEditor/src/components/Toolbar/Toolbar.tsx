@@ -18,6 +18,7 @@ import {
   History,
   BarChart3,
   Users,
+  Package,
 } from 'lucide-react';
 import { createWorkflow, updateWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
 import { WorkflowList } from '@/components/WorkflowList/WorkflowList';
@@ -28,6 +29,7 @@ import { CommitDialog } from '@/components/CommitDialog/CommitDialog';
 import { VersionHistory } from '@/components/VersionHistory/VersionHistory';
 import { MetricsDashboard } from '@/components/MetricsDashboard/MetricsDashboard';
 import { CollaborationPanel } from '@/components/CollaborationPanel/CollaborationPanel';
+import { NodePluginManager } from '@/components/NodePluginManager/NodePluginManager';
 
 // Lazy load TemplateGallery (large component with template data)
 const TemplateGallery = lazy(() => import('@/components/TemplateGallery/TemplateGallery').then(module => ({
@@ -55,6 +57,7 @@ export function Toolbar() {
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [isMetricsDashboardOpen, setIsMetricsDashboardOpen] = useState(false);
   const [isCollaborationPanelOpen, setIsCollaborationPanelOpen] = useState(false);
+  const [isNodePluginManagerOpen, setIsNodePluginManagerOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
 
@@ -351,6 +354,15 @@ export function Toolbar() {
             <span className="text-sm font-medium">Collaborate</span>
           </button>
 
+          <button
+            onClick={() => setIsNodePluginManagerOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Plugin Manager"
+          >
+            <Package className="w-4 h-4" />
+            <span className="text-sm font-medium">Plugins</span>
+          </button>
+
           <div className="h-8 w-px bg-gray-300"></div>
 
           <button
@@ -509,6 +521,11 @@ export function Toolbar() {
         workflowName={workflow?.name || 'New Workflow'}
         isOpen={isCollaborationPanelOpen}
         onClose={() => setIsCollaborationPanelOpen(false)}
+      />
+
+      <NodePluginManager
+        isOpen={isNodePluginManagerOpen}
+        onClose={() => setIsNodePluginManagerOpen(false)}
       />
     </>
   );
