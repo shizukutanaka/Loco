@@ -27,8 +27,13 @@ export default defineConfig({
         manualChunks: {
           'react-vendor': ['react', 'react-dom'],
           'flow-vendor': ['reactflow'],
+          'store-vendor': ['zustand'],
+          'icons-vendor': ['lucide-react'],
+          'http-vendor': ['axios'],
+          'validation-vendor': ['zod'],
         },
       },
     },
+    chunkSizeWarningLimit: 1000, // Increase warning limit to 1000KB
   },
 })

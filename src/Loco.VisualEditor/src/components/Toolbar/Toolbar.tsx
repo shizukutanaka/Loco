@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useToast } from '@/contexts/ToastContext';
 import {
@@ -11,8 +11,12 @@ import {
   LayoutTemplate,
   Loader2,
 } from 'lucide-react';
-import { TemplateGallery } from '@/components/TemplateGallery/TemplateGallery';
 import { createWorkflow, updateWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
+
+// Lazy load TemplateGallery (large component with template data)
+const TemplateGallery = lazy(() => import('@/components/TemplateGallery/TemplateGallery').then(module => ({
+  default: module.TemplateGallery
+})));
 
 export function Toolbar() {
   const { workflow, newWorkflow, exportWorkflow, updateWorkflowMetadata } =
@@ -281,10 +285,18 @@ export function Toolbar() {
         </div>
       </div>
 
-      <TemplateGallery
-        isOpen={isTemplateGalleryOpen}
-        onClose={() => setIsTemplateGalleryOpen(false)}
-      />
+      {isTemplateGalleryOpen && (
+        <Suspense fallback={<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6">
+            <Loader2 className="w-8 h-8 animate-spin text-loco-primary" />
+          </div>
+        </div>}>
+          <TemplateGallery
+            isOpen={isTemplateGalleryOpen}
+            onClose={() => setIsTemplateGalleryOpen(false)}
+          />
+        </Suspense>
+      )}
     </>
   );
 }

@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Toolbar } from '@/components/Toolbar/Toolbar';
 import { NodePalette } from '@/components/NodePalette/NodePalette';
 import { WorkflowCanvasWrapper } from '@/components/Canvas/WorkflowCanvas';
 import { PropertyPanel } from '@/components/PropertyPanel/PropertyPanel';
-import { ValidationPanel } from '@/components/ValidationPanel/ValidationPanel';
 import { NodeSearch } from '@/components/NodeSearch/NodeSearch';
 import { ToastContainer } from '@/components/Toast/Toast';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -11,6 +10,11 @@ import { useAutoSave } from '@/hooks/useAutoSave';
 import { useOfflineDetection } from '@/hooks/useOfflineDetection';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useToast } from '@/contexts/ToastContext';
+
+// Lazy load ValidationPanel (heavy validation logic)
+const ValidationPanel = lazy(() => import('@/components/ValidationPanel/ValidationPanel').then(module => ({
+  default: module.ValidationPanel
+})));
 
 function App() {
   const [isNodeSearchOpen, setIsNodeSearchOpen] = useState(false);
@@ -68,7 +72,9 @@ function App() {
         <WorkflowCanvasWrapper />
         <PropertyPanel />
       </div>
-      <ValidationPanel />
+      <Suspense fallback={null}>
+        <ValidationPanel />
+      </Suspense>
       <NodeSearch isOpen={isNodeSearchOpen} onClose={() => setIsNodeSearchOpen(false)} />
       <ToastContainer />
     </div>
