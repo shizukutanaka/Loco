@@ -27,7 +27,7 @@ const SettingsPanel = lazy(() => import('@/components/SettingsPanel/SettingsPane
 })));
 
 export function Toolbar() {
-  const { workflow, newWorkflow, exportWorkflow, updateWorkflowMetadata } =
+  const { workflow, newWorkflow, loadWorkflow, exportWorkflow, updateWorkflowMetadata } =
     useWorkflowStore();
   const { setCurrentExecution, addToHistory } = useExecutionStore();
   const toast = useToast();
@@ -80,11 +80,29 @@ export function Toolbar() {
         const reader = new FileReader();
         reader.onload = (event) => {
           try {
-            JSON.parse(event.target?.result as string);
-            // TODO: Implement loadWorkflow when backend API is ready
-            alert('Workflow imported successfully!');
-          } catch (_error) {
-            alert('Failed to import workflow: Invalid JSON');
+            const workflowData = JSON.parse(event.target?.result as string);
+
+            // Validate workflow structure
+            if (!workflowData.name || !Array.isArray(workflowData.nodes) || !Array.isArray(workflowData.edges)) {
+              toast.error('Invalid workflow file: Missing required fields');
+              return;
+            }
+
+            // Confirm import if current workflow has changes
+            if (workflow && (workflow.nodes.length > 0 || workflow.edges.length > 0)) {
+              const confirmed = confirm(
+                `Import workflow "${workflowData.name}"? Current workflow will be replaced.`
+              );
+              if (!confirmed) return;
+            }
+
+            // Load the workflow
+            loadWorkflow(workflowData);
+            setWorkflowName(workflowData.name);
+            toast.success(`Workflow "${workflowData.name}" imported successfully!`);
+          } catch (error) {
+            console.error('Failed to import workflow:', error);
+            toast.error('Failed to import workflow: Invalid JSON format');
           }
         };
         reader.readAsText(file);

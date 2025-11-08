@@ -18,7 +18,7 @@ import {
   Filter,
   X,
 } from 'lucide-react';
-import { listWorkflows, deleteWorkflow } from '@/api/workflows';
+import { listWorkflows, deleteWorkflow, getWorkflow } from '@/api/workflows';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -54,7 +54,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed' | 'failed' | 'running'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'created' | 'updated'>('updated');
 
-  const { newWorkflow } = useWorkflowStore();
+  const { newWorkflow, loadWorkflow } = useWorkflowStore();
   const toast = useToast();
 
   // Fetch workflows
@@ -134,6 +134,23 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
     newWorkflow();
     onClose();
     toast.info('New workflow created');
+  };
+
+  // Load workflow for editing
+  const handleEdit = async (workflowId: string) => {
+    try {
+      const response = await getWorkflow(workflowId);
+      if (response.success && response.data) {
+        loadWorkflow(response.data);
+        onClose();
+        toast.success(`Workflow "${response.data.name}" loaded successfully!`);
+      } else {
+        toast.error(`Failed to load workflow: ${response.error?.message}`);
+      }
+    } catch (error) {
+      console.error('Failed to load workflow:', error);
+      toast.error('An error occurred while loading the workflow');
+    }
   };
 
   if (!isOpen) return null;
@@ -269,10 +286,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
                   {/* Actions */}
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => {
-                        // TODO: Load workflow
-                        onClose();
-                      }}
+                      onClick={() => handleEdit(workflow.id)}
                       className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-loco-primary text-white rounded text-xs hover:bg-blue-700 transition-colors"
                       title="Edit"
                     >
