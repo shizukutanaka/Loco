@@ -17,6 +17,7 @@ import {
   GitCommit,
   History,
   BarChart3,
+  Users,
 } from 'lucide-react';
 import { createWorkflow, updateWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
 import { WorkflowList } from '@/components/WorkflowList/WorkflowList';
@@ -26,6 +27,7 @@ import { WebhookManager } from '@/components/WebhookManager/WebhookManager';
 import { CommitDialog } from '@/components/CommitDialog/CommitDialog';
 import { VersionHistory } from '@/components/VersionHistory/VersionHistory';
 import { MetricsDashboard } from '@/components/MetricsDashboard/MetricsDashboard';
+import { CollaborationPanel } from '@/components/CollaborationPanel/CollaborationPanel';
 
 // Lazy load TemplateGallery (large component with template data)
 const TemplateGallery = lazy(() => import('@/components/TemplateGallery/TemplateGallery').then(module => ({
@@ -52,6 +54,7 @@ export function Toolbar() {
   const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [isMetricsDashboardOpen, setIsMetricsDashboardOpen] = useState(false);
+  const [isCollaborationPanelOpen, setIsCollaborationPanelOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
 
@@ -339,6 +342,15 @@ export function Toolbar() {
             <span className="text-sm font-medium">Metrics</span>
           </button>
 
+          <button
+            onClick={() => setIsCollaborationPanelOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Collaboration"
+          >
+            <Users className="w-4 h-4" />
+            <span className="text-sm font-medium">Collaborate</span>
+          </button>
+
           <div className="h-8 w-px bg-gray-300"></div>
 
           <button
@@ -490,6 +502,13 @@ export function Toolbar() {
       <MetricsDashboard
         isOpen={isMetricsDashboardOpen}
         onClose={() => setIsMetricsDashboardOpen(false)}
+      />
+
+      <CollaborationPanel
+        workflowId={workflow?.id || ''}
+        workflowName={workflow?.name || 'New Workflow'}
+        isOpen={isCollaborationPanelOpen}
+        onClose={() => setIsCollaborationPanelOpen(false)}
       />
     </>
   );
