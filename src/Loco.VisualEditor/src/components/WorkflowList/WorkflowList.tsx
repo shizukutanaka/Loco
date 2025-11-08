@@ -19,12 +19,15 @@ import {
   X,
   Tag,
   Calendar,
+  Globe,
 } from 'lucide-react';
 import { listWorkflows, deleteWorkflow, getWorkflow, createWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useToast } from '@/contexts/ToastContext';
 import { useExecutionStore } from '@/store/executionStore';
 import { ScheduleEditor, WorkflowSchedule } from '@/components/ScheduleEditor/ScheduleEditor';
+import { WebhookCreator } from '@/components/WebhookCreator/WebhookCreator';
+import type { Webhook } from '@/components/WebhookManager/WebhookManager';
 
 // ============================================================================
 // Types
@@ -68,6 +71,10 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
   // Schedule editor state
   const [schedulingWorkflow, setSchedulingWorkflow] = useState<{ id: string; name: string } | null>(null);
   const [isScheduleEditorOpen, setIsScheduleEditorOpen] = useState(false);
+
+  // Webhook creator state
+  const [webhookWorkflow, setWebhookWorkflow] = useState<{ id: string; name: string } | null>(null);
+  const [isWebhookCreatorOpen, setIsWebhookCreatorOpen] = useState(false);
 
   // Fetch workflows
   useEffect(() => {
@@ -283,6 +290,29 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
     }
   };
 
+  // Create webhook
+  const handleCreateWebhook = (workflowId: string, workflowName: string) => {
+    setWebhookWorkflow({ id: workflowId, name: workflowName });
+    setIsWebhookCreatorOpen(true);
+  };
+
+  // Save webhook
+  const handleSaveWebhook = async (webhook: Partial<Webhook>) => {
+    try {
+      // TODO: Call API to create webhook
+      // const response = await createWebhook(webhook);
+      console.log('Creating webhook:', webhook);
+
+      toast.success(`Webhook created for "${webhookWorkflow?.name}"!`);
+      toast.info('Check the Webhooks panel to view your webhook URL', 7000);
+      setIsWebhookCreatorOpen(false);
+      setWebhookWorkflow(null);
+    } catch (error) {
+      console.error('Failed to create webhook:', error);
+      toast.error('Failed to create webhook');
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -469,6 +499,13 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
                       <Calendar className="w-4 h-4" />
                     </button>
                     <button
+                      onClick={() => handleCreateWebhook(workflow.id, workflow.name)}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                      title="Create Webhook"
+                    >
+                      <Globe className="w-4 h-4" />
+                    </button>
+                    <button
                       onClick={() => handleDuplicate(workflow.id)}
                       className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
                       title="Duplicate"
@@ -501,6 +538,20 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
             setSchedulingWorkflow(null);
           }}
           onSave={handleSaveSchedule}
+        />
+      )}
+
+      {/* Webhook Creator Modal */}
+      {isWebhookCreatorOpen && webhookWorkflow && (
+        <WebhookCreator
+          workflowId={webhookWorkflow.id}
+          workflowName={webhookWorkflow.name}
+          isOpen={isWebhookCreatorOpen}
+          onClose={() => {
+            setIsWebhookCreatorOpen(false);
+            setWebhookWorkflow(null);
+          }}
+          onSave={handleSaveWebhook}
         />
       )}
     </div>
