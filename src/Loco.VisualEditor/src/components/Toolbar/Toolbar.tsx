@@ -16,6 +16,7 @@ import {
   Globe,
   GitCommit,
   History,
+  BarChart3,
 } from 'lucide-react';
 import { createWorkflow, updateWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
 import { WorkflowList } from '@/components/WorkflowList/WorkflowList';
@@ -24,6 +25,7 @@ import { ScheduleManager } from '@/components/ScheduleManager/ScheduleManager';
 import { WebhookManager } from '@/components/WebhookManager/WebhookManager';
 import { CommitDialog } from '@/components/CommitDialog/CommitDialog';
 import { VersionHistory } from '@/components/VersionHistory/VersionHistory';
+import { MetricsDashboard } from '@/components/MetricsDashboard/MetricsDashboard';
 
 // Lazy load TemplateGallery (large component with template data)
 const TemplateGallery = lazy(() => import('@/components/TemplateGallery/TemplateGallery').then(module => ({
@@ -49,6 +51,7 @@ export function Toolbar() {
   const [isWebhookManagerOpen, setIsWebhookManagerOpen] = useState(false);
   const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
+  const [isMetricsDashboardOpen, setIsMetricsDashboardOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
 
@@ -327,6 +330,15 @@ export function Toolbar() {
             <span className="text-sm font-medium">Webhooks</span>
           </button>
 
+          <button
+            onClick={() => setIsMetricsDashboardOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Metrics Dashboard"
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span className="text-sm font-medium">Metrics</span>
+          </button>
+
           <div className="h-8 w-px bg-gray-300"></div>
 
           <button
@@ -473,6 +485,11 @@ export function Toolbar() {
         onRestore={(versionId) => {
           console.log('Restoring version:', versionId);
         }}
+      />
+
+      <MetricsDashboard
+        isOpen={isMetricsDashboardOpen}
+        onClose={() => setIsMetricsDashboardOpen(false)}
       />
     </>
   );
