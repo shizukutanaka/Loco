@@ -21,6 +21,11 @@ const TemplateGallery = lazy(() => import('@/components/TemplateGallery/Template
   default: module.TemplateGallery
 })));
 
+// Lazy load SettingsPanel (large component with settings management)
+const SettingsPanel = lazy(() => import('@/components/SettingsPanel/SettingsPanel').then(module => ({
+  default: module.SettingsPanel
+})));
+
 export function Toolbar() {
   const { workflow, newWorkflow, exportWorkflow, updateWorkflowMetadata } =
     useWorkflowStore();
@@ -30,6 +35,7 @@ export function Toolbar() {
   const [workflowName, setWorkflowName] = useState(workflow?.name || 'New Workflow');
   const [isTemplateGalleryOpen, setIsTemplateGalleryOpen] = useState(false);
   const [isWorkflowListOpen, setIsWorkflowListOpen] = useState(false);
+  const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
 
@@ -303,6 +309,7 @@ export function Toolbar() {
           </button>
 
           <button
+            onClick={() => setIsSettingsPanelOpen(true)}
             className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             title="Settings"
           >
@@ -328,6 +335,19 @@ export function Toolbar() {
         isOpen={isWorkflowListOpen}
         onClose={() => setIsWorkflowListOpen(false)}
       />
+
+      {isSettingsPanelOpen && (
+        <Suspense fallback={<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6">
+            <Loader2 className="w-8 h-8 animate-spin text-loco-primary" />
+          </div>
+        </div>}>
+          <SettingsPanel
+            isOpen={isSettingsPanelOpen}
+            onClose={() => setIsSettingsPanelOpen(false)}
+          />
+        </Suspense>
+      )}
     </>
   );
 }
