@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { createWorkflow, updateWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
 import { WorkflowList } from '@/components/WorkflowList/WorkflowList';
+import { TagEditor } from '@/components/TagEditor/TagEditor';
 
 // Lazy load TemplateGallery (large component with template data)
 const TemplateGallery = lazy(() => import('@/components/TemplateGallery/TemplateGallery').then(module => ({
@@ -217,6 +218,17 @@ export function Toolbar() {
     }
   };
 
+  const handleTagsChange = (tags: string[]) => {
+    updateWorkflowMetadata({
+      metadata: {
+        ...workflow?.metadata,
+        version: workflow?.metadata?.version || '1.0',
+        isPublic: workflow?.metadata?.isPublic || false,
+        tags,
+      },
+    });
+  };
+
   return (
     <>
       <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
@@ -230,24 +242,31 @@ export function Toolbar() {
 
           <div className="h-8 w-px bg-gray-300"></div>
 
-          {isEditingName ? (
-            <input
-              type="text"
-              value={workflowName}
-              onChange={(e) => setWorkflowName(e.target.value)}
-              onBlur={handleNameBlur}
-              onKeyDown={(e) => e.key === 'Enter' && handleNameBlur()}
-              className="px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent"
-              autoFocus
+          <div className="flex flex-col gap-1">
+            {isEditingName ? (
+              <input
+                type="text"
+                value={workflowName}
+                onChange={(e) => setWorkflowName(e.target.value)}
+                onBlur={handleNameBlur}
+                onKeyDown={(e) => e.key === 'Enter' && handleNameBlur()}
+                className="px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent"
+                autoFocus
+              />
+            ) : (
+              <button
+                onClick={() => setIsEditingName(true)}
+                className="text-lg font-medium text-gray-900 hover:text-loco-primary transition-colors text-left"
+              >
+                {workflowName}
+              </button>
+            )}
+
+            <TagEditor
+              tags={workflow?.metadata?.tags || []}
+              onChange={handleTagsChange}
             />
-          ) : (
-            <button
-              onClick={() => setIsEditingName(true)}
-              className="text-lg font-medium text-gray-900 hover:text-loco-primary transition-colors"
-            >
-              {workflowName}
-            </button>
-          )}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">

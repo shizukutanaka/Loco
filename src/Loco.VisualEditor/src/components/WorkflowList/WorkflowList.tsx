@@ -17,6 +17,7 @@ import {
   XCircle,
   Filter,
   X,
+  Tag,
 } from 'lucide-react';
 import { listWorkflows, deleteWorkflow, getWorkflow, createWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
 import { useWorkflowStore } from '@/store/workflowStore';
@@ -41,6 +42,7 @@ interface WorkflowListItem {
   createdAt: string;
   updatedAt: string;
   lastExecutionStatus?: 'completed' | 'failed' | 'running';
+  tags?: string[];
 }
 
 // ============================================================================
@@ -53,7 +55,9 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed' | 'failed' | 'running'>('all');
+  const [filterTag, setFilterTag] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'name' | 'created' | 'updated'>('updated');
+  const [allTags, setAllTags] = useState<string[]>([]);
 
   const { newWorkflow, loadWorkflow } = useWorkflowStore();
   const { setCurrentExecution, addToHistory } = useExecutionStore();
@@ -77,9 +81,17 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
             edgeCount: w.edges.length,
             createdAt: w.createdAt,
             updatedAt: w.updatedAt,
+            tags: w.metadata?.tags,
           }));
           setWorkflows(items);
           setFilteredWorkflows(items);
+
+          // Extract all unique tags
+          const tagsSet = new Set<string>();
+          items.forEach((item) => {
+            item.tags?.forEach((tag) => tagsSet.add(tag));
+          });
+          setAllTags(Array.from(tagsSet).sort());
         }
       } catch (error) {
         console.error('Failed to fetch workflows:', error);
@@ -101,7 +113,8 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
       filtered = filtered.filter(
         (w) =>
           w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          w.description?.toLowerCase().includes(searchQuery.toLowerCase())
+          w.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          w.tags?.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
 
@@ -110,8 +123,13 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
       filtered = filtered.filter((w) => w.lastExecutionStatus === filterStatus);
     }
 
+    // Tag filter
+    if (filterTag !== 'all') {
+      filtered = filtered.filter((w) => w.tags?.includes(filterTag));
+    }
+
     setFilteredWorkflows(filtered);
-  }, [workflows, searchQuery, filterStatus]);
+  }, [workflows, searchQuery, filterStatus, filterTag]);
 
   // Delete workflow
   const handleDelete = async (workflowId: string) => {
@@ -285,6 +303,22 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
             <option value="running">Running</option>
           </select>
 
+          {/* Tag Filter */}
+          {allTags.length > 0 && (
+            <select
+              value={filterTag}
+              onChange={(e) => setFilterTag(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent"
+            >
+              <option value="all">All Tags</option>
+              {allTags.map((tag) => (
+                <option key={tag} value={tag}>
+                  {tag}
+                </option>
+              ))}
+            </select>
+          )}
+
           {/* Sort */}
           <select
             value={sortBy}
@@ -355,6 +389,21 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
                       </div>
                     )}
                   </div>
+
+                  {/* Tags */}
+                  {workflow.tags && workflow.tags.length > 0 && (
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      {workflow.tags.map((tag) => (
+                        <div
+                          key={tag}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-loco-primary/10 text-loco-primary rounded text-xs"
+                        >
+                          <Tag className="w-2.5 h-2.5" />
+                          <span>{tag}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Stats */}
                   <div className="flex items-center gap-4 text-xs text-gray-600 mb-3">
