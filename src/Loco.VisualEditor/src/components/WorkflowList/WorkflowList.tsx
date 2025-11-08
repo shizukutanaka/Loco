@@ -18,11 +18,13 @@ import {
   Filter,
   X,
   Tag,
+  Calendar,
 } from 'lucide-react';
 import { listWorkflows, deleteWorkflow, getWorkflow, createWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useToast } from '@/contexts/ToastContext';
 import { useExecutionStore } from '@/store/executionStore';
+import { ScheduleEditor, WorkflowSchedule } from '@/components/ScheduleEditor/ScheduleEditor';
 
 // ============================================================================
 // Types
@@ -62,6 +64,10 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
   const { newWorkflow, loadWorkflow } = useWorkflowStore();
   const { setCurrentExecution, addToHistory } = useExecutionStore();
   const toast = useToast();
+
+  // Schedule editor state
+  const [schedulingWorkflow, setSchedulingWorkflow] = useState<{ id: string; name: string } | null>(null);
+  const [isScheduleEditorOpen, setIsScheduleEditorOpen] = useState(false);
 
   // Fetch workflows
   useEffect(() => {
@@ -255,6 +261,28 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
     }
   };
 
+  // Schedule workflow
+  const handleSchedule = (workflowId: string, workflowName: string) => {
+    setSchedulingWorkflow({ id: workflowId, name: workflowName });
+    setIsScheduleEditorOpen(true);
+  };
+
+  // Save schedule
+  const handleSaveSchedule = async (schedule: WorkflowSchedule) => {
+    try {
+      // TODO: Call API to create schedule
+      // const response = await createSchedule(schedule);
+      console.log('Creating schedule:', schedule);
+
+      toast.success(`Schedule created for "${schedulingWorkflow?.name}"!`);
+      setIsScheduleEditorOpen(false);
+      setSchedulingWorkflow(null);
+    } catch (error) {
+      console.error('Failed to create schedule:', error);
+      toast.error('Failed to create schedule');
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -434,6 +462,13 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
                       <Play className="w-4 h-4" />
                     </button>
                     <button
+                      onClick={() => handleSchedule(workflow.id, workflow.name)}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                      title="Schedule"
+                    >
+                      <Calendar className="w-4 h-4" />
+                    </button>
+                    <button
                       onClick={() => handleDuplicate(workflow.id)}
                       className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
                       title="Duplicate"
@@ -454,6 +489,20 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
           )}
         </div>
       </div>
+
+      {/* Schedule Editor Modal */}
+      {isScheduleEditorOpen && schedulingWorkflow && (
+        <ScheduleEditor
+          workflowId={schedulingWorkflow.id}
+          workflowName={schedulingWorkflow.name}
+          isOpen={isScheduleEditorOpen}
+          onClose={() => {
+            setIsScheduleEditorOpen(false);
+            setSchedulingWorkflow(null);
+          }}
+          onSave={handleSaveSchedule}
+        />
+      )}
     </div>
   );
 }

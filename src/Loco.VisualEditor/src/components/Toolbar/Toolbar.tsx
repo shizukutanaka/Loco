@@ -12,10 +12,12 @@ import {
   LayoutTemplate,
   Loader2,
   List,
+  Calendar,
 } from 'lucide-react';
 import { createWorkflow, updateWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
 import { WorkflowList } from '@/components/WorkflowList/WorkflowList';
 import { TagEditor } from '@/components/TagEditor/TagEditor';
+import { ScheduleManager } from '@/components/ScheduleManager/ScheduleManager';
 
 // Lazy load TemplateGallery (large component with template data)
 const TemplateGallery = lazy(() => import('@/components/TemplateGallery/TemplateGallery').then(module => ({
@@ -37,6 +39,7 @@ export function Toolbar() {
   const [isTemplateGalleryOpen, setIsTemplateGalleryOpen] = useState(false);
   const [isWorkflowListOpen, setIsWorkflowListOpen] = useState(false);
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
+  const [isScheduleManagerOpen, setIsScheduleManagerOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
 
@@ -298,6 +301,15 @@ export function Toolbar() {
           </button>
 
           <button
+            onClick={() => setIsScheduleManagerOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Schedules"
+          >
+            <Calendar className="w-4 h-4" />
+            <span className="text-sm font-medium">Schedules</span>
+          </button>
+
+          <button
             onClick={handleImportJSON}
             className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             title="Import JSON"
@@ -385,6 +397,11 @@ export function Toolbar() {
           />
         </Suspense>
       )}
+
+      <ScheduleManager
+        isOpen={isScheduleManagerOpen}
+        onClose={() => setIsScheduleManagerOpen(false)}
+      />
     </>
   );
 }
