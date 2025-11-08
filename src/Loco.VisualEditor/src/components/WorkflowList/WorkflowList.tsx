@@ -18,9 +18,10 @@ import {
   Filter,
   X,
 } from 'lucide-react';
-import { listWorkflows, deleteWorkflow, getWorkflow } from '@/api/workflows';
+import { listWorkflows, deleteWorkflow, getWorkflow, createWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useToast } from '@/contexts/ToastContext';
+import { useExecutionStore } from '@/store/executionStore';
 
 // ============================================================================
 // Types
@@ -55,6 +56,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
   const [sortBy, setSortBy] = useState<'name' | 'created' | 'updated'>('updated');
 
   const { newWorkflow, loadWorkflow } = useWorkflowStore();
+  const { setCurrentExecution, addToHistory } = useExecutionStore();
   const toast = useToast();
 
   // Fetch workflows
@@ -150,6 +152,88 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
     } catch (error) {
       console.error('Failed to load workflow:', error);
       toast.error('An error occurred while loading the workflow');
+    }
+  };
+
+  // Duplicate workflow
+  const handleDuplicate = async (workflowId: string) => {
+    try {
+      const response = await getWorkflow(workflowId);
+      if (response.success && response.data) {
+        const workflow = response.data;
+
+        // Create a copy with modified name and new ID
+        const duplicatedWorkflow = {
+          ...workflow,
+          id: crypto.randomUUID(), // Generate new ID
+          name: `${workflow.name} (Copy)`,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        // Create the new workflow
+        const createResponse = await createWorkflow(workflowToCreateRequest(duplicatedWorkflow));
+
+        if (createResponse.success && createResponse.data) {
+          toast.success(`Workflow "${duplicatedWorkflow.name}" created successfully!`);
+
+          // Refresh workflow list
+          const listResponse = await listWorkflows({ sortBy, sortOrder: 'desc' });
+          if (listResponse.success && listResponse.data) {
+            const items: WorkflowListItem[] = listResponse.data.workflows.map((w) => ({
+              id: w.id,
+              name: w.name,
+              description: w.description,
+              nodeCount: w.nodes.length,
+              edgeCount: w.edges.length,
+              createdAt: w.createdAt,
+              updatedAt: w.updatedAt,
+            }));
+            setWorkflows(items);
+          }
+        } else {
+          toast.error(`Failed to duplicate workflow: ${createResponse.error?.message}`);
+        }
+      } else {
+        toast.error(`Failed to load workflow: ${response.error?.message}`);
+      }
+    } catch (error) {
+      console.error('Failed to duplicate workflow:', error);
+      toast.error('An error occurred while duplicating the workflow');
+    }
+  };
+
+  // Run workflow
+  const handleRun = async (workflowId: string, workflowName: string) => {
+    try {
+      const response = await executeWorkflow({
+        workflowId,
+        input: {},
+      });
+
+      if (response.success && response.data) {
+        // Add to execution history
+        addToHistory({
+          executionId: response.data.executionId,
+          workflowId,
+          workflowName,
+          status: response.data.status,
+          startedAt: response.data.startedAt,
+          completedAt: response.data.completedAt,
+        });
+
+        // Open execution panel
+        setCurrentExecution(response.data.executionId);
+        onClose();
+
+        toast.success(`Workflow "${workflowName}" is running...`);
+        toast.info(`Execution ID: ${response.data.executionId}`, 7000);
+      } else {
+        toast.error(`Failed to run workflow: ${response.error?.message}`);
+      }
+    } catch (error) {
+      console.error('Failed to run workflow:', error);
+      toast.error('An error occurred while running the workflow');
     }
   };
 
@@ -294,12 +378,14 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
                       Edit
                     </button>
                     <button
+                      onClick={() => handleRun(workflow.id, workflow.name)}
                       className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
                       title="Run"
                     >
                       <Play className="w-4 h-4" />
                     </button>
                     <button
+                      onClick={() => handleDuplicate(workflow.id)}
                       className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
                       title="Duplicate"
                     >
