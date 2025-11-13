@@ -19,6 +19,7 @@ import {
   BarChart3,
   Users,
   Package,
+  CheckCircle,
 } from 'lucide-react';
 import { createWorkflow, updateWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
 import { WorkflowList } from '@/components/WorkflowList/WorkflowList';
@@ -30,6 +31,7 @@ import { VersionHistory } from '@/components/VersionHistory/VersionHistory';
 import { MetricsDashboard } from '@/components/MetricsDashboard/MetricsDashboard';
 import { CollaborationPanel } from '@/components/CollaborationPanel/CollaborationPanel';
 import { NodePluginManager } from '@/components/NodePluginManager/NodePluginManager';
+import { WorkflowTester } from '@/components/WorkflowTester/WorkflowTester';
 
 // Lazy load TemplateGallery (large component with template data)
 const TemplateGallery = lazy(() => import('@/components/TemplateGallery/TemplateGallery').then(module => ({
@@ -58,6 +60,7 @@ export function Toolbar() {
   const [isMetricsDashboardOpen, setIsMetricsDashboardOpen] = useState(false);
   const [isCollaborationPanelOpen, setIsCollaborationPanelOpen] = useState(false);
   const [isNodePluginManagerOpen, setIsNodePluginManagerOpen] = useState(false);
+  const [isWorkflowTesterOpen, setIsWorkflowTesterOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
 
@@ -420,6 +423,15 @@ export function Toolbar() {
           <div className="h-8 w-px bg-gray-300 mx-2"></div>
 
           <button
+            onClick={() => setIsWorkflowTesterOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
+            title="Test Workflow"
+          >
+            <CheckCircle className="w-4 h-4" />
+            <span className="text-sm font-medium">Test</span>
+          </button>
+
+          <button
             onClick={handleRunWorkflow}
             disabled={isRunning}
             className="flex items-center gap-2 px-4 py-2 text-white bg-loco-success hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -526,6 +538,13 @@ export function Toolbar() {
       <NodePluginManager
         isOpen={isNodePluginManagerOpen}
         onClose={() => setIsNodePluginManagerOpen(false)}
+      />
+
+      <WorkflowTester
+        workflowId={workflow?.id || ''}
+        workflowName={workflow?.name || 'New Workflow'}
+        isOpen={isWorkflowTesterOpen}
+        onClose={() => setIsWorkflowTesterOpen(false)}
       />
     </>
   );
