@@ -23,7 +23,9 @@ import {
 import { getIntegrationById } from '@/data/integrations';
 import { CanvasControls } from '@/components/CanvasControls/CanvasControls';
 import { QuickActionsMenu, ActionType } from '@/components/QuickActionsMenu/QuickActionsMenu';
+import { CollaborationOverlay } from '@/components/CollaborationOverlay/CollaborationOverlay';
 import { useToast } from '@/contexts/ToastContext';
+import { useCollaborationStore } from '@/store/collaborationStore';
 
 const nodeTypes: NodeTypes = {
   trigger: TriggerNode,
@@ -61,6 +63,14 @@ export function WorkflowCanvas() {
     deleteNode,
     updateNode,
   } = useWorkflowStore();
+
+  const {
+    isConnected,
+    updateSelection,
+    sendNodeAdded,
+    sendNodeDeleted,
+    sendNodeUpdated,
+  } = useCollaborationStore();
 
   // Listen for canvas control events from keyboard shortcuts
   useEffect(() => {
@@ -174,8 +184,13 @@ export function WorkflowCanvas() {
       } else if (selectedNodeIds.length === 0) {
         setSelectedNodeId(null);
       }
+
+      // Send selection to collaboration service
+      if (isConnected) {
+        updateSelection(selectedNodeIds);
+      }
     },
-    [setSelectedNodeId]
+    [setSelectedNodeId, isConnected, updateSelection]
   );
 
   // Listen for delete key to delete selected nodes
@@ -225,6 +240,12 @@ export function WorkflowCanvas() {
               data: { ...selectedNode.data },
             };
             addNode(newNode);
+
+            // Send to collaboration service
+            if (isConnected) {
+              sendNodeAdded(newNode);
+            }
+
             toast.success('Node duplicated');
           }
           break;
@@ -232,6 +253,12 @@ export function WorkflowCanvas() {
         case 'delete':
           if (contextMenu.nodeId) {
             deleteNode(contextMenu.nodeId);
+
+            // Send to collaboration service
+            if (isConnected) {
+              sendNodeDeleted(contextMenu.nodeId);
+            }
+
             toast.info('Node deleted');
           }
           break;
@@ -241,6 +268,12 @@ export function WorkflowCanvas() {
             const newName = prompt('Enter new name:', selectedNode.data.label);
             if (newName) {
               updateNode(contextMenu.nodeId, { label: newName });
+
+              // Send to collaboration service
+              if (isConnected) {
+                sendNodeUpdated(contextMenu.nodeId, { label: newName });
+              }
+
               toast.success('Node renamed');
             }
           }
@@ -307,11 +340,14 @@ export function WorkflowCanvas() {
           break;
       }
     },
-    [nodes, edges, contextMenu, addNode, deleteNode, updateNode, setSelectedNodeId, reactFlowInstance, toast]
+    [nodes, edges, contextMenu, addNode, deleteNode, updateNode, setSelectedNodeId, reactFlowInstance, toast, isConnected, sendNodeAdded, sendNodeDeleted, sendNodeUpdated]
   );
 
   return (
     <div ref={reactFlowWrapper} className="flex-1 h-full relative">
+      {/* Collaboration overlay for real-time cursors and presence */}
+      <CollaborationOverlay />
+
       {selectedNodes.length > 1 && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-white rounded-lg shadow-lg border border-gray-200 px-4 py-2 flex items-center gap-3">
           <span className="text-sm font-medium text-gray-700">

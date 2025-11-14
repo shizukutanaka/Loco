@@ -1,16 +1,35 @@
 /**
  * Collaboration Panel Component
  *
- * Provides real-time collaboration features:
+ * Manages real-time collaboration connection and features:
+ * - Connect/disconnect from collaboration server
  * - Active users list with presence indicators
+ * - Live cursor tracking
  * - Recent activity feed
  * - User invitation functionality
- * - Cursor tracking and presence awareness
  */
 
-import { useState, useEffect } from 'react';
-import { X, Users, UserPlus, Circle, Activity, Eye, Edit3, Copy, Check, AlertCircle } from 'lucide-react';
+import { useState } from 'react';
+import {
+  X,
+  Users,
+  UserPlus,
+  Circle,
+  Activity,
+  Eye,
+  Edit3,
+  Copy,
+  Check,
+  AlertCircle,
+  Wifi,
+  WifiOff,
+  Lock,
+  Unlock,
+  MousePointer2,
+} from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
+import { useCollaborationStore } from '@/store/collaborationStore';
+import { useWorkflowStore } from '@/store/workflowStore';
 
 // ============================================================================
 // Types
@@ -18,29 +37,13 @@ import { useToast } from '@/contexts/ToastContext';
 
 interface CollaborationPanelProps {
   workflowId: string;
-  workflowName: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
-type UserStatus = 'active' | 'idle' | 'away';
-type ActivityType = 'edit' | 'view' | 'comment' | 'save' | 'run';
+type ActivityType = 'edit' | 'view' | 'comment' | 'save' | 'run' | 'lock' | 'unlock';
 
-interface CollaborationUser {
-  id: string;
-  name: string;
-  email: string;
-  avatarColor: string;
-  status: UserStatus;
-  currentNode?: string;
-  lastActive: string;
-  cursor?: {
-    x: number;
-    y: number;
-  };
-}
-
-interface Activity {
+interface ActivityLog {
   id: string;
   userId: string;
   userName: string;
@@ -57,181 +60,150 @@ interface Activity {
 
 export function CollaborationPanel({
   workflowId,
-  workflowName,
   isOpen,
   onClose,
 }: CollaborationPanelProps) {
-  const [activeUsers, setActiveUsers] = useState<CollaborationUser[]>([]);
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [isInviting, setIsInviting] = useState(false);
-  const [showInviteForm, setShowInviteForm] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const toast = useToast();
+  const {
+    isConnected,
+    isConnecting,
+    connectionError,
+    currentUser,
+    collaborators,
+    userCursors,
+    isWorkflowLocked,
+    lockedByUser,
+    connect,
+    disconnect,
+    joinWorkflow,
+    leaveWorkflow,
+    lockWorkflow,
+    unlockWorkflow,
+  } = useCollaborationStore();
 
-  // Fetch active users and activities
-  useEffect(() => {
-    if (!isOpen) return;
+  const { nodes } = useWorkflowStore();
 
-    const fetchCollaborationData = async () => {
-      setIsLoading(true);
-      try {
-        // TODO: Replace with actual WebSocket connection
-        // const ws = new WebSocket(`wss://api.loco.dev/collaborate/${workflowId}`);
-        // ws.onmessage = (event) => handleRealtimeUpdate(event.data);
+  const [serverUrl, setServerUrl] = useState('ws://localhost:3001');
+  const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteMessage, setInviteMessage] = useState('');
+  const [shareLink, setShareLink] = useState('');
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [activities, setActivities] = useState<ActivityLog[]>([]);
 
-        // Mock data for demonstration
-        await new Promise((resolve) => setTimeout(resolve, 500));
+  // Connect to collaboration server
+  const handleConnect = async () => {
+    if (!userName) {
+      toast.error('Please enter your name');
+      return;
+    }
 
-        setActiveUsers([
-          {
-            id: 'user-1',
-            name: 'You',
-            email: 'you@example.com',
-            avatarColor: '#3b82f6',
-            status: 'active',
-            currentNode: 'HTTP Request',
-            lastActive: new Date().toISOString(),
-          },
-          {
-            id: 'user-2',
-            name: 'Alice Johnson',
-            email: 'alice@example.com',
-            avatarColor: '#10b981',
-            status: 'active',
-            currentNode: 'Transform Data',
-            lastActive: new Date(Date.now() - 120000).toISOString(),
-          },
-          {
-            id: 'user-3',
-            name: 'Bob Smith',
-            email: 'bob@example.com',
-            avatarColor: '#f59e0b',
-            status: 'idle',
-            lastActive: new Date(Date.now() - 300000).toISOString(),
-          },
-        ]);
+    try {
+      await connect(serverUrl, {
+        name: userName,
+        email: userEmail,
+      });
 
-        setActivities([
-          {
-            id: 'act-1',
-            userId: 'user-2',
-            userName: 'Alice Johnson',
-            type: 'edit',
-            description: 'Modified HTTP Request node configuration',
-            timestamp: new Date(Date.now() - 180000).toISOString(),
-            nodeId: 'node-1',
-            nodeName: 'HTTP Request',
-          },
-          {
-            id: 'act-2',
-            userId: 'user-1',
-            userName: 'You',
-            type: 'save',
-            description: 'Saved workflow changes',
-            timestamp: new Date(Date.now() - 240000).toISOString(),
-          },
-          {
-            id: 'act-3',
-            userId: 'user-3',
-            userName: 'Bob Smith',
-            type: 'run',
-            description: 'Executed workflow',
-            timestamp: new Date(Date.now() - 360000).toISOString(),
-          },
-          {
-            id: 'act-4',
-            userId: 'user-2',
-            userName: 'Alice Johnson',
-            type: 'edit',
-            description: 'Added Transform Data node',
-            timestamp: new Date(Date.now() - 480000).toISOString(),
-            nodeId: 'node-2',
-            nodeName: 'Transform Data',
-          },
-          {
-            id: 'act-5',
-            userId: 'user-1',
-            userName: 'You',
-            type: 'view',
-            description: 'Opened workflow',
-            timestamp: new Date(Date.now() - 600000).toISOString(),
-          },
-        ]);
-      } catch (error) {
-        console.error('Failed to fetch collaboration data:', error);
-        toast.error('Failed to load collaboration data');
-      } finally {
-        setIsLoading(false);
+      await joinWorkflow(workflowId);
+      toast.success('Connected to collaboration server');
+
+      // Generate share link
+      const link = `${window.location.origin}?workflow=${workflowId}&collab=${serverUrl}`;
+      setShareLink(link);
+
+      // Add activity
+      addActivity('view', 'joined the collaboration session');
+    } catch (error) {
+      toast.error(`Failed to connect: ${error}`);
+    }
+  };
+
+  // Disconnect from server
+  const handleDisconnect = () => {
+    leaveWorkflow();
+    disconnect();
+    toast.info('Disconnected from collaboration');
+    setShareLink('');
+    setActivities([]);
+  };
+
+  // Toggle workflow lock
+  const handleToggleLock = async () => {
+    if (isWorkflowLocked) {
+      if (lockedByUser === currentUser?.id) {
+        unlockWorkflow();
+        toast.info('Workflow unlocked');
+        addActivity('unlock', 'unlocked the workflow');
+      } else {
+        toast.error('Only the user who locked can unlock');
       }
-    };
+    } else {
+      const success = await lockWorkflow();
+      if (success) {
+        toast.success('Workflow locked for editing');
+        addActivity('lock', 'locked the workflow for editing');
+      } else {
+        toast.error('Failed to lock workflow');
+      }
+    }
+  };
 
-    fetchCollaborationData();
-  }, [isOpen, workflowId, toast]);
+  // Copy share link
+  const handleCopyLink = () => {
+    if (shareLink) {
+      navigator.clipboard.writeText(shareLink);
+      setLinkCopied(true);
+      toast.success('Share link copied to clipboard');
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
+  };
 
-  const handleInviteUser = async () => {
-    if (!inviteEmail.trim()) {
+  // Send invitation
+  const handleSendInvite = () => {
+    if (!inviteEmail) {
       toast.error('Please enter an email address');
       return;
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)) {
-      toast.error('Please enter a valid email address');
-      return;
-    }
-
-    setIsInviting(true);
-
-    try {
-      // TODO: Call API to invite user
-      // const response = await inviteUserToWorkflow(workflowId, inviteEmail);
-      console.log('Inviting user:', inviteEmail, 'to workflow:', workflowId);
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      toast.success(`Invitation sent to ${inviteEmail}`);
-      setInviteEmail('');
-      setShowInviteForm(false);
-    } catch (error) {
-      console.error('Failed to invite user:', error);
-      toast.error('Failed to send invitation');
-    } finally {
-      setIsInviting(false);
-    }
+    // TODO: Implement actual email sending
+    console.log('Sending invite to:', inviteEmail, 'with message:', inviteMessage);
+    toast.success(`Invitation sent to ${inviteEmail}`);
+    setInviteEmail('');
+    setInviteMessage('');
   };
 
-  const handleCopyShareLink = () => {
-    const shareLink = `https://loco.dev/workflows/${workflowId}?invite=true`;
-    navigator.clipboard.writeText(shareLink);
-    setCopied(true);
-    toast.success('Share link copied to clipboard');
+  // Add activity to log
+  const addActivity = (type: ActivityType, description: string, nodeId?: string) => {
+    const activity: ActivityLog = {
+      id: crypto.randomUUID(),
+      userId: currentUser?.id || '',
+      userName: currentUser?.name || 'Unknown',
+      type,
+      description,
+      timestamp: new Date().toISOString(),
+      nodeId,
+      nodeName: nodeId ? nodes.find((n) => n.id === nodeId)?.data.label : undefined,
+    };
 
-    setTimeout(() => setCopied(false), 2000);
+    setActivities((prev) => [activity, ...prev].slice(0, 50)); // Keep last 50 activities
   };
 
-  const getStatusColor = (status: UserStatus) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-500';
-      case 'idle':
-        return 'bg-yellow-500';
-      case 'away':
-        return 'bg-gray-400';
-    }
+  // Format timestamp
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return date.toLocaleDateString();
   };
 
-  const getStatusText = (status: UserStatus) => {
-    switch (status) {
-      case 'active':
-        return 'Active';
-      case 'idle':
-        return 'Idle';
-      case 'away':
-        return 'Away';
-    }
-  };
-
+  // Get activity icon
   const getActivityIcon = (type: ActivityType) => {
     switch (type) {
       case 'edit':
@@ -240,258 +212,322 @@ export function CollaborationPanel({
         return <Eye className="w-3 h-3" />;
       case 'save':
         return <Check className="w-3 h-3" />;
-      case 'run':
+      case 'lock':
+        return <Lock className="w-3 h-3" />;
+      case 'unlock':
+        return <Unlock className="w-3 h-3" />;
+      default:
         return <Activity className="w-3 h-3" />;
-      case 'comment':
-        return <AlertCircle className="w-3 h-3" />;
     }
   };
 
-  const getActivityColor = (type: ActivityType) => {
-    switch (type) {
-      case 'edit':
-        return 'text-blue-700 bg-blue-50';
-      case 'view':
-        return 'text-gray-700 bg-gray-50';
-      case 'save':
-        return 'text-green-700 bg-green-50';
-      case 'run':
-        return 'text-purple-700 bg-purple-50';
-      case 'comment':
-        return 'text-orange-700 bg-orange-50';
-    }
-  };
-
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return date.toLocaleDateString();
+  // Get user status color
+  const getUserStatusColor = (hasActiveCursor: boolean) => {
+    if (hasActiveCursor) return 'text-green-500';
+    return 'text-gray-400';
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6">
-      <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl w-full max-w-4xl h-[80vh] flex flex-col shadow-2xl">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Collaboration</h2>
-            <p className="text-sm text-gray-500 mt-1">{workflowName}</p>
+          <div className="flex items-center gap-3">
+            <Users className="w-5 h-5 text-loco-primary" />
+            <h2 className="text-xl font-bold text-gray-900">Real-time Collaboration</h2>
+            {isConnected && (
+              <div className="flex items-center gap-2 ml-4">
+                <Circle className="w-2 h-2 fill-green-500 text-green-500" />
+                <span className="text-sm text-green-600">Connected</span>
+              </div>
+            )}
           </div>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Close"
           >
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-loco-primary"></div>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* Active Users Section */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <Users className="w-5 h-5" />
-                    Active Users ({activeUsers.length})
+        <div className="flex-1 overflow-hidden flex">
+          {/* Main Panel */}
+          <div className="flex-1 p-6 overflow-y-auto">
+            {!isConnected ? (
+              // Connection Form
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Connect to Collaboration Server
                   </h3>
-                  <button
-                    onClick={() => setShowInviteForm(!showInviteForm)}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-loco-primary text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <UserPlus className="w-4 h-4" />
-                    Invite
-                  </button>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Server URL
+                      </label>
+                      <input
+                        type="text"
+                        value={serverUrl}
+                        onChange={(e) => setServerUrl(e.target.value)}
+                        placeholder="ws://localhost:3001"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Your Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={userName}
+                        onChange={(e) => setUserName(e.target.value)}
+                        placeholder="Enter your name"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email (optional)
+                      </label>
+                      <input
+                        type="email"
+                        value={userEmail}
+                        onChange={(e) => setUserEmail(e.target.value)}
+                        placeholder="your.email@example.com"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary"
+                      />
+                    </div>
+
+                    {connectionError && (
+                      <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg">
+                        <AlertCircle className="w-4 h-4 text-red-600 mt-0.5" />
+                        <p className="text-sm text-red-600">{connectionError}</p>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={handleConnect}
+                      disabled={isConnecting || !userName}
+                      className="flex items-center gap-2 px-4 py-2 bg-loco-primary text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    >
+                      <Wifi className="w-4 h-4" />
+                      {isConnecting ? 'Connecting...' : 'Connect'}
+                    </button>
+                  </div>
                 </div>
 
-                {/* Invite Form */}
-                {showInviteForm && (
-                  <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-3">Invite User</h4>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Email Address
-                        </label>
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-900 mb-2">
+                    How Real-time Collaboration Works
+                  </h4>
+                  <ul className="space-y-1 text-sm text-blue-700">
+                    <li>• See other users' cursors and selections in real-time</li>
+                    <li>• Changes are instantly synchronized across all users</li>
+                    <li>• Lock workflow for exclusive editing when needed</li>
+                    <li>• Track activity and see who's working on what</li>
+                  </ul>
+                </div>
+              </div>
+            ) : (
+              // Connected View
+              <div className="space-y-6">
+                {/* Share & Invite */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Share & Invite
+                  </h3>
+
+                  <div className="space-y-4">
+                    {/* Share Link */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Share Link
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={shareLink}
+                          readOnly
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                        />
+                        <button
+                          onClick={handleCopyLink}
+                          className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          {linkCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                          {linkCopied ? 'Copied!' : 'Copy'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Invite by Email */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Invite by Email
+                      </label>
+                      <div className="flex gap-2">
                         <input
                           type="email"
                           value={inviteEmail}
                           onChange={(e) => setInviteEmail(e.target.value)}
                           placeholder="colleague@example.com"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent text-sm"
-                          onKeyDown={(e) => e.key === 'Enter' && handleInviteUser()}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary"
                         />
-                      </div>
-                      <div className="flex items-center gap-2">
                         <button
-                          onClick={handleInviteUser}
-                          disabled={isInviting}
-                          className="px-4 py-2 bg-loco-primary text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm"
+                          onClick={handleSendInvite}
+                          className="flex items-center gap-2 px-4 py-2 bg-loco-primary text-white rounded-lg hover:bg-blue-700 transition-colors"
                         >
-                          {isInviting ? 'Sending...' : 'Send Invitation'}
-                        </button>
-                        <button
-                          onClick={handleCopyShareLink}
-                          className="flex items-center gap-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
-                        >
-                          {copied ? (
-                            <>
-                              <Check className="w-4 h-4" />
-                              Copied
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-4 h-4" />
-                              Copy Link
-                            </>
-                          )}
+                          <UserPlus className="w-4 h-4" />
+                          Invite
                         </button>
                       </div>
                     </div>
                   </div>
-                )}
-
-                {/* Users List */}
-                <div className="space-y-2">
-                  {activeUsers.map((user) => (
-                    <div
-                      key={user.id}
-                      className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow"
-                    >
-                      {/* Avatar */}
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm relative"
-                        style={{ backgroundColor: user.avatarColor }}
-                      >
-                        {user.name.charAt(0).toUpperCase()}
-                        <div
-                          className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${getStatusColor(
-                            user.status
-                          )}`}
-                        ></div>
-                      </div>
-
-                      {/* User Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold text-gray-900 truncate">
-                            {user.name}
-                          </p>
-                          <span
-                            className={`px-2 py-0.5 text-xs font-medium rounded ${
-                              user.status === 'active'
-                                ? 'bg-green-100 text-green-700'
-                                : user.status === 'idle'
-                                ? 'bg-yellow-100 text-yellow-700'
-                                : 'bg-gray-100 text-gray-700'
-                            }`}
-                          >
-                            {getStatusText(user.status)}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                        {user.currentNode && (
-                          <p className="text-xs text-blue-600 mt-1">
-                            Editing: {user.currentNode}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Last Active */}
-                      <div className="text-xs text-gray-500">
-                        {formatTimestamp(user.lastActive)}
-                      </div>
-                    </div>
-                  ))}
                 </div>
-              </div>
 
-              {/* Activity Feed Section */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Activity className="w-5 h-5" />
-                  Recent Activity
+                {/* Workflow Lock */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Workflow Lock
+                  </h3>
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      {isWorkflowLocked ? (
+                        <>
+                          <Lock className="w-5 h-5 text-yellow-600" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">Workflow Locked</p>
+                            <p className="text-xs text-gray-600">
+                              {lockedByUser === currentUser?.id
+                                ? 'You have exclusive editing rights'
+                                : `Locked by ${collaborators.find((u) => u.id === lockedByUser)?.name || 'another user'}`}
+                            </p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <Unlock className="w-5 h-5 text-green-600" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">Workflow Unlocked</p>
+                            <p className="text-xs text-gray-600">All users can edit</p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleToggleLock}
+                      className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                        isWorkflowLocked
+                          ? lockedByUser === currentUser?.id
+                            ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          : 'bg-green-100 text-green-700 hover:bg-green-200'
+                      }`}
+                      disabled={isWorkflowLocked && lockedByUser !== currentUser?.id}
+                    >
+                      {isWorkflowLocked ? 'Unlock' : 'Lock'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Disconnect */}
+                <button
+                  onClick={handleDisconnect}
+                  className="flex items-center gap-2 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  <WifiOff className="w-4 h-4" />
+                  Disconnect
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Side Panel - Active Users & Activity */}
+          {isConnected && (
+            <div className="w-80 border-l border-gray-200 flex flex-col">
+              {/* Active Users */}
+              <div className="p-4 border-b border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                  Active Users ({collaborators.length + 1})
                 </h3>
-
                 <div className="space-y-2">
-                  {activities.map((activity) => (
+                  {/* Current User */}
+                  <div className="flex items-center gap-3 p-2 bg-blue-50 rounded-lg">
                     <div
-                      key={activity.id}
-                      className="flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow"
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white font-medium text-sm"
+                      style={{ backgroundColor: currentUser?.color || '#3B82F6' }}
                     >
-                      {/* Activity Icon */}
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center ${getActivityColor(
-                          activity.type
-                        )}`}
-                      >
-                        {getActivityIcon(activity.type)}
-                      </div>
-
-                      {/* Activity Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-900">
-                          <span className="font-semibold">{activity.userName}</span>{' '}
-                          {activity.description}
-                        </p>
-                        {activity.nodeName && (
-                          <p className="text-xs text-gray-600 mt-1">Node: {activity.nodeName}</p>
-                        )}
-                        <p className="text-xs text-gray-500 mt-1">
-                          {formatTimestamp(activity.timestamp)}
-                        </p>
-                      </div>
+                      {currentUser?.name?.charAt(0).toUpperCase() || 'U'}
                     </div>
-                  ))}
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">
+                        {currentUser?.name || 'You'} (You)
+                      </p>
+                      <p className="text-xs text-gray-500">Active</p>
+                    </div>
+                    <Circle className="w-2 h-2 fill-green-500 text-green-500" />
+                  </div>
+
+                  {/* Other Users */}
+                  {collaborators.map((user) => {
+                    const hasActiveCursor = userCursors.has(user.id);
+                    return (
+                      <div key={user.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-medium text-sm"
+                          style={{ backgroundColor: user.color }}
+                        >
+                          {user.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {hasActiveCursor ? 'Active' : 'Idle'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {hasActiveCursor && <MousePointer2 className="w-3 h-3 text-gray-400" />}
+                          <Circle className={`w-2 h-2 fill-current ${getUserStatusColor(hasActiveCursor)}`} />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Info Box */}
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <Circle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5 fill-current" />
-                  <div className="text-sm text-blue-700">
-                    <p className="font-semibold mb-1">Real-time Collaboration</p>
-                    <p>
-                      See who's working on this workflow in real-time. Changes from other users will
-                      appear automatically, and you can see their cursor positions and current
-                      activity.
-                    </p>
-                  </div>
+              {/* Activity Feed */}
+              <div className="flex-1 p-4 overflow-y-auto">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Recent Activity</h3>
+                <div className="space-y-2">
+                  {activities.length === 0 ? (
+                    <p className="text-sm text-gray-500 text-center py-4">No activity yet</p>
+                  ) : (
+                    activities.map((activity) => (
+                      <div key={activity.id} className="flex items-start gap-2 text-xs">
+                        <div className="mt-0.5 text-gray-400">{getActivityIcon(activity.type)}</div>
+                        <div className="flex-1">
+                          <p className="text-gray-700">
+                            <span className="font-medium">{activity.userName}</span>{' '}
+                            {activity.description}
+                            {activity.nodeName && (
+                              <span className="text-loco-primary"> "{activity.nodeName}"</span>
+                            )}
+                          </p>
+                          <p className="text-gray-400">{formatTime(activity.timestamp)}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-          <div className="flex items-center justify-between text-sm">
-            <div className="text-gray-600">
-              {activeUsers.length} user{activeUsers.length !== 1 ? 's' : ''} active
-            </div>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Close
-            </button>
-          </div>
         </div>
       </div>
     </div>

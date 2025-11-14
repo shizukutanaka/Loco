@@ -706,7 +706,6 @@ export function Toolbar() {
 
       <CollaborationPanel
         workflowId={workflow?.id || ''}
-        workflowName={workflow?.name || 'New Workflow'}
         isOpen={isCollaborationPanelOpen}
         onClose={() => setIsCollaborationPanelOpen(false)}
       />
