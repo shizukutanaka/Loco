@@ -1,13 +1,13 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import ReactFlow, {
   Background,
-  Controls,
   MiniMap,
   NodeTypes,
   ReactFlowProvider,
   OnNodesChange,
   OnEdgesChange,
   OnConnect,
+  useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -20,6 +20,7 @@ import {
   LoopNode,
 } from '@/components/NodeTypes';
 import { getIntegrationById } from '@/data/integrations';
+import { CanvasControls } from '@/components/CanvasControls/CanvasControls';
 
 const nodeTypes: NodeTypes = {
   trigger: TriggerNode,
@@ -31,6 +32,8 @@ const nodeTypes: NodeTypes = {
 
 export function WorkflowCanvas() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const reactFlowInstance = useReactFlow();
+  const [showMinimap, setShowMinimap] = useState(true);
   const {
     nodes,
     edges,
@@ -40,6 +43,26 @@ export function WorkflowCanvas() {
     addNode,
     setSelectedNodeId,
   } = useWorkflowStore();
+
+  // Listen for canvas control events from keyboard shortcuts
+  useEffect(() => {
+    const handleZoomIn = () => reactFlowInstance.zoomIn({ duration: 200 });
+    const handleZoomOut = () => reactFlowInstance.zoomOut({ duration: 200 });
+    const handleResetZoom = () => reactFlowInstance.setViewport({ x: 0, y: 0, zoom: 1 }, { duration: 400 });
+    const handleFitView = () => reactFlowInstance.fitView({ padding: 0.2, duration: 400 });
+
+    window.addEventListener('canvas:zoom-in', handleZoomIn);
+    window.addEventListener('canvas:zoom-out', handleZoomOut);
+    window.addEventListener('canvas:reset-zoom', handleResetZoom);
+    window.addEventListener('canvas:fit-view', handleFitView);
+
+    return () => {
+      window.removeEventListener('canvas:zoom-in', handleZoomIn);
+      window.removeEventListener('canvas:zoom-out', handleZoomOut);
+      window.removeEventListener('canvas:reset-zoom', handleResetZoom);
+      window.removeEventListener('canvas:fit-view', handleFitView);
+    };
+  }, [reactFlowInstance]);
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -116,25 +139,30 @@ export function WorkflowCanvas() {
         }}
       >
         <Background color="#e5e7eb" gap={16} />
-        <Controls />
-        <MiniMap
-          nodeColor={(node) => {
-            switch (node.type) {
-              case 'trigger':
-                return '#86efac';
-              case 'action':
-                return '#93c5fd';
-              case 'condition':
-                return '#fde047';
-              case 'transform':
-                return '#d8b4fe';
-              case 'loop':
-                return '#fdba74';
-              default:
-                return '#e5e7eb';
-            }
-          }}
-          className="!bg-white !border-2 !border-gray-200"
+        {showMinimap && (
+          <MiniMap
+            nodeColor={(node) => {
+              switch (node.type) {
+                case 'trigger':
+                  return '#86efac';
+                case 'action':
+                  return '#93c5fd';
+                case 'condition':
+                  return '#fde047';
+                case 'transform':
+                  return '#d8b4fe';
+                case 'loop':
+                  return '#fdba74';
+                default:
+                  return '#e5e7eb';
+              }
+            }}
+            className="!bg-white !border-2 !border-gray-200"
+          />
+        )}
+        <CanvasControls
+          showMinimap={showMinimap}
+          onToggleMinimap={() => setShowMinimap(!showMinimap)}
         />
       </ReactFlow>
     </div>

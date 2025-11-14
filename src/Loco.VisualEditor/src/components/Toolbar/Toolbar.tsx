@@ -175,12 +175,33 @@ export function Toolbar() {
               break;
             case 'f':
               e.preventDefault();
-              // TODO: Implement fit-to-view functionality
-              console.log('Fit to view shortcut triggered');
+              window.dispatchEvent(new CustomEvent('canvas:fit-view'));
               break;
             default:
               break;
           }
+        }
+      }
+
+      // Zoom controls (not combined with shift)
+      if (ctrlKey && !e.shiftKey) {
+        switch (e.key) {
+          case '+':
+          case '=':
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('canvas:zoom-in'));
+            break;
+          case '-':
+          case '_':
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('canvas:zoom-out'));
+            break;
+          case '0':
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('canvas:reset-zoom'));
+            break;
+          default:
+            break;
         }
       }
     };
