@@ -217,7 +217,9 @@ export function WorkflowCanvas() {
                   return '#e5e7eb';
               }
             }}
-            className="!bg-white !border-2 !border-gray-200"
+            className="!bg-white !border-2 !border-gray-200 !cursor-pointer"
+            zoomable
+            pannable
           />
         )}
         <CanvasControls
