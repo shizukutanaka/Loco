@@ -7,6 +7,7 @@ import ReactFlow, {
   OnNodesChange,
   OnEdgesChange,
   OnConnect,
+  OnSelectionChangeParams,
   useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -34,6 +35,7 @@ export function WorkflowCanvas() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const reactFlowInstance = useReactFlow();
   const [showMinimap, setShowMinimap] = useState(true);
+  const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
   const {
     nodes,
     edges,
@@ -42,6 +44,7 @@ export function WorkflowCanvas() {
     onConnect,
     addNode,
     setSelectedNodeId,
+    deleteNode,
   } = useWorkflowStore();
 
   // Listen for canvas control events from keyboard shortcuts
@@ -115,10 +118,63 @@ export function WorkflowCanvas() {
 
   const onPaneClick = useCallback(() => {
     setSelectedNodeId(null);
+    setSelectedNodes([]);
   }, [setSelectedNodeId]);
 
+  const onSelectionChange = useCallback(
+    (params: OnSelectionChangeParams) => {
+      const selectedNodeIds = params.nodes.map((node) => node.id);
+      setSelectedNodes(selectedNodeIds);
+
+      // Update single selection for property panel
+      if (selectedNodeIds.length === 1) {
+        setSelectedNodeId(selectedNodeIds[0]);
+      } else if (selectedNodeIds.length === 0) {
+        setSelectedNodeId(null);
+      }
+    },
+    [setSelectedNodeId]
+  );
+
+  // Listen for delete key to delete selected nodes
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in input/textarea
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      // Delete or Backspace key
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNodes.length > 0) {
+        e.preventDefault();
+        selectedNodes.forEach((nodeId) => deleteNode(nodeId));
+        setSelectedNodes([]);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedNodes, deleteNode]);
+
   return (
-    <div ref={reactFlowWrapper} className="flex-1 h-full">
+    <div ref={reactFlowWrapper} className="flex-1 h-full relative">
+      {selectedNodes.length > 1 && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-white rounded-lg shadow-lg border border-gray-200 px-4 py-2 flex items-center gap-3">
+          <span className="text-sm font-medium text-gray-700">
+            {selectedNodes.length} nodes selected
+          </span>
+          <button
+            onClick={() => {
+              selectedNodes.forEach((nodeId) => deleteNode(nodeId));
+              setSelectedNodes([]);
+            }}
+            className="flex items-center gap-1 px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
+          >
+            Delete All
+          </button>
+        </div>
+      )}
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -129,10 +185,14 @@ export function WorkflowCanvas() {
         onDragOver={onDragOver}
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
+        onSelectionChange={onSelectionChange}
         nodeTypes={nodeTypes}
         fitView
         snapToGrid
         snapGrid={[15, 15]}
+        multiSelectionKeyCode="Shift"
+        selectionOnDrag={true}
+        panOnDrag={[1, 2]}
         defaultEdgeOptions={{
           type: 'smoothstep',
           animated: true,
