@@ -77,6 +77,20 @@ export function KeyboardShortcuts({ isOpen, onClose }: KeyboardShortcutsProps) {
       icon: <Save className="w-4 h-4" />,
     },
     {
+      id: 'undo',
+      category: 'file',
+      keys: ['Ctrl', 'Z'],
+      description: 'Undo last action',
+      icon: <History className="w-4 h-4" />,
+    },
+    {
+      id: 'redo',
+      category: 'file',
+      keys: ['Ctrl', 'Y'],
+      description: 'Redo last action',
+      icon: <History className="w-4 h-4" />,
+    },
+    {
       id: 'import',
       category: 'file',
       keys: ['Ctrl', 'O'],

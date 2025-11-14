@@ -46,7 +46,7 @@ const SettingsPanel = lazy(() => import('@/components/SettingsPanel/SettingsPane
 })));
 
 export function Toolbar() {
-  const { workflow, newWorkflow, loadWorkflow, exportWorkflow, updateWorkflowMetadata } =
+  const { workflow, newWorkflow, loadWorkflow, exportWorkflow, updateWorkflowMetadata, undo, redo, canUndo, canRedo } =
     useWorkflowStore();
   const { setCurrentExecution, addToHistory } = useExecutionStore();
   const toast = useToast();
@@ -99,6 +99,21 @@ export function Toolbar() {
       // Ctrl shortcuts
       if (ctrlKey) {
         switch (e.key.toLowerCase()) {
+          case 'z':
+            e.preventDefault();
+            if (e.shiftKey) {
+              // Ctrl+Shift+Z = Redo
+              if (canRedo) redo();
+            } else {
+              // Ctrl+Z = Undo
+              if (canUndo) undo();
+            }
+            break;
+          case 'y':
+            // Ctrl+Y = Redo (alternative)
+            e.preventDefault();
+            if (canRedo) redo();
+            break;
           case 'n':
             e.preventDefault();
             handleNewWorkflow();

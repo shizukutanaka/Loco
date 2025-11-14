@@ -11,6 +11,14 @@ import {
 } from 'reactflow';
 import { Workflow, WorkflowNode, WorkflowEdge, Viewport } from '@/types/workflow';
 
+// History state for undo/redo
+interface HistoryState {
+  nodes: Node[];
+  edges: Edge[];
+}
+
+const MAX_HISTORY_SIZE = 50; // Limit history to prevent memory issues
+
 interface WorkflowState {
   // Current workflow
   workflow: Workflow | null;
@@ -23,9 +31,20 @@ interface WorkflowState {
   // Selection state
   selectedNodeId: string | null;
 
+  // History state for undo/redo
+  history: HistoryState[];
+  historyIndex: number;
+  canUndo: boolean;
+  canRedo: boolean;
+
   // Actions
   setWorkflow: (workflow: Workflow) => void;
   updateWorkflowMetadata: (metadata: Partial<Workflow>) => void;
+
+  // History actions
+  undo: () => void;
+  redo: () => void;
+  pushToHistory: () => void;
 
   // Node actions
   onNodesChange: (changes: NodeChange[]) => void;
@@ -71,12 +90,80 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   edges: [],
   viewport: { x: 0, y: 0, zoom: 1 },
   selectedNodeId: null,
+  history: [],
+  historyIndex: -1,
+  canUndo: false,
+  canRedo: false,
 
   setWorkflow: (workflow) => {
     set({
       workflow,
       nodes: workflowNodesToReactFlowNodes(workflow.nodes),
       edges: workflowEdgesToReactFlowEdges(workflow.edges),
+      history: [],
+      historyIndex: -1,
+      canUndo: false,
+      canRedo: false,
+    });
+  },
+
+  pushToHistory: () => {
+    const { nodes, edges, history, historyIndex } = get();
+
+    // Remove any future history if we're not at the end
+    const newHistory = history.slice(0, historyIndex + 1);
+
+    // Add current state to history
+    newHistory.push({ nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) });
+
+    // Limit history size
+    if (newHistory.length > MAX_HISTORY_SIZE) {
+      newHistory.shift();
+      set({
+        history: newHistory,
+        historyIndex: newHistory.length - 1,
+        canUndo: newHistory.length > 1,
+        canRedo: false,
+      });
+    } else {
+      set({
+        history: newHistory,
+        historyIndex: newHistory.length - 1,
+        canUndo: newHistory.length > 1,
+        canRedo: false,
+      });
+    }
+  },
+
+  undo: () => {
+    const { history, historyIndex } = get();
+    if (historyIndex <= 0) return;
+
+    const newIndex = historyIndex - 1;
+    const state = history[newIndex];
+
+    set({
+      nodes: JSON.parse(JSON.stringify(state.nodes)),
+      edges: JSON.parse(JSON.stringify(state.edges)),
+      historyIndex: newIndex,
+      canUndo: newIndex > 0,
+      canRedo: true,
+    });
+  },
+
+  redo: () => {
+    const { history, historyIndex } = get();
+    if (historyIndex >= history.length - 1) return;
+
+    const newIndex = historyIndex + 1;
+    const state = history[newIndex];
+
+    set({
+      nodes: JSON.parse(JSON.stringify(state.nodes)),
+      edges: JSON.parse(JSON.stringify(state.edges)),
+      historyIndex: newIndex,
+      canUndo: true,
+      canRedo: newIndex < history.length - 1,
     });
   },
 
@@ -94,15 +181,25 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   },
 
   onNodesChange: (changes) => {
+    // Only push to history for certain change types (not selection or dimensions)
+    const shouldPushHistory = changes.some(
+      (change) => change.type === 'remove' || change.type === 'position' || change.type === 'add'
+    );
+
     set({
       nodes: applyNodeChanges(changes, get().nodes),
     });
+
+    if (shouldPushHistory) {
+      setTimeout(() => get().pushToHistory(), 0);
+    }
   },
 
   addNode: (node) => {
     set({
       nodes: [...get().nodes, node],
     });
+    setTimeout(() => get().pushToHistory(), 0);
   },
 
   updateNode: (nodeId, data) => {
@@ -113,6 +210,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
           : node
       ),
     });
+    setTimeout(() => get().pushToHistory(), 0);
   },
 
   deleteNode: (nodeId) => {
@@ -123,24 +221,35 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       ),
       selectedNodeId: get().selectedNodeId === nodeId ? null : get().selectedNodeId,
     });
+    setTimeout(() => get().pushToHistory(), 0);
   },
 
   onEdgesChange: (changes) => {
+    const shouldPushHistory = changes.some(
+      (change) => change.type === 'remove' || change.type === 'add'
+    );
+
     set({
       edges: applyEdgeChanges(changes, get().edges),
     });
+
+    if (shouldPushHistory) {
+      setTimeout(() => get().pushToHistory(), 0);
+    }
   },
 
   onConnect: (connection) => {
     set({
       edges: addEdge(connection, get().edges),
     });
+    setTimeout(() => get().pushToHistory(), 0);
   },
 
   deleteEdge: (edgeId) => {
     set({
       edges: get().edges.filter((edge) => edge.id !== edgeId),
     });
+    setTimeout(() => get().pushToHistory(), 0);
   },
 
   setSelectedNodeId: (nodeId) => {
@@ -180,7 +289,13 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       nodes: workflowNodesToReactFlowNodes(workflow.nodes),
       edges: workflowEdgesToReactFlowEdges(workflow.edges),
       selectedNodeId: null,
+      history: [],
+      historyIndex: -1,
+      canUndo: false,
+      canRedo: false,
     });
+    // Initialize history with loaded state
+    setTimeout(() => get().pushToHistory(), 0);
   },
 
   exportWorkflow: () => {
