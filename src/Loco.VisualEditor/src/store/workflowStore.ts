@@ -10,6 +10,7 @@ import {
   applyEdgeChanges,
 } from 'reactflow';
 import { Workflow, WorkflowNode, WorkflowEdge, Viewport } from '@/types/workflow';
+import { getAutoLayoutedNodes } from '@/utils/autoLayout';
 
 // History state for undo/redo
 interface HistoryState {
@@ -62,6 +63,9 @@ interface WorkflowState {
 
   // Viewport
   setViewport: (viewport: Viewport) => void;
+
+  // Layout
+  autoLayout: (direction?: 'TB' | 'BT' | 'LR' | 'RL') => void;
 
   // Workflow operations
   newWorkflow: () => void;
@@ -258,6 +262,20 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   setViewport: (viewport) => {
     set({ viewport });
+  },
+
+  autoLayout: (direction = 'TB') => {
+    const { nodes, edges } = get();
+    if (nodes.length === 0) return;
+
+    const layoutedNodes = getAutoLayoutedNodes(nodes, edges, {
+      direction,
+      nodeSpacing: 50,
+      rankSpacing: 100,
+    });
+
+    set({ nodes: layoutedNodes });
+    setTimeout(() => get().pushToHistory(), 0);
   },
 
   newWorkflow: () => {

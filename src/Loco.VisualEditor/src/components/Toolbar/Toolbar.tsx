@@ -21,6 +21,7 @@ import {
   Package,
   CheckCircle,
   Keyboard,
+  Shuffle,
 } from 'lucide-react';
 import { createWorkflow, updateWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
 import { WorkflowList } from '@/components/WorkflowList/WorkflowList';
@@ -46,7 +47,7 @@ const SettingsPanel = lazy(() => import('@/components/SettingsPanel/SettingsPane
 })));
 
 export function Toolbar() {
-  const { workflow, newWorkflow, loadWorkflow, exportWorkflow, updateWorkflowMetadata, undo, redo, canUndo, canRedo } =
+  const { workflow, newWorkflow, loadWorkflow, exportWorkflow, updateWorkflowMetadata, undo, redo, canUndo, canRedo, autoLayout } =
     useWorkflowStore();
   const { setCurrentExecution, addToHistory } = useExecutionStore();
   const toast = useToast();
@@ -404,6 +405,11 @@ export function Toolbar() {
     });
   };
 
+  const handleAutoLayout = () => {
+    autoLayout('TB'); // Top-to-bottom layout by default
+    toast.success('Workflow layout optimized');
+  };
+
   return (
     <>
       <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
@@ -555,6 +561,17 @@ export function Toolbar() {
           >
             <Download className="w-4 h-4" />
             <span className="text-sm font-medium">Export</span>
+          </button>
+
+          <div className="h-8 w-px bg-gray-300"></div>
+
+          <button
+            onClick={handleAutoLayout}
+            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Auto-layout (Organize nodes automatically)"
+          >
+            <Shuffle className="w-4 h-4" />
+            <span className="text-sm font-medium">Auto Layout</span>
           </button>
 
           <button
