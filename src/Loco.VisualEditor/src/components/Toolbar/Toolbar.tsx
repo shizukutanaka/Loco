@@ -20,6 +20,7 @@ import {
   Users,
   Package,
   CheckCircle,
+  Keyboard,
 } from 'lucide-react';
 import { createWorkflow, updateWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
 import { WorkflowList } from '@/components/WorkflowList/WorkflowList';
@@ -32,6 +33,7 @@ import { MetricsDashboard } from '@/components/MetricsDashboard/MetricsDashboard
 import { CollaborationPanel } from '@/components/CollaborationPanel/CollaborationPanel';
 import { NodePluginManager } from '@/components/NodePluginManager/NodePluginManager';
 import { WorkflowTester } from '@/components/WorkflowTester/WorkflowTester';
+import { KeyboardShortcuts } from '@/components/KeyboardShortcuts/KeyboardShortcuts';
 
 // Lazy load TemplateGallery (large component with template data)
 const TemplateGallery = lazy(() => import('@/components/TemplateGallery/TemplateGallery').then(module => ({
@@ -61,6 +63,7 @@ export function Toolbar() {
   const [isCollaborationPanelOpen, setIsCollaborationPanelOpen] = useState(false);
   const [isNodePluginManagerOpen, setIsNodePluginManagerOpen] = useState(false);
   const [isWorkflowTesterOpen, setIsWorkflowTesterOpen] = useState(false);
+  const [isKeyboardShortcutsOpen, setIsKeyboardShortcutsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
 
@@ -72,6 +75,118 @@ export function Toolbar() {
 
     window.addEventListener('workflow:save', handleSaveEvent);
     return () => window.removeEventListener('workflow:save', handleSaveEvent);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Global keyboard shortcuts handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in input/textarea
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const ctrlKey = isMac ? e.metaKey : e.ctrlKey;
+
+      // Help shortcuts: ? or Ctrl+/
+      if (e.key === '?' || (ctrlKey && e.key === '/')) {
+        e.preventDefault();
+        setIsKeyboardShortcutsOpen(true);
+        return;
+      }
+
+      // Ctrl shortcuts
+      if (ctrlKey) {
+        switch (e.key.toLowerCase()) {
+          case 'n':
+            e.preventDefault();
+            handleNewWorkflow();
+            break;
+          case 's':
+            e.preventDefault();
+            handleSaveWorkflow();
+            break;
+          case 'o':
+            e.preventDefault();
+            handleImportJSON();
+            break;
+          case 'e':
+            e.preventDefault();
+            handleExportJSON();
+            break;
+          case 'k':
+            e.preventDefault();
+            setIsWorkflowListOpen(true);
+            break;
+          case 't':
+            if (!e.shiftKey) {
+              e.preventDefault();
+              setIsTemplateGalleryOpen(true);
+            } else {
+              e.preventDefault();
+              setIsWorkflowTesterOpen(true);
+            }
+            break;
+          case ',':
+            e.preventDefault();
+            setIsSettingsPanelOpen(true);
+            break;
+          case 'h':
+            if (!e.shiftKey) {
+              e.preventDefault();
+              setIsVersionHistoryOpen(true);
+            }
+            break;
+          case 'enter':
+            e.preventDefault();
+            handleRunWorkflow();
+            break;
+          default:
+            break;
+        }
+
+        // Ctrl+Shift shortcuts
+        if (e.shiftKey) {
+          switch (e.key.toLowerCase()) {
+            case 's':
+              e.preventDefault();
+              setIsScheduleManagerOpen(true);
+              break;
+            case 'w':
+              e.preventDefault();
+              setIsWebhookManagerOpen(true);
+              break;
+            case 'm':
+              e.preventDefault();
+              setIsMetricsDashboardOpen(true);
+              break;
+            case 'c':
+              e.preventDefault();
+              setIsCollaborationPanelOpen(true);
+              break;
+            case 'p':
+              e.preventDefault();
+              setIsNodePluginManagerOpen(true);
+              break;
+            case 'k':
+              e.preventDefault();
+              setIsCommitDialogOpen(true);
+              break;
+            case 'f':
+              e.preventDefault();
+              // TODO: Implement fit-to-view functionality
+              console.log('Fit to view shortcut triggered');
+              break;
+            default:
+              break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleNewWorkflow = () => {
@@ -452,6 +567,14 @@ export function Toolbar() {
           >
             <Settings className="w-4 h-4" />
           </button>
+
+          <button
+            onClick={() => setIsKeyboardShortcutsOpen(true)}
+            className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Keyboard Shortcuts (? or Ctrl+/)"
+          >
+            <Keyboard className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
@@ -545,6 +668,11 @@ export function Toolbar() {
         workflowName={workflow?.name || 'New Workflow'}
         isOpen={isWorkflowTesterOpen}
         onClose={() => setIsWorkflowTesterOpen(false)}
+      />
+
+      <KeyboardShortcuts
+        isOpen={isKeyboardShortcutsOpen}
+        onClose={() => setIsKeyboardShortcutsOpen(false)}
       />
     </>
   );
