@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { getExecutionStatus } from '@/api/workflows';
 import type { WorkflowExecutionResponse } from '@/api/types';
+import { EXECUTION_POLLING_INTERVAL } from '@/utils/constants';
 
 // ============================================================================
 // Types
@@ -67,7 +68,7 @@ export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
       if (execution?.status === 'running' || execution?.status === 'pending') {
         fetchExecution();
       }
-    }, 2000); // Poll every 2 seconds
+    }, EXECUTION_POLLING_INTERVAL);
 
     return () => clearInterval(interval);
   }, [executionId, execution?.status]);

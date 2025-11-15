@@ -26,6 +26,7 @@ import {
 import { useWorkflowStore } from '@/store/workflowStore';
 import { AIInsight } from '@/utils/aiAnalyzer';
 import { useToast } from '@/contexts/ToastContext';
+import { COPY_FEEDBACK_DURATION } from '@/utils/constants';
 
 // ============================================================================
 // Types
@@ -187,7 +188,7 @@ export function AIAssistant({ isOpen, onClose }: AIAssistantProps) {
     const text = `${insight.title}\n${insight.description}\n\n${insight.explanation}\n\nActions:\n${insight.suggestedActions.map((a) => `- ${a.action}: ${a.impact}`).join('\n')}`;
     navigator.clipboard.writeText(text);
     setCopiedInsightId(insight.id);
-    setTimeout(() => setCopiedInsightId(null), 2000);
+    setTimeout(() => setCopiedInsightId(null), COPY_FEEDBACK_DURATION);
     toast.success('Insight copied to clipboard');
   };
 

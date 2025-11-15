@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useExecutionStore } from '@/store/executionStore';
 import { useToast } from '@/contexts/ToastContext';
+import { TOAST_LONG_DURATION } from '@/utils/constants';
 import {
   Save,
   Download,
@@ -328,7 +329,7 @@ export function Toolbar() {
         setCurrentExecution(response.data.executionId);
 
         toast.success(`Workflow "${workflowData.name}" is running...`);
-        toast.info(`Execution ID: ${response.data.executionId}`, 7000);
+        toast.info(`Execution ID: ${response.data.executionId}`, TOAST_LONG_DURATION);
       } else {
         console.error('Failed to execute workflow:', response.error?.message);
         toast.error(`Failed to run workflow: ${response.error?.message || 'Unknown error'}`);

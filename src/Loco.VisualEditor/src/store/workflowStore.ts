@@ -11,14 +11,14 @@ import {
 } from 'reactflow';
 import { Workflow, WorkflowNode, WorkflowEdge, Viewport } from '@/types/workflow';
 import { getAutoLayoutedNodes } from '@/utils/autoLayout';
+import { deepClone } from '@/utils/deepClone';
+import { MAX_HISTORY_SIZE } from '@/utils/constants';
 
 // History state for undo/redo
 interface HistoryState {
   nodes: Node[];
   edges: Edge[];
 }
-
-const MAX_HISTORY_SIZE = 50; // Limit history to prevent memory issues
 
 interface WorkflowState {
   // Current workflow
@@ -118,25 +118,19 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     const newHistory = history.slice(0, historyIndex + 1);
 
     // Add current state to history
-    newHistory.push({ nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) });
+    newHistory.push({ nodes: deepClone(nodes), edges: deepClone(edges) });
 
     // Limit history size
     if (newHistory.length > MAX_HISTORY_SIZE) {
       newHistory.shift();
-      set({
-        history: newHistory,
-        historyIndex: newHistory.length - 1,
-        canUndo: newHistory.length > 1,
-        canRedo: false,
-      });
-    } else {
-      set({
-        history: newHistory,
-        historyIndex: newHistory.length - 1,
-        canUndo: newHistory.length > 1,
-        canRedo: false,
-      });
     }
+
+    set({
+      history: newHistory,
+      historyIndex: newHistory.length - 1,
+      canUndo: newHistory.length > 1,
+      canRedo: false,
+    });
   },
 
   undo: () => {
@@ -147,8 +141,8 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     const state = history[newIndex];
 
     set({
-      nodes: JSON.parse(JSON.stringify(state.nodes)),
-      edges: JSON.parse(JSON.stringify(state.edges)),
+      nodes: deepClone(state.nodes),
+      edges: deepClone(state.edges),
       historyIndex: newIndex,
       canUndo: newIndex > 0,
       canRedo: true,
@@ -163,8 +157,8 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     const state = history[newIndex];
 
     set({
-      nodes: JSON.parse(JSON.stringify(state.nodes)),
-      edges: JSON.parse(JSON.stringify(state.edges)),
+      nodes: deepClone(state.nodes),
+      edges: deepClone(state.edges),
       historyIndex: newIndex,
       canUndo: true,
       canRedo: newIndex < history.length - 1,

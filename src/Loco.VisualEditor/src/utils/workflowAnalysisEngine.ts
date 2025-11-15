@@ -12,6 +12,8 @@ import { Node, Edge } from 'reactflow';
 import { validateWorkflow, ValidationReport } from './workflowValidationService';
 import { simulateWorkflow, SimulationResult } from './workflowSimulator';
 import { analyzeWorkflow, AIAnalysisResult } from './aiAnalyzer';
+import { deepClone } from './deepClone';
+import { ANALYSIS_CACHE_TTL } from './constants';
 
 // ============================================================================
 // Types
@@ -134,15 +136,15 @@ export class WorkflowAnalysisEngine {
     previous: null,
   };
 
-  private maxCacheAge = 5 * 60 * 1000; // 5 minutes
+  private maxCacheAge = ANALYSIS_CACHE_TTL;
 
   /**
    * Perform comprehensive workflow analysis with caching
    */
   public analyze(nodes: Node[], edges: Edge[]): AnalysisResult {
     const snapshot: WorkflowSnapshot = {
-      nodes: JSON.parse(JSON.stringify(nodes)),
-      edges: JSON.parse(JSON.stringify(edges)),
+      nodes: deepClone(nodes),
+      edges: deepClone(edges),
       hash: hashWorkflow(nodes, edges),
       timestamp: Date.now(),
     };

@@ -23,6 +23,7 @@ import { listWorkflows, deleteWorkflow, getWorkflow, createWorkflow, executeWork
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useToast } from '@/contexts/ToastContext';
 import { useExecutionStore } from '@/store/executionStore';
+import { TOAST_LONG_DURATION } from '@/utils/constants';
 
 // ============================================================================
 // Types
@@ -246,7 +247,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
         onClose();
 
         toast.success(`Workflow "${workflowName}" is running...`);
-        toast.info(`Execution ID: ${response.data.executionId}`, 7000);
+        toast.info(`Execution ID: ${response.data.executionId}`, TOAST_LONG_DURATION);
       } else {
         toast.error(`Failed to run workflow: ${response.error?.message}`);
       }
