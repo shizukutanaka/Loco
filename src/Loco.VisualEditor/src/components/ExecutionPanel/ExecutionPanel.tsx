@@ -17,11 +17,9 @@ import {
   Terminal,
   Activity,
   X,
-  RotateCcw,
 } from 'lucide-react';
 import { getExecutionStatus } from '@/api/workflows';
 import type { WorkflowExecutionResponse } from '@/api/types';
-import { ExecutionReplay } from '@/components/ExecutionReplay/ExecutionReplay';
 
 // ============================================================================
 // Types
@@ -40,7 +38,6 @@ export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
   const [execution, setExecution] = useState<WorkflowExecutionResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [expandedLogs, setExpandedLogs] = useState(true);
-  const [isReplayOpen, setIsReplayOpen] = useState(false);
 
   // Fetch execution status
   useEffect(() => {
@@ -195,14 +192,6 @@ export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
           </div>
 
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsReplayOpen(true)}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 rounded transition-colors"
-              title="Replay Execution"
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span>Replay</span>
-            </button>
 
             <div className="flex items-center gap-4 text-xs text-gray-600">
               <div className="flex items-center gap-1">
@@ -324,14 +313,6 @@ export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
         )}
       </div>
 
-      {/* Execution Replay Modal */}
-      {isReplayOpen && executionId && (
-        <ExecutionReplay
-          executionId={executionId}
-          isOpen={isReplayOpen}
-          onClose={() => setIsReplayOpen(false)}
-        />
-      )}
     </div>
   );
 }

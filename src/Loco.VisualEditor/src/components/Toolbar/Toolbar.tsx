@@ -3,7 +3,6 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { useExecutionStore } from '@/store/executionStore';
 import { useToast } from '@/contexts/ToastContext';
 import {
-  FolderOpen,
   Save,
   Download,
   Play,
@@ -12,27 +11,16 @@ import {
   LayoutTemplate,
   Loader2,
   List,
-  Calendar,
-  Globe,
-  GitCommit,
-  History,
-  BarChart3,
   Users,
-  Package,
-  CheckCircle,
   Keyboard,
   Shuffle,
+  FolderOpen,
+  CheckCircle,
 } from 'lucide-react';
 import { createWorkflow, updateWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
 import { WorkflowList } from '@/components/WorkflowList/WorkflowList';
 import { TagEditor } from '@/components/TagEditor/TagEditor';
-import { ScheduleManager } from '@/components/ScheduleManager/ScheduleManager';
-import { WebhookManager } from '@/components/WebhookManager/WebhookManager';
-import { CommitDialog } from '@/components/CommitDialog/CommitDialog';
-import { VersionHistory } from '@/components/VersionHistory/VersionHistory';
-import { MetricsDashboard } from '@/components/MetricsDashboard/MetricsDashboard';
 import { CollaborationPanel } from '@/components/CollaborationPanel/CollaborationPanel';
-import { NodePluginManager } from '@/components/NodePluginManager/NodePluginManager';
 import { WorkflowTester } from '@/components/WorkflowTester/WorkflowTester';
 import { KeyboardShortcuts } from '@/components/KeyboardShortcuts/KeyboardShortcuts';
 
@@ -56,13 +44,7 @@ export function Toolbar() {
   const [isTemplateGalleryOpen, setIsTemplateGalleryOpen] = useState(false);
   const [isWorkflowListOpen, setIsWorkflowListOpen] = useState(false);
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
-  const [isScheduleManagerOpen, setIsScheduleManagerOpen] = useState(false);
-  const [isWebhookManagerOpen, setIsWebhookManagerOpen] = useState(false);
-  const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
-  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
-  const [isMetricsDashboardOpen, setIsMetricsDashboardOpen] = useState(false);
   const [isCollaborationPanelOpen, setIsCollaborationPanelOpen] = useState(false);
-  const [isNodePluginManagerOpen, setIsNodePluginManagerOpen] = useState(false);
   const [isWorkflowTesterOpen, setIsWorkflowTesterOpen] = useState(false);
   const [isKeyboardShortcutsOpen, setIsKeyboardShortcutsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -148,12 +130,6 @@ export function Toolbar() {
             e.preventDefault();
             setIsSettingsPanelOpen(true);
             break;
-          case 'h':
-            if (!e.shiftKey) {
-              e.preventDefault();
-              setIsVersionHistoryOpen(true);
-            }
-            break;
           case 'enter':
             e.preventDefault();
             handleRunWorkflow();
@@ -165,29 +141,9 @@ export function Toolbar() {
         // Ctrl+Shift shortcuts
         if (e.shiftKey) {
           switch (e.key.toLowerCase()) {
-            case 's':
-              e.preventDefault();
-              setIsScheduleManagerOpen(true);
-              break;
-            case 'w':
-              e.preventDefault();
-              setIsWebhookManagerOpen(true);
-              break;
-            case 'm':
-              e.preventDefault();
-              setIsMetricsDashboardOpen(true);
-              break;
             case 'c':
               e.preventDefault();
               setIsCollaborationPanelOpen(true);
-              break;
-            case 'p':
-              e.preventDefault();
-              setIsNodePluginManagerOpen(true);
-              break;
-            case 'k':
-              e.preventDefault();
-              setIsCommitDialogOpen(true);
               break;
             case 'f':
               e.preventDefault();
@@ -479,68 +435,12 @@ export function Toolbar() {
           </button>
 
           <button
-            onClick={() => setIsScheduleManagerOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Schedules"
-          >
-            <Calendar className="w-4 h-4" />
-            <span className="text-sm font-medium">Schedules</span>
-          </button>
-
-          <button
-            onClick={() => setIsWebhookManagerOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Webhooks"
-          >
-            <Globe className="w-4 h-4" />
-            <span className="text-sm font-medium">Webhooks</span>
-          </button>
-
-          <button
-            onClick={() => setIsMetricsDashboardOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Metrics Dashboard"
-          >
-            <BarChart3 className="w-4 h-4" />
-            <span className="text-sm font-medium">Metrics</span>
-          </button>
-
-          <button
             onClick={() => setIsCollaborationPanelOpen(true)}
             className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             title="Collaboration"
           >
             <Users className="w-4 h-4" />
             <span className="text-sm font-medium">Collaborate</span>
-          </button>
-
-          <button
-            onClick={() => setIsNodePluginManagerOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Plugin Manager"
-          >
-            <Package className="w-4 h-4" />
-            <span className="text-sm font-medium">Plugins</span>
-          </button>
-
-          <div className="h-8 w-px bg-gray-300"></div>
-
-          <button
-            onClick={() => setIsCommitDialogOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Commit Changes"
-          >
-            <GitCommit className="w-4 h-4" />
-            <span className="text-sm font-medium">Commit</span>
-          </button>
-
-          <button
-            onClick={() => setIsVersionHistoryOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Version History"
-          >
-            <History className="w-4 h-4" />
-            <span className="text-sm font-medium">History</span>
           </button>
 
           <div className="h-8 w-px bg-gray-300"></div>
@@ -662,57 +562,10 @@ export function Toolbar() {
         </Suspense>
       )}
 
-      <ScheduleManager
-        isOpen={isScheduleManagerOpen}
-        onClose={() => setIsScheduleManagerOpen(false)}
-      />
-
-      <WebhookManager
-        isOpen={isWebhookManagerOpen}
-        onClose={() => setIsWebhookManagerOpen(false)}
-      />
-
-      <CommitDialog
-        workflowId={workflow?.id || ''}
-        workflowName={workflow?.name || 'New Workflow'}
-        isOpen={isCommitDialogOpen}
-        onClose={() => setIsCommitDialogOpen(false)}
-        onCommit={(message) => {
-          console.log('Workflow committed:', message);
-        }}
-        changes={{
-          nodesAdded: 0,
-          nodesRemoved: 0,
-          nodesModified: 0,
-          edgesAdded: 0,
-          edgesRemoved: 0,
-        }}
-      />
-
-      <VersionHistory
-        workflowId={workflow?.id || ''}
-        workflowName={workflow?.name || 'New Workflow'}
-        isOpen={isVersionHistoryOpen}
-        onClose={() => setIsVersionHistoryOpen(false)}
-        onRestore={(versionId) => {
-          console.log('Restoring version:', versionId);
-        }}
-      />
-
-      <MetricsDashboard
-        isOpen={isMetricsDashboardOpen}
-        onClose={() => setIsMetricsDashboardOpen(false)}
-      />
-
       <CollaborationPanel
         workflowId={workflow?.id || ''}
         isOpen={isCollaborationPanelOpen}
         onClose={() => setIsCollaborationPanelOpen(false)}
-      />
-
-      <NodePluginManager
-        isOpen={isNodePluginManagerOpen}
-        onClose={() => setIsNodePluginManagerOpen(false)}
       />
 
       <WorkflowTester
