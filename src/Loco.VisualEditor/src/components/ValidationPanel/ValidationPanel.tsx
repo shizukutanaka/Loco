@@ -1,35 +1,40 @@
 import { useEffect, useState } from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
-import {
-  validateWorkflow,
-  ValidationResult,
-  formatValidationError,
-  formatValidationWarning,
-} from '@/utils/validation';
+import { ValidationReport } from '@/utils/workflowValidationService';
 import { AlertCircle, AlertTriangle, CheckCircle, X } from 'lucide-react';
 
 export function ValidationPanel() {
-  const { workflow } = useWorkflowStore();
-  const [validationResult, setValidationResult] = useState<ValidationResult | null>(
-    null
-  );
+  const { nodes, edges } = useWorkflowStore();
+  const [validationReport, setValidationReport] = useState<ValidationReport | null>(null);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    if (workflow) {
-      const result = validateWorkflow(workflow);
-      setValidationResult(result);
+    const validateWorkflow = async () => {
+      try {
+        // Use unified analysis engine for consistent results
+        const { analysisEngine } = await import('@/utils/workflowAnalysisEngine');
+        const analysisResult = analysisEngine.analyze(nodes, edges);
+        const report = analysisResult.validation;
+        setValidationReport(report);
 
-      // Auto-show panel if there are errors
-      if (result.errors.length > 0) {
-        setIsVisible(true);
+        // Auto-show panel if there are errors
+        if (report.issues.filter((i) => i.severity === 'error').length > 0) {
+          setIsVisible(true);
+        }
+      } catch (error) {
+        console.error('Validation failed:', error);
       }
+    };
+
+    if (nodes.length > 0) {
+      validateWorkflow();
     }
-  }, [workflow]);
+  }, [nodes, edges]);
 
-  if (!validationResult) return null;
+  if (!validationReport) return null;
 
-  const { isValid, errors, warnings } = validationResult;
+  const errors = validationReport.issues.filter((i) => i.severity === 'error');
+  const warnings = validationReport.issues.filter((i) => i.severity === 'warning');
   const hasIssues = errors.length > 0 || warnings.length > 0;
 
   if (!isVisible && hasIssues) {
@@ -66,6 +71,8 @@ export function ValidationPanel() {
   }
 
   if (!isVisible) return null;
+
+  const isValid = errors.length === 0;
 
   return (
     <div className="fixed bottom-4 right-4 w-96 bg-white border-2 border-gray-200 rounded-lg shadow-xl max-h-96 flex flex-col">
@@ -104,12 +111,18 @@ export function ValidationPanel() {
               </span>
             </div>
             <div className="space-y-2">
-              {errors.map((error, index) => (
+              {errors.map((error) => (
                 <div
-                  key={index}
+                  key={error.id}
                   className="p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700"
                 >
-                  {formatValidationError(error)}
+                  <div className="font-medium">{error.title}</div>
+                  <div className="text-xs">{error.description}</div>
+                  {error.nodeId && (
+                    <div className="text-xs mt-1 text-red-600">
+                      Node: {error.nodeId}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -126,12 +139,18 @@ export function ValidationPanel() {
               </span>
             </div>
             <div className="space-y-2">
-              {warnings.map((warning, index) => (
+              {warnings.map((warning) => (
                 <div
-                  key={index}
+                  key={warning.id}
                   className="p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-700"
                 >
-                  {formatValidationWarning(warning)}
+                  <div className="font-medium">{warning.title}</div>
+                  <div className="text-xs">{warning.description}</div>
+                  {warning.nodeId && (
+                    <div className="text-xs mt-1 text-yellow-600">
+                      Node: {warning.nodeId}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
