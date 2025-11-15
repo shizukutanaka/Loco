@@ -6,6 +6,9 @@ import { PropertyPanel } from '@/components/PropertyPanel/PropertyPanel';
 import { NodeSearch } from '@/components/NodeSearch/NodeSearch';
 import { ToastContainer } from '@/components/Toast/Toast';
 import { ExecutionPanel } from '@/components/ExecutionPanel/ExecutionPanel';
+import { PerformanceMonitor } from '@/components/PerformanceMonitor/PerformanceMonitor';
+import { AIAssistant } from '@/components/AIAssistant/AIAssistant';
+import { Sparkles } from 'lucide-react';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useOfflineDetection } from '@/hooks/useOfflineDetection';
@@ -20,6 +23,7 @@ const ValidationPanel = lazy(() => import('@/components/ValidationPanel/Validati
 
 function App() {
   const [isNodeSearchOpen, setIsNodeSearchOpen] = useState(false);
+  const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
   const { exportWorkflow, loadWorkflow } = useWorkflowStore();
   const { currentExecutionId, isExecutionPanelOpen, closeExecutionPanel } = useExecutionStore();
   const { loadDraft, clearDraft } = useAutoSave();
@@ -88,6 +92,21 @@ function App() {
       </Suspense>
       <NodeSearch isOpen={isNodeSearchOpen} onClose={() => setIsNodeSearchOpen(false)} />
       <ToastContainer />
+      <PerformanceMonitor />
+
+      {/* AI Assistant */}
+      <AIAssistant isOpen={isAIAssistantOpen} onClose={() => setIsAIAssistantOpen(false)} />
+
+      {/* AI Assistant Toggle Button */}
+      {!isAIAssistantOpen && (
+        <button
+          onClick={() => setIsAIAssistantOpen(true)}
+          className="fixed bottom-20 right-4 p-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-shadow z-30"
+          title="Open AI Assistant"
+        >
+          <Sparkles className="w-6 h-6" />
+        </button>
+      )}
     </div>
   );
 }

@@ -23,8 +23,12 @@ import {
   FileCode,
   TrendingUp,
   RefreshCw,
+  Cpu,
 } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
+import { useWorkflowStore } from '@/store/workflowStore';
+import { ValidationReport, ValidationCategory } from '@/utils/workflowValidationService';
+import { generateExecutionReport } from '@/utils/workflowSimulator';
 
 // ============================================================================
 // Types
@@ -37,35 +41,13 @@ interface WorkflowTesterProps {
   onClose: () => void;
 }
 
-type IssueType = 'error' | 'warning' | 'info' | 'success';
-type IssueCategory = 'structure' | 'dataflow' | 'performance' | 'bestpractice';
-
-interface ValidationIssue {
-  id: string;
-  type: IssueType;
-  category: IssueCategory;
-  title: string;
-  description: string;
-  nodeId?: string;
-  nodeName?: string;
-  suggestion?: string;
-}
-
-interface ValidationResult {
-  passed: boolean;
-  score: number;
-  totalIssues: number;
-  errors: number;
-  warnings: number;
-  infos: number;
-  issues: ValidationIssue[];
-}
+type DisplayCategory = 'structure' | 'data_flow' | 'performance' | 'configuration' | 'best_practices' | 'security' | 'all';
 
 interface PerformanceMetric {
   metric: string;
-  value: string;
-  status: 'good' | 'fair' | 'poor';
-  description: string;
+  value: string | number;
+  status: 'good' | 'warning' | 'critical';
+  description?: string;
 }
 
 // ============================================================================
@@ -73,16 +55,18 @@ interface PerformanceMetric {
 // ============================================================================
 
 export function WorkflowTester({
-  workflowId,
+  workflowId: _workflowId,
   workflowName,
   isOpen,
   onClose,
 }: WorkflowTesterProps) {
   const [isValidating, setIsValidating] = useState(false);
-  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+  const [validationReport, setValidationReport] = useState<ValidationReport | null>(null);
   const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetric[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<IssueCategory | 'all'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<DisplayCategory>('all');
+  const [simulationLog, setSimulationLog] = useState<string>('');
   const toast = useToast();
+  const { nodes, edges } = useWorkflowStore();
 
   // Run validation on open
   useEffect(() => {
@@ -94,120 +78,57 @@ export function WorkflowTester({
   const handleValidate = async () => {
     setIsValidating(true);
     try {
-      // TODO: Replace with actual API call
-      console.log('Validating workflow:', workflowId);
-      // const response = await validateWorkflow(workflowId);
+      // Use unified analysis engine for consistent results
+      const { analysisEngine } = await import('@/utils/workflowAnalysisEngine');
+      const analysisResult = analysisEngine.analyze(nodes, edges);
+      const report = analysisResult.validation;
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      setValidationReport(report);
 
-      // Mock validation results
-      const issues: ValidationIssue[] = [
-        {
-          id: 'issue-1',
-          type: 'error',
-          category: 'structure',
-          title: 'Disconnected Node',
-          description: 'Node "Transform Data" has no incoming connections',
-          nodeId: 'node-3',
-          nodeName: 'Transform Data',
-          suggestion: 'Connect this node to a data source or remove it from the workflow',
-        },
-        {
-          id: 'issue-2',
-          type: 'warning',
-          category: 'dataflow',
-          title: 'Missing Error Handler',
-          description: 'HTTP Request node lacks error handling configuration',
-          nodeId: 'node-1',
-          nodeName: 'HTTP Request',
-          suggestion: 'Add error handling to prevent workflow failures on network issues',
-        },
-        {
-          id: 'issue-3',
-          type: 'warning',
-          category: 'performance',
-          title: 'Sequential Processing',
-          description: 'Multiple independent API calls are executed sequentially',
-          nodeId: 'node-2',
-          nodeName: 'API Calls',
-          suggestion: 'Consider using parallel execution for better performance',
-        },
-        {
-          id: 'issue-4',
-          type: 'info',
-          category: 'bestpractice',
-          title: 'Missing Timeout',
-          description: 'HTTP Request has no timeout configured',
-          nodeId: 'node-1',
-          nodeName: 'HTTP Request',
-          suggestion: 'Set a timeout to prevent hanging requests (recommended: 30s)',
-        },
-        {
-          id: 'issue-5',
-          type: 'info',
-          category: 'bestpractice',
-          title: 'No Retry Logic',
-          description: 'API call lacks retry configuration for transient failures',
-          nodeId: 'node-2',
-          nodeName: 'API Calls',
-          suggestion: 'Add retry logic with exponential backoff (recommended: 3 retries)',
-        },
-        {
-          id: 'issue-6',
-          type: 'success',
-          category: 'structure',
-          title: 'Valid Workflow Structure',
-          description: 'All nodes are properly connected with valid edge configurations',
-          suggestion: 'No action required',
-        },
-      ];
-
-      const errors = issues.filter((i) => i.type === 'error').length;
-      const warnings = issues.filter((i) => i.type === 'warning').length;
-      const infos = issues.filter((i) => i.type === 'info').length;
-
-      // Calculate score (100 - penalties)
-      const score = Math.max(0, 100 - errors * 20 - warnings * 10 - infos * 2);
-
-      setValidationResult({
-        passed: errors === 0,
-        score,
-        totalIssues: issues.length,
-        errors,
-        warnings,
-        infos,
-        issues,
-      });
-
-      // Mock performance metrics
-      setPerformanceMetrics([
+      // Convert report metrics to display metrics
+      const displayMetrics: PerformanceMetric[] = [
         {
           metric: 'Estimated Duration',
-          value: '2.3s',
-          status: 'good',
+          value: `${Math.round(report.performance.estimatedDuration)}ms`,
+          status: report.performance.estimatedDuration < 5000 ? 'good' : report.performance.estimatedDuration < 15000 ? 'warning' : 'critical',
           description: 'Expected time to complete workflow execution',
         },
         {
-          metric: 'Complexity Score',
-          value: '6/10',
-          status: 'fair',
-          description: 'Workflow complexity based on nodes and connections',
+          metric: 'Memory Usage',
+          value: `${(report.performance.estimatedMemoryUsage / 1024 / 1024).toFixed(1)}MB`,
+          status: report.performance.estimatedMemoryUsage < 50 * 1024 * 1024 ? 'good' : 'warning',
+          description: 'Estimated memory consumption',
         },
         {
-          metric: 'Error Handling Coverage',
-          value: '60%',
-          status: 'fair',
-          description: 'Percentage of nodes with error handling configured',
+          metric: 'Node Coverage',
+          value: `${report.coverage.nodesCovered}/${report.coverage.totalNodes}`,
+          status: report.coverage.percentage > 80 ? 'good' : report.coverage.percentage > 50 ? 'warning' : 'critical',
+          description: 'Nodes validated without errors',
         },
         {
-          metric: 'Parallelization Potential',
-          value: 'Medium',
-          status: 'fair',
-          description: 'Opportunities for parallel execution optimization',
+          metric: 'Bottlenecks Detected',
+          value: report.performance.bottlenecks.length,
+          status: report.performance.bottlenecks.length === 0 ? 'good' : report.performance.bottlenecks.some((b) => b.impact === 'high') ? 'critical' : 'warning',
+          description: 'Performance issues found',
         },
-      ]);
+      ];
 
-      toast.success('Validation complete');
+      if (analysisResult.cacheHit) {
+        displayMetrics.push({
+          metric: 'Cache Status',
+          value: 'Cached',
+          status: 'good',
+          description: 'Using cached analysis results',
+        });
+      }
+
+      setPerformanceMetrics(displayMetrics);
+
+      // Use simulation from analysis engine
+      const executionReport = generateExecutionReport(analysisResult.simulation);
+      setSimulationLog(executionReport);
+
+      toast.success(`Validation complete${analysisResult.cacheHit ? ' (cached)' : ''}`);
     } catch (error) {
       console.error('Validation failed:', error);
       toast.error('Failed to validate workflow');
@@ -216,42 +137,42 @@ export function WorkflowTester({
     }
   };
 
-  const getIssueIcon = (type: IssueType) => {
-    switch (type) {
+  const getIssueIcon = (severity: 'error' | 'warning' | 'info') => {
+    switch (severity) {
       case 'error':
         return <AlertCircle className="w-5 h-5 text-red-600" />;
       case 'warning':
         return <AlertTriangle className="w-5 h-5 text-yellow-600" />;
       case 'info':
         return <Info className="w-5 h-5 text-blue-600" />;
-      case 'success':
-        return <CheckCircle className="w-5 h-5 text-green-600" />;
     }
   };
 
-  const getIssueColor = (type: IssueType) => {
-    switch (type) {
+  const getIssueColor = (severity: 'error' | 'warning' | 'info') => {
+    switch (severity) {
       case 'error':
         return 'bg-red-50 border-red-200';
       case 'warning':
         return 'bg-yellow-50 border-yellow-200';
       case 'info':
         return 'bg-blue-50 border-blue-200';
-      case 'success':
-        return 'bg-green-50 border-green-200';
     }
   };
 
-  const getCategoryIcon = (category: IssueCategory) => {
+  const getCategoryIcon = (category: ValidationCategory) => {
     switch (category) {
       case 'structure':
         return <GitBranch className="w-4 h-4" />;
-      case 'dataflow':
+      case 'data_flow':
         return <FileCode className="w-4 h-4" />;
       case 'performance':
         return <Zap className="w-4 h-4" />;
-      case 'bestpractice':
+      case 'configuration':
+        return <Cpu className="w-4 h-4" />;
+      case 'best_practices':
         return <TrendingUp className="w-4 h-4" />;
+      case 'security':
+        return <AlertTriangle className="w-4 h-4" />;
     }
   };
 
@@ -268,18 +189,18 @@ export function WorkflowTester({
     return 'Needs Improvement';
   };
 
-  const getPerformanceStatusColor = (status: 'good' | 'fair' | 'poor') => {
+  const getMetricStatusColor = (status: 'good' | 'warning' | 'critical') => {
     switch (status) {
       case 'good':
         return 'text-green-600 bg-green-50';
-      case 'fair':
+      case 'warning':
         return 'text-yellow-600 bg-yellow-50';
-      case 'poor':
+      case 'critical':
         return 'text-red-600 bg-red-50';
     }
   };
 
-  const filteredIssues = validationResult?.issues.filter(
+  const filteredIssues = validationReport?.issues.filter(
     (issue) => selectedCategory === 'all' || issue.category === selectedCategory
   );
 
@@ -311,7 +232,7 @@ export function WorkflowTester({
               <p className="text-gray-600">Validating workflow...</p>
               <p className="text-sm text-gray-500 mt-2">Analyzing structure, data flow, and performance</p>
             </div>
-          ) : validationResult ? (
+          ) : validationReport ? (
             <div className="space-y-6">
               {/* Score Summary */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -321,12 +242,12 @@ export function WorkflowTester({
                     <CheckCircle className="w-6 h-6 text-blue-600" />
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className={`text-4xl font-bold ${getScoreColor(validationResult.score)}`}>
-                      {validationResult.score}
+                    <span className={`text-4xl font-bold ${getScoreColor(validationReport.overallScore)}`}>
+                      {validationReport.overallScore}
                     </span>
                     <span className="text-2xl text-gray-500">/100</span>
                   </div>
-                  <p className="text-sm text-gray-700 mt-2">{getScoreLabel(validationResult.score)}</p>
+                  <p className="text-sm text-gray-700 mt-2">{getScoreLabel(validationReport.overallScore)}</p>
                 </div>
 
                 <div className="p-6 bg-white rounded-lg border border-gray-200">
@@ -337,21 +258,27 @@ export function WorkflowTester({
                         <AlertCircle className="w-4 h-4 text-red-600" />
                         Errors
                       </span>
-                      <span className="font-semibold text-red-600">{validationResult.errors}</span>
+                      <span className="font-semibold text-red-600">
+                        {validationReport.issues.filter((i) => i.severity === 'error').length}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-2 text-sm text-gray-700">
                         <AlertTriangle className="w-4 h-4 text-yellow-600" />
                         Warnings
                       </span>
-                      <span className="font-semibold text-yellow-600">{validationResult.warnings}</span>
+                      <span className="font-semibold text-yellow-600">
+                        {validationReport.issues.filter((i) => i.severity === 'warning').length}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-2 text-sm text-gray-700">
                         <Info className="w-4 h-4 text-blue-600" />
                         Suggestions
                       </span>
-                      <span className="font-semibold text-blue-600">{validationResult.infos}</span>
+                      <span className="font-semibold text-blue-600">
+                        {validationReport.issues.filter((i) => i.severity === 'info').length}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -366,7 +293,7 @@ export function WorkflowTester({
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="text-sm font-semibold text-gray-900">{metric.metric}</h4>
                         <span
-                          className={`px-2 py-1 text-xs font-medium rounded ${getPerformanceStatusColor(
+                          className={`px-2 py-1 text-xs font-medium rounded ${getMetricStatusColor(
                             metric.status
                           )}`}
                         >
@@ -374,7 +301,7 @@ export function WorkflowTester({
                         </span>
                       </div>
                       <p className="text-2xl font-bold text-gray-900 mb-1">{metric.value}</p>
-                      <p className="text-xs text-gray-600">{metric.description}</p>
+                      {metric.description && <p className="text-xs text-gray-600">{metric.description}</p>}
                     </div>
                   ))}
                 </div>
@@ -383,7 +310,7 @@ export function WorkflowTester({
               {/* Category Filter */}
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Validation Issues</h3>
-                <div className="flex gap-2 mb-4">
+                <div className="flex flex-wrap gap-2 mb-4">
                   <button
                     onClick={() => setSelectedCategory('all')}
                     className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
@@ -392,7 +319,7 @@ export function WorkflowTester({
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    All ({validationResult.issues.length})
+                    All ({validationReport.issues.length})
                   </button>
                   <button
                     onClick={() => setSelectedCategory('structure')}
@@ -406,9 +333,9 @@ export function WorkflowTester({
                     Structure
                   </button>
                   <button
-                    onClick={() => setSelectedCategory('dataflow')}
+                    onClick={() => setSelectedCategory('data_flow')}
                     className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                      selectedCategory === 'dataflow'
+                      selectedCategory === 'data_flow'
                         ? 'bg-loco-primary text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
@@ -428,15 +355,26 @@ export function WorkflowTester({
                     Performance
                   </button>
                   <button
-                    onClick={() => setSelectedCategory('bestpractice')}
+                    onClick={() => setSelectedCategory('best_practices')}
                     className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                      selectedCategory === 'bestpractice'
+                      selectedCategory === 'best_practices'
                         ? 'bg-loco-primary text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
                     <TrendingUp className="w-3 h-3" />
                     Best Practices
+                  </button>
+                  <button
+                    onClick={() => setSelectedCategory('security')}
+                    className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                      selectedCategory === 'security'
+                        ? 'bg-loco-primary text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <AlertTriangle className="w-3 h-3" />
+                    Security
                   </button>
                 </div>
 
@@ -446,19 +384,19 @@ export function WorkflowTester({
                     filteredIssues.map((issue) => (
                       <div
                         key={issue.id}
-                        className={`p-4 border rounded-lg ${getIssueColor(issue.type)}`}
+                        className={`p-4 border rounded-lg ${getIssueColor(issue.severity)}`}
                       >
                         <div className="flex items-start gap-3">
-                          {getIssueIcon(issue.type)}
+                          {getIssueIcon(issue.severity)}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <h4 className="text-sm font-semibold text-gray-900">{issue.title}</h4>
                               {getCategoryIcon(issue.category)}
                             </div>
                             <p className="text-sm text-gray-700 mb-2">{issue.description}</p>
-                            {issue.nodeName && (
+                            {issue.nodeId && (
                               <p className="text-xs text-gray-600 mb-2">
-                                Node: <span className="font-medium">{issue.nodeName}</span>
+                                Node: <span className="font-medium">{issue.nodeId}</span>
                               </p>
                             )}
                             {issue.suggestion && (
@@ -478,6 +416,29 @@ export function WorkflowTester({
                   )}
                 </div>
               </div>
+
+              {/* Recommendations */}
+              {validationReport.recommendations.length > 0 && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="text-sm font-semibold text-blue-900 mb-2">Recommendations</h4>
+                  <ul className="text-sm text-blue-800 space-y-1">
+                    {validationReport.recommendations.map((rec, index) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <span className="text-blue-600 mt-0.5">•</span>
+                        <span>{rec}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Simulation Log */}
+              {simulationLog && (
+                <div className="p-4 bg-gray-900 text-gray-100 rounded-lg font-mono text-xs overflow-auto max-h-40">
+                  <h4 className="text-sm font-semibold text-white mb-2">Simulation Report</h4>
+                  <pre className="whitespace-pre-wrap break-words">{simulationLog}</pre>
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-12">
@@ -491,7 +452,7 @@ export function WorkflowTester({
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
-              {validationResult && `${validationResult.totalIssues} issue${validationResult.totalIssues !== 1 ? 's' : ''} found`}
+              {validationReport && `${validationReport.issues.length} issue${validationReport.issues.length !== 1 ? 's' : ''} found`}
             </div>
             <div className="flex items-center gap-2">
               <button
