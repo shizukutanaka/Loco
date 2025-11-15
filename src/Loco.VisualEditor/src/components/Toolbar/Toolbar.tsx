@@ -19,6 +19,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { createWorkflow, updateWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
+import type { Workflow } from '@/types/workflow';
 import { WorkflowList } from '@/components/WorkflowList/WorkflowList';
 import { TagEditor } from '@/components/TagEditor/TagEditor';
 import { CollaborationPanel } from '@/components/CollaborationPanel/CollaborationPanel';
@@ -259,9 +260,16 @@ export function Toolbar() {
         const response = await createWorkflow(request);
 
         if (response.success && response.data) {
+          // Update workflow in store with server-generated ID
+          const updatedWorkflow: Workflow = {
+            ...workflowData,
+            id: response.data.id,
+            createdAt: response.data.createdAt,
+            updatedAt: response.data.updatedAt,
+          };
+          loadWorkflow(updatedWorkflow);
           console.log('Workflow created successfully:', response.data.id);
           toast.success(`Workflow "${workflowData.name}" created successfully!`);
-          // TODO: Update workflow ID in store with the server-generated ID
         } else {
           console.error('Failed to create workflow:', response.error?.message);
           toast.error(`Failed to save workflow: ${response.error?.message || 'Unknown error'}`);

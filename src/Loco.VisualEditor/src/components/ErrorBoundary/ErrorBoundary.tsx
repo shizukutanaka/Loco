@@ -75,7 +75,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   logErrorToService(error: Error, errorInfo: ErrorInfo): void {
-    // TODO: Send to error logging service
     const errorData = {
       errorId: this.state.errorId,
       message: error.message,
@@ -86,11 +85,21 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       url: window.location.href,
     };
 
-    // For now, just log to console
-    console.log('Error logged:', errorData);
+    // Log to console for development/debugging
+    console.error('Application Error:', errorData);
 
-    // In production, you would send to a service:
-    // fetch('/api/v1/errors', {
+    // Store in localStorage for error recovery/debugging
+    try {
+      const errorLog = JSON.parse(localStorage.getItem('app_errors') || '[]');
+      errorLog.push(errorData);
+      // Keep last 20 errors
+      localStorage.setItem('app_errors', JSON.stringify(errorLog.slice(-20)));
+    } catch (storageError) {
+      console.error('Failed to store error log:', storageError);
+    }
+
+    // TODO: Send to backend error logging service when API endpoint is available
+    // const response = await fetch('/api/v1/errors', {
     //   method: 'POST',
     //   headers: { 'Content-Type': 'application/json' },
     //   body: JSON.stringify(errorData),

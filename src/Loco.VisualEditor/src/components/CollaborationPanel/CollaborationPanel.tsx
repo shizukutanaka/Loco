@@ -166,9 +166,28 @@ export function CollaborationPanel({
       return;
     }
 
-    // TODO: Implement actual email sending
-    console.log('Sending invite to:', inviteEmail, 'with message:', inviteMessage);
-    toast.success(`Invitation sent to ${inviteEmail}`);
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(inviteEmail)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    // Prepare invitation data for backend API
+    const invitationData = {
+      email: inviteEmail,
+      workflowId: 'current-workflow-id', // Would be set from store
+      message: inviteMessage,
+      timestamp: new Date().toISOString(),
+    };
+
+    // TODO: Call backend API when sendInvite endpoint is available
+    // const response = await sendInvite(invitationData);
+    // if (response.success) { ... }
+
+    console.log('Preparing invitation:', invitationData);
+    toast.success(`Invitation prepared for ${inviteEmail}`);
+    toast.info('Email sending requires backend API integration', 5000);
     setInviteEmail('');
     setInviteMessage('');
   };
