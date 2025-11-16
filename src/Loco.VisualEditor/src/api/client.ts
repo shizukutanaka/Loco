@@ -90,12 +90,26 @@ export class LocoApiClient {
     data?: unknown,
     config?: AxiosRequestConfig
   ): Promise<ApiResponse<T>> {
-    try {
-      const response = await this.client.post<ApiResponse<T>>(url, data, config);
-      return response.data;
-    } catch (error) {
-      return this.handleError<T>(error);
+    const operation = async () => {
+      try {
+        const response = await this.client.post<ApiResponse<T>>(url, data, config);
+        return response.data;
+      } catch (error) {
+        return this.handleError<T>(error);
+      }
+    };
+
+    if (this.enableRetry) {
+      return retryNetworkOperation(operation, {
+        maxRetries: 2,
+        initialDelay: 1000,
+        onRetry: (attempt) => {
+          console.log(`Retrying POST ${url} (attempt ${attempt})`);
+        },
+      });
     }
+
+    return operation();
   }
 
   async put<T>(
@@ -103,12 +117,26 @@ export class LocoApiClient {
     data?: unknown,
     config?: AxiosRequestConfig
   ): Promise<ApiResponse<T>> {
-    try {
-      const response = await this.client.put<ApiResponse<T>>(url, data, config);
-      return response.data;
-    } catch (error) {
-      return this.handleError<T>(error);
+    const operation = async () => {
+      try {
+        const response = await this.client.put<ApiResponse<T>>(url, data, config);
+        return response.data;
+      } catch (error) {
+        return this.handleError<T>(error);
+      }
+    };
+
+    if (this.enableRetry) {
+      return retryNetworkOperation(operation, {
+        maxRetries: 2,
+        initialDelay: 1000,
+        onRetry: (attempt) => {
+          console.log(`Retrying PUT ${url} (attempt ${attempt})`);
+        },
+      });
     }
+
+    return operation();
   }
 
   async patch<T>(
@@ -116,21 +144,49 @@ export class LocoApiClient {
     data?: unknown,
     config?: AxiosRequestConfig
   ): Promise<ApiResponse<T>> {
-    try {
-      const response = await this.client.patch<ApiResponse<T>>(url, data, config);
-      return response.data;
-    } catch (error) {
-      return this.handleError<T>(error);
+    const operation = async () => {
+      try {
+        const response = await this.client.patch<ApiResponse<T>>(url, data, config);
+        return response.data;
+      } catch (error) {
+        return this.handleError<T>(error);
+      }
+    };
+
+    if (this.enableRetry) {
+      return retryNetworkOperation(operation, {
+        maxRetries: 2,
+        initialDelay: 1000,
+        onRetry: (attempt) => {
+          console.log(`Retrying PATCH ${url} (attempt ${attempt})`);
+        },
+      });
     }
+
+    return operation();
   }
 
   async delete<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    try {
-      const response = await this.client.delete<ApiResponse<T>>(url, config);
-      return response.data;
-    } catch (error) {
-      return this.handleError<T>(error);
+    const operation = async () => {
+      try {
+        const response = await this.client.delete<ApiResponse<T>>(url, config);
+        return response.data;
+      } catch (error) {
+        return this.handleError<T>(error);
+      }
+    };
+
+    if (this.enableRetry) {
+      return retryNetworkOperation(operation, {
+        maxRetries: 2,
+        initialDelay: 1000,
+        onRetry: (attempt) => {
+          console.log(`Retrying DELETE ${url} (attempt ${attempt})`);
+        },
+      });
     }
+
+    return operation();
   }
 
   // ==========================================================================
