@@ -2,6 +2,7 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { getIntegrationById } from '@/data/integrations';
 import { X, Trash2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { FormInput, FormTextarea, FormSelect } from '@/components/Form';
 
 // ============================================================================
 // Types
@@ -174,33 +175,16 @@ export function PropertyPanel() {
         </div>
 
         {/* Node Label */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Node Label
-          </label>
-          <input
-            type="text"
-            value={localData.label || ''}
-            onChange={(e) => handleLabelChange(e.target.value)}
-            aria-label="Node label"
-            aria-invalid={!!errors.label}
-            aria-describedby={errors.label ? 'label-error' : undefined}
-            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${
-              errors.label
-                ? 'border-red-500 focus:ring-red-500 bg-red-50'
-                : 'border-gray-300 focus:ring-loco-primary'
-            }`}
-            placeholder="Enter node label"
-          />
-          {errors.label && (
-            <div id="label-error" className="mt-1 text-sm text-red-600 flex items-center gap-1">
-              <span>⚠</span> {errors.label}
-            </div>
-          )}
-          <div className="mt-1 text-xs text-gray-500">
-            {localData.label?.length || 0}/100 characters
-          </div>
-        </div>
+        <FormInput
+          id="node-label"
+          type="text"
+          label="Node Label"
+          value={localData.label || ''}
+          onChange={(e) => handleLabelChange(e.target.value)}
+          placeholder="Enter node label"
+          error={errors.label}
+          helpText={`${localData.label?.length || 0}/100 characters`}
+        />
 
         {/* Integration Info */}
         {integration && (
@@ -221,79 +205,47 @@ export function PropertyPanel() {
           <h3 className="text-sm font-semibold text-gray-700">Configuration</h3>
 
           {selectedNode.type === 'condition' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Condition Expression
-              </label>
-              <textarea
-                value={localData.config?.condition || ''}
-                onChange={(e) => handleConfigChange('condition', e.target.value)}
-                aria-label="Condition expression"
-                aria-invalid={!!errors.condition}
-                aria-describedby={errors.condition ? 'condition-error' : undefined}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent font-mono text-sm transition-colors ${
-                  errors.condition
-                    ? 'border-red-500 focus:ring-red-500 bg-red-50'
-                    : 'border-gray-300 focus:ring-loco-primary'
-                }`}
-                rows={3}
-                placeholder="e.g., item.price > 100"
-              />
-              {errors.condition && (
-                <div id="condition-error" className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                  <span>⚠</span> {errors.condition}
-                </div>
-              )}
-            </div>
+            <FormTextarea
+              id="condition-expression"
+              label="Condition Expression"
+              value={localData.config?.condition || ''}
+              onChange={(e) => handleConfigChange('condition', e.target.value)}
+              placeholder="e.g., item.price > 100"
+              error={errors.condition}
+              rows={3}
+              isCode={true}
+              helpText="Write a condition that evaluates to true or false"
+            />
           )}
 
           {selectedNode.type === 'transform' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Transform Code (C#)
-              </label>
-              <textarea
-                value={localData.config?.code || ''}
-                onChange={(e) => handleConfigChange('code', e.target.value)}
-                aria-label="Transform code in C#"
-                aria-invalid={!!errors.code}
-                aria-describedby={errors.code ? 'code-error' : undefined}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent font-mono text-sm transition-colors ${
-                  errors.code
-                    ? 'border-red-500 focus:ring-red-500 bg-red-50'
-                    : 'border-gray-300 focus:ring-loco-primary'
-                }`}
-                rows={10}
-                placeholder="return items.Select(item => new { ... }).ToList();"
-              />
-              {errors.code && (
-                <div id="code-error" className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                  <span>⚠</span> {errors.code}
-                </div>
-              )}
-            </div>
+            <FormTextarea
+              id="transform-code"
+              label="Transform Code (C#)"
+              value={localData.config?.code || ''}
+              onChange={(e) => handleConfigChange('code', e.target.value)}
+              placeholder="return items.Select(item => new { ... }).ToList();"
+              error={errors.code}
+              rows={10}
+              isCode={true}
+              helpText="Write C# code to transform the input data"
+            />
           )}
 
           {integration && integration.actions && integration.actions.length > 0 && (
             <>
               {/* Action Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Action
-                </label>
-                <select
-                  value={localData.config?.action || ''}
-                  onChange={(e) => handleConfigChange('action', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent"
-                >
-                  <option value="">Select an action</option>
-                  {integration.actions.map((action) => (
-                    <option key={action.id} value={action.id}>
-                      {action.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <FormSelect
+                id="action-selection"
+                label="Action"
+                value={localData.config?.action || ''}
+                onChange={(e) => handleConfigChange('action', e.target.value)}
+                options={integration.actions.map((action) => ({
+                  value: action.id,
+                  label: action.name,
+                }))}
+                placeholder="Select an action"
+              />
 
               {/* Action Parameters */}
               {localData.config?.action && (
@@ -302,14 +254,10 @@ export function PropertyPanel() {
                     .find((a) => a.id === localData.config.action)
                     ?.parameters.map((param) => (
                       <div key={param.name}>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {param.name}
-                          {param.required && (
-                            <span className="text-red-500 ml-1">*</span>
-                          )}
-                        </label>
                         {param.type === 'select' ? (
-                          <select
+                          <FormSelect
+                            id={`param-${param.name}`}
+                            label={param.name}
                             value={localData.config?.parameters?.[param.name] || ''}
                             onChange={(e) =>
                               handleConfigChange('parameters', {
@@ -317,31 +265,35 @@ export function PropertyPanel() {
                                 [param.name]: e.target.value,
                               })
                             }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent"
-                          >
-                            <option value="">Select...</option>
-                            {param.options?.map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
+                            options={param.options?.map((opt) => ({
+                              value: opt.value,
+                              label: opt.label,
+                            })) || []}
+                            placeholder="Select..."
+                            helpText={param.description}
+                            required={param.required}
+                          />
                         ) : param.type === 'json' || param.type === 'code' ? (
-                          <textarea
-                            value={localData.config?.parameters?.[param.name] || ''}
+                          <FormTextarea
+                            id={`param-${param.name}`}
+                            label={param.name}
+                            value={String(localData.config?.parameters?.[param.name] || '')}
                             onChange={(e) =>
                               handleConfigChange('parameters', {
                                 ...localData.config?.parameters,
                                 [param.name]: e.target.value,
                               })
                             }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent font-mono text-sm"
-                            rows={4}
                             placeholder={param.description}
+                            rows={4}
+                            isCode={true}
+                            helpText={param.description}
                           />
                         ) : (
-                          <input
+                          <FormInput
+                            id={`param-${param.name}`}
                             type={param.type === 'number' ? 'number' : 'text'}
+                            label={param.name}
                             value={localData.config?.parameters?.[param.name] || ''}
                             onChange={(e) =>
                               handleConfigChange('parameters', {
@@ -349,11 +301,11 @@ export function PropertyPanel() {
                                 [param.name]: e.target.value,
                               })
                             }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent"
                             placeholder={param.description}
+                            helpText={param.description}
+                            required={param.required}
                           />
                         )}
-                        <p className="text-xs text-gray-500 mt-1">{param.description}</p>
                       </div>
                     ))}
                 </>
