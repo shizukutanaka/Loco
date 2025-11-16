@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { integrations } from '@/data/integrations';
-import { IntegrationCategory } from '@/types/workflow';
+import { IntegrationCategory, Integration } from '@/types/workflow';
 import { Search, ChevronDown, ChevronRight } from 'lucide-react';
 
 const categories: { id: IntegrationCategory; label: string }[] = [
@@ -33,7 +33,7 @@ export function NodePalette() {
     integration.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleDragStart = (event: React.DragEvent, integration: any) => {
+  const handleDragStart = (event: React.DragEvent, integration: Integration) => {
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('application/reactflow', JSON.stringify({
       integration: integration.id,

@@ -9,6 +9,7 @@ import ReactFlow, {
   OnConnect,
   OnSelectionChangeParams,
   useReactFlow,
+  Node,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -135,22 +136,22 @@ export function WorkflowCanvas() {
   );
 
   const onNodeClick = useCallback(
-    (_event: React.MouseEvent, node: any) => {
+    (_event: React.MouseEvent, node: Node) => {
       setSelectedNodeId(node.id);
     },
     [setSelectedNodeId]
   );
 
   const onNodeContextMenu = useCallback(
-    (event: React.MouseEvent, node: any) => {
+    (event: React.MouseEvent, node: Node) => {
       event.preventDefault();
       setContextMenu({
         isOpen: true,
         position: { x: event.clientX, y: event.clientY },
-        nodeId: node.id,
-        nodeType: node.type,
+        nodeId: node.id || null,
+        nodeType: node.type || null,
       });
-      setSelectedNodeId(node.id);
+      setSelectedNodeId(node.id || null);
     },
     [setSelectedNodeId]
   );

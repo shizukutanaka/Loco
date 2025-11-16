@@ -20,6 +20,16 @@ import {
 // Types
 // ============================================================================
 
+interface PerformanceMemory {
+  usedJSHeapSize: number;
+  jsHeapSizeLimit: number;
+  jsExternalAllocationSize?: number;
+}
+
+interface PerformanceWithMemory extends Performance {
+  memory?: PerformanceMemory;
+}
+
 interface PerformanceMetrics {
   fps: number;
   latency: number;
@@ -68,7 +78,7 @@ export function PerformanceMonitor() {
 
         // Measure memory if available (Chrome-specific)
         let memoryUsage = 0;
-        const perfMemory = (performance as any).memory;
+        const perfMemory = (performance as PerformanceWithMemory).memory;
         if (perfMemory) {
           memoryUsage = Math.round(
             (perfMemory.usedJSHeapSize / perfMemory.jsHeapSizeLimit) *

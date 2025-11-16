@@ -126,7 +126,7 @@ export function NodeSearch({ isOpen, onClose }: NodeSearchProps) {
       },
     };
 
-    addNode(newNode as any);
+    addNode(newNode);
     onClose();
   };
 

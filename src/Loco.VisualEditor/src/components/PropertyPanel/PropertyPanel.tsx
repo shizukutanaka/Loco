@@ -3,12 +3,41 @@ import { getIntegrationById } from '@/data/integrations';
 import { X, Trash2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
+// ============================================================================
+// Types
+// ============================================================================
+
+interface NodeConfig {
+  condition?: string;
+  code?: string;
+  action?: string;
+  parameters?: Record<string, string | number>;
+  [key: string]: unknown;
+}
+
+interface NodeData {
+  label: string;
+  integration?: string;
+  config: NodeConfig;
+  description?: string;
+  [key: string]: unknown;
+}
+
+type ConfigValue = string | number | Record<string, unknown> | undefined;
+
+// ============================================================================
+// Property Panel Component
+// ============================================================================
+
 export function PropertyPanel() {
   const { nodes, selectedNodeId, updateNode, deleteNode, setSelectedNodeId } =
     useWorkflowStore();
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
-  const [localData, setLocalData] = useState<any>({});
+  const [localData, setLocalData] = useState<NodeData>({
+    label: '',
+    config: {},
+  });
 
   useEffect(() => {
     if (selectedNode) {
@@ -36,7 +65,7 @@ export function PropertyPanel() {
     updateNode(selectedNode.id, { label });
   };
 
-  const handleConfigChange = (key: string, value: any) => {
+  const handleConfigChange = (key: string, value: ConfigValue) => {
     const newConfig = { ...localData.config, [key]: value };
     setLocalData({ ...localData, config: newConfig });
     updateNode(selectedNode.id, { config: newConfig });

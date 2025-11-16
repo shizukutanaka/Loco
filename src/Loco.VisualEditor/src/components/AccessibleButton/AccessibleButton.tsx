@@ -70,7 +70,7 @@ export function AccessibleButton({
     // Allow Enter and Space to trigger click on buttons
     if ((e.key === 'Enter' || e.key === ' ') && !disabled) {
       e.preventDefault();
-      onClick?.(e as any);
+      onClick?.(e as unknown as React.MouseEvent<HTMLButtonElement>);
     }
     onKeyDown?.(e);
   };
