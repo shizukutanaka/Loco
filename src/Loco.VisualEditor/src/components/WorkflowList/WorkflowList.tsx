@@ -280,12 +280,19 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6">
-      <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6" role="presentation">
+      <div
+        className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="workflow-list-title"
+      >
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">My Workflows</h2>
+            <h2 id="workflow-list-title" className="text-xl font-bold text-gray-900">
+              My Workflows
+            </h2>
             <p className="text-sm text-gray-500 mt-1">
               {workflows.length} workflow{workflows.length !== 1 ? 's' : ''} total
             </p>
@@ -293,6 +300,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Close workflows dialog"
             title="Close"
           >
             <X className="w-5 h-5 text-gray-500" />
@@ -303,10 +311,11 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
         <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-4">
           {/* Search */}
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
             <input
               type="text"
               placeholder="Search workflows..."
+              aria-label="Search workflows by name, description, or tags"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent"
@@ -317,6 +326,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
+            aria-label="Filter workflows by execution status"
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent"
           >
             <option value="all">All Status</option>
@@ -330,6 +340,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
             <select
               value={filterTag}
               onChange={(e) => setFilterTag(e.target.value)}
+              aria-label="Filter workflows by tag"
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent"
             >
               <option value="all">All Tags</option>
@@ -345,6 +356,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            aria-label="Sort workflows"
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent"
           >
             <option value="updated">Last Updated</option>
@@ -451,23 +463,26 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
                     <button
                       onClick={() => handleRun(workflow.id, workflow.name)}
                       className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                      aria-label={`Run workflow ${workflow.name}`}
                       title="Run"
                     >
-                      <Play className="w-4 h-4" />
+                      <Play className="w-4 h-4" aria-hidden="true" />
                     </button>
                     <button
                       onClick={() => handleDuplicate(workflow.id)}
                       className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                      aria-label={`Duplicate workflow ${workflow.name}`}
                       title="Duplicate"
                     >
-                      <Copy className="w-4 h-4" />
+                      <Copy className="w-4 h-4" aria-hidden="true" />
                     </button>
                     <button
                       onClick={() => handleDelete(workflow.id)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                      aria-label={`Delete workflow ${workflow.name}`}
                       title="Delete"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4" aria-hidden="true" />
                     </button>
                   </div>
                 </div>

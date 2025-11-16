@@ -398,6 +398,7 @@ export function Toolbar() {
               <button
                 onClick={() => setIsEditingName(true)}
                 className="text-lg font-medium text-gray-900 hover:text-loco-primary transition-colors text-left"
+                aria-label={`Edit workflow name: ${workflowName}`}
               >
                 {workflowName}
               </button>
@@ -415,8 +416,9 @@ export function Toolbar() {
             onClick={handleNewWorkflow}
             className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             title="New Workflow"
+            aria-label="Create a new workflow (Ctrl+N)"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4" aria-hidden="true" />
             <span className="text-sm font-medium">New</span>
           </button>
 
@@ -424,8 +426,9 @@ export function Toolbar() {
             onClick={() => setIsTemplateGalleryOpen(true)}
             className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             title="Templates"
+            aria-label="Browse workflow templates (Ctrl+T)"
           >
-            <LayoutTemplate className="w-4 h-4" />
+            <LayoutTemplate className="w-4 h-4" aria-hidden="true" />
             <span className="text-sm font-medium">Templates</span>
           </button>
 
@@ -433,8 +436,9 @@ export function Toolbar() {
             onClick={() => setIsWorkflowListOpen(true)}
             className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             title="My Workflows"
+            aria-label="View saved workflows (Ctrl+K)"
           >
-            <List className="w-4 h-4" />
+            <List className="w-4 h-4" aria-hidden="true" />
             <span className="text-sm font-medium">My Workflows</span>
           </button>
 
@@ -442,8 +446,9 @@ export function Toolbar() {
             onClick={() => setIsCollaborationPanelOpen(true)}
             className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             title="Collaboration"
+            aria-label="Open collaboration panel (Ctrl+Shift+C)"
           >
-            <Users className="w-4 h-4" />
+            <Users className="w-4 h-4" aria-hidden="true" />
             <span className="text-sm font-medium">Collaborate</span>
           </button>
 
@@ -453,8 +458,9 @@ export function Toolbar() {
             onClick={handleImportJSON}
             className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             title="Import JSON"
+            aria-label="Import workflow from JSON file (Ctrl+O)"
           >
-            <FolderOpen className="w-4 h-4" />
+            <FolderOpen className="w-4 h-4" aria-hidden="true" />
             <span className="text-sm font-medium">Import</span>
           </button>
 
@@ -462,8 +468,9 @@ export function Toolbar() {
             onClick={handleExportJSON}
             className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             title="Export JSON"
+            aria-label="Export workflow as JSON file (Ctrl+E)"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-4 h-4" aria-hidden="true" />
             <span className="text-sm font-medium">Export</span>
           </button>
 
@@ -473,8 +480,9 @@ export function Toolbar() {
             onClick={handleAutoLayout}
             className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             title="Auto-layout (Organize nodes automatically)"
+            aria-label="Auto-layout workflow nodes (Ctrl+Shift+F)"
           >
-            <Shuffle className="w-4 h-4" />
+            <Shuffle className="w-4 h-4" aria-hidden="true" />
             <span className="text-sm font-medium">Auto Layout</span>
           </button>
 
@@ -483,11 +491,12 @@ export function Toolbar() {
             disabled={isSaving}
             className="flex items-center gap-2 px-4 py-2 text-white bg-loco-primary hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Save Workflow"
+            aria-label={isSaving ? 'Saving workflow...' : 'Save workflow (Ctrl+S)'}
           >
             {isSaving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
             ) : (
-              <Save className="w-4 h-4" />
+              <Save className="w-4 h-4" aria-hidden="true" />
             )}
             <span className="text-sm font-medium">{isSaving ? 'Saving...' : 'Save'}</span>
           </button>
@@ -498,8 +507,9 @@ export function Toolbar() {
             onClick={() => setIsWorkflowTesterOpen(true)}
             className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
             title="Test Workflow"
+            aria-label="Open workflow tester (Ctrl+Shift+T)"
           >
-            <CheckCircle className="w-4 h-4" />
+            <CheckCircle className="w-4 h-4" aria-hidden="true" />
             <span className="text-sm font-medium">Test</span>
           </button>
 
@@ -508,11 +518,12 @@ export function Toolbar() {
             disabled={isRunning}
             className="flex items-center gap-2 px-4 py-2 text-white bg-loco-success hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Run Workflow"
+            aria-label={isRunning ? 'Workflow running...' : 'Run workflow (Ctrl+Enter)'}
           >
             {isRunning ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
             ) : (
-              <Play className="w-4 h-4" />
+              <Play className="w-4 h-4" aria-hidden="true" />
             )}
             <span className="text-sm font-medium">{isRunning ? 'Running...' : 'Run'}</span>
           </button>
@@ -521,16 +532,18 @@ export function Toolbar() {
             onClick={() => setIsSettingsPanelOpen(true)}
             className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             title="Settings"
+            aria-label="Open settings panel (Ctrl+,)"
           >
-            <Settings className="w-4 h-4" />
+            <Settings className="w-4 h-4" aria-hidden="true" />
           </button>
 
           <button
             onClick={() => setIsKeyboardShortcutsOpen(true)}
             className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             title="Keyboard Shortcuts (? or Ctrl+/)"
+            aria-label="View keyboard shortcuts (? or Ctrl+/)"
           >
-            <Keyboard className="w-4 h-4" />
+            <Keyboard className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
       </div>
