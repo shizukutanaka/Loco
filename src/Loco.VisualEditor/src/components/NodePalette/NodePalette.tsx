@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { integrations } from '@/data/integrations';
 import { IntegrationCategory, Integration } from '@/types/workflow';
 import { Search, ChevronDown, ChevronRight } from 'lucide-react';
@@ -29,17 +29,29 @@ export function NodePalette() {
     setExpandedCategories(newExpanded);
   };
 
-  const filteredIntegrations = integrations.filter((integration) =>
-    integration.name.toLowerCase().includes(searchQuery.toLowerCase())
+  // Memoize filtered integrations to avoid unnecessary recomputation
+  const filteredIntegrations = useMemo(
+    () =>
+      integrations.filter((integration) =>
+        integration.name.toLowerCase().includes(searchQuery.toLowerCase())
+      ),
+    [searchQuery]
   );
 
-  const handleDragStart = (event: React.DragEvent, integration: Integration) => {
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('application/reactflow', JSON.stringify({
-      integration: integration.id,
-      type: integration.triggers && integration.triggers.length > 0 ? 'trigger' : 'action',
-    }));
-  };
+  // Memoize drag start handler to prevent unnecessary function recreation
+  const handleDragStart = useCallback(
+    (event: React.DragEvent, integration: Integration) => {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData(
+        'application/reactflow',
+        JSON.stringify({
+          integration: integration.id,
+          type: integration.triggers && integration.triggers.length > 0 ? 'trigger' : 'action',
+        })
+      );
+    },
+    []
+  );
 
   return (
     <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full">

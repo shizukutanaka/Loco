@@ -156,23 +156,46 @@ export function WorkflowCanvas() {
     [setSelectedNodeId]
   );
 
-  const onPaneContextMenu = useCallback((event: React.MouseEvent) => {
-    event.preventDefault();
-    const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect();
-    if (reactFlowBounds) {
-      setContextMenu({
-        isOpen: true,
-        position: { x: event.clientX, y: event.clientY },
-        nodeId: null,
-        nodeType: null,
-      });
-    }
-  }, []);
+  const onPaneContextMenu = useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault();
+      const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect();
+      if (reactFlowBounds) {
+        setContextMenu({
+          isOpen: true,
+          position: { x: event.clientX, y: event.clientY },
+          nodeId: null,
+          nodeType: null,
+        });
+      }
+    },
+    []
+  );
 
   const onPaneClick = useCallback(() => {
     setSelectedNodeId(null);
     setSelectedNodes([]);
   }, [setSelectedNodeId]);
+
+  const getNodeColor = useCallback(
+    (node: Node) => {
+      switch (node.type) {
+        case 'trigger':
+          return '#86efac';
+        case 'action':
+          return '#93c5fd';
+        case 'condition':
+          return '#fde047';
+        case 'transform':
+          return '#d8b4fe';
+        case 'loop':
+          return '#fdba74';
+        default:
+          return '#e5e7eb';
+      }
+    },
+    []
+  );
 
   const onSelectionChange = useCallback(
     (params: OnSelectionChangeParams) => {
@@ -393,22 +416,7 @@ export function WorkflowCanvas() {
         <Background color="#e5e7eb" gap={16} />
         {showMinimap && (
           <MiniMap
-            nodeColor={(node) => {
-              switch (node.type) {
-                case 'trigger':
-                  return '#86efac';
-                case 'action':
-                  return '#93c5fd';
-                case 'condition':
-                  return '#fde047';
-                case 'transform':
-                  return '#d8b4fe';
-                case 'loop':
-                  return '#fdba74';
-                default:
-                  return '#e5e7eb';
-              }
-            }}
+            nodeColor={getNodeColor}
             className="!bg-white !border-2 !border-gray-200 !cursor-pointer"
             zoomable
             pannable
