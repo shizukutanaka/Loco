@@ -27,6 +27,7 @@ import {
   getExecutionOutput,
   getExecutionError,
 } from '@/utils/typeGuards';
+import { Skeleton } from '@/components/Skeleton/Skeleton';
 
 // ============================================================================
 // Types
@@ -115,10 +116,43 @@ export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
 
   if (isLoading && !execution) {
     return (
-      <div className="h-64 bg-white border-t border-gray-200 flex items-center justify-center">
-        <div className="text-center text-gray-500">
-          <Activity className="w-8 h-8 mx-auto mb-2 animate-pulse" />
-          <p className="text-sm">Loading execution...</p>
+      <div className="h-96 bg-white border-t border-gray-200 flex flex-col">
+        {/* Header Skeleton */}
+        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+          <div className="flex items-center gap-3 flex-1">
+            <Skeleton width="20px" height="20px" borderRadius="50%" />
+            <div className="flex-1 space-y-1">
+              <Skeleton width="150px" height="16px" />
+              <Skeleton width="200px" height="12px" />
+            </div>
+          </div>
+          <Skeleton width="32px" height="32px" borderRadius="6px" />
+        </div>
+
+        {/* Status Bar Skeleton */}
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Skeleton width="20px" height="20px" borderRadius="50%" />
+              <Skeleton width="100px" height="20px" borderRadius="4px" />
+            </div>
+            <div className="flex items-center gap-4">
+              <Skeleton width="150px" height="16px" />
+              <Skeleton width="150px" height="16px" />
+            </div>
+          </div>
+        </div>
+
+        {/* Content Skeleton */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="space-y-2">
+            <Skeleton width="80px" height="14px" />
+            <Skeleton height="60px" borderRadius="4px" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton width="80px" height="14px" />
+            <Skeleton height="100px" borderRadius="4px" />
+          </div>
         </div>
       </div>
     );

@@ -27,6 +27,7 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { AIInsight } from '@/utils/aiAnalyzer';
 import { useToast } from '@/contexts/ToastContext';
 import { COPY_FEEDBACK_DURATION } from '@/utils/constants';
+import { SkeletonCard } from '@/components/Skeleton/Skeleton';
 
 // ============================================================================
 // Types
@@ -357,11 +358,10 @@ export function AIAssistant({ isOpen, onClose }: AIAssistantProps) {
         )}
 
         {isAnalyzing && (
-          <div className="flex items-center justify-center py-4">
-            <div className="animate-spin">
-              <Sparkles className="w-5 h-5 text-blue-600" />
-            </div>
-            <p className="text-sm text-gray-600 ml-2">Analyzing workflow...</p>
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <SkeletonCard key={i} lines={2} className="text-left" />
+            ))}
           </div>
         )}
       </div>

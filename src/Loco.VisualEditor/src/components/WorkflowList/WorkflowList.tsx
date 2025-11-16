@@ -27,6 +27,7 @@ import { TOAST_LONG_DURATION } from '@/utils/constants';
 import { debounce } from '@/utils/debounceThrottle';
 import { isApiSuccess, isApiError, getExecutionCompletionTime } from '@/utils/typeGuards';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
+import { SkeletonCard } from '@/components/Skeleton/Skeleton';
 
 // ============================================================================
 // Types
@@ -391,8 +392,10 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-loco-primary"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <SkeletonCard key={i} lines={2} className="h-auto" />
+              ))}
             </div>
           ) : filteredWorkflows.length === 0 ? (
             <div className="text-center py-12">

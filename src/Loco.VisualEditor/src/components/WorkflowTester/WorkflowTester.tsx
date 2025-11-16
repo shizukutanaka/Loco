@@ -29,6 +29,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { ValidationReport, ValidationCategory } from '@/utils/workflowValidationService';
 import { generateExecutionReport } from '@/utils/workflowSimulator';
+import { Skeleton, SkeletonCard } from '@/components/Skeleton/Skeleton';
 
 // ============================================================================
 // Types
@@ -227,10 +228,22 @@ export function WorkflowTester({
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {isValidating ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <RefreshCw className="w-12 h-12 text-loco-primary animate-spin mb-4" />
-              <p className="text-gray-600">Validating workflow...</p>
-              <p className="text-sm text-gray-500 mt-2">Analyzing structure, data flow, and performance</p>
+            <div className="space-y-6">
+              {/* Score Summary Skeletons */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <SkeletonCard lines={2} className="p-6 h-auto" />
+                <SkeletonCard lines={2} className="p-6 h-auto" />
+              </div>
+
+              {/* Performance Metrics Skeletons */}
+              <div>
+                <Skeleton width="200px" height="24px" className="mb-4" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <SkeletonCard key={i} lines={2} className="p-4 h-auto" />
+                  ))}
+                </div>
+              </div>
             </div>
           ) : validationReport ? (
             <div className="space-y-6">
