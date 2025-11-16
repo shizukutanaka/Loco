@@ -10,6 +10,7 @@ import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
 import { ApiResponse, ApiError, AuthConfig } from './types';
 import { logApiError, logNetworkError } from '@/utils/errorLogger';
 import { retryNetworkOperation } from '@/utils/retry';
+import { isApiError } from '@/utils/typeGuards';
 
 // ============================================================================
 // API Client Class
@@ -160,7 +161,7 @@ export class LocoApiClient {
     if (error.response) {
       // Server responded with error status
       const data = error.response.data as ApiResponse<unknown>;
-      const apiError = data.error || {
+      const apiError = isApiError(data) ? data.error : {
         code: `HTTP_${error.response.status}`,
         message: error.message || 'An error occurred',
         details: { status: error.response.status },

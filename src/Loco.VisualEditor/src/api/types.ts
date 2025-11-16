@@ -11,12 +11,14 @@ import { Workflow } from '@/types/workflow';
 // API Response Types
 // ============================================================================
 
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: ApiError;
-  message?: string;
-}
+/**
+ * Discriminated union for API responses.
+ * Ensures type safety: when success is true, data is guaranteed to exist.
+ * When success is false, error is guaranteed to exist.
+ */
+export type ApiResponse<T> =
+  | { success: true; data: T; message?: string }
+  | { success: false; error: ApiError; message?: string };
 
 export interface ApiError {
   code: string;
@@ -58,22 +60,46 @@ export interface WorkflowExecutionRequest {
   dryRun?: boolean;
 }
 
-export interface WorkflowExecutionResponse {
-  executionId: string;
-  status: ExecutionStatus;
-  startedAt: string;
-  completedAt?: string;
-  output?: Record<string, unknown>;
-  error?: ExecutionError;
-  logs?: ExecutionLog[];
-}
-
+/**
+ * Execution status discriminator type
+ */
 export type ExecutionStatus =
   | 'pending'
   | 'running'
   | 'completed'
   | 'failed'
   | 'cancelled';
+
+/**
+ * Discriminated union for workflow execution responses.
+ * The required fields depend on the execution status:
+ * - pending/running: only startedAt is available
+ * - completed: includes output, completedAt is required
+ * - failed/cancelled: includes error, completedAt is required
+ */
+export type WorkflowExecutionResponse =
+  | {
+      executionId: string;
+      status: 'pending' | 'running';
+      startedAt: string;
+      logs?: ExecutionLog[];
+    }
+  | {
+      executionId: string;
+      status: 'completed';
+      startedAt: string;
+      completedAt: string;
+      output: Record<string, unknown>;
+      logs?: ExecutionLog[];
+    }
+  | {
+      executionId: string;
+      status: 'failed' | 'cancelled';
+      startedAt: string;
+      completedAt: string;
+      error: ExecutionError;
+      logs?: ExecutionLog[];
+    };
 
 export interface ExecutionError {
   nodeId: string;

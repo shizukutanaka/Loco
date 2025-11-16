@@ -27,25 +27,24 @@ export interface CollaborationUser {
   lastActiveAt: string;
 }
 
-export interface CollaborationEvent {
-  type:
-    | 'user:joined'
-    | 'user:left'
-    | 'user:cursor-moved'
-    | 'user:selection-changed'
-    | 'nodes:changed'
-    | 'edges:changed'
-    | 'node:added'
-    | 'node:deleted'
-    | 'node:updated'
-    | 'edge:added'
-    | 'edge:deleted'
-    | 'workflow:locked'
-    | 'workflow:unlocked';
-  userId: string;
-  data: any;
-  timestamp: string;
-}
+/**
+ * Discriminated union for collaboration events.
+ * Each event type has a specific data structure for type-safe handling.
+ */
+export type CollaborationEvent =
+  | { type: 'user:joined'; userId: string; data: { user: CollaborationUser }; timestamp: string }
+  | { type: 'user:left'; userId: string; data: { user: CollaborationUser | null }; timestamp: string }
+  | { type: 'user:cursor-moved'; userId: string; data: { x: number; y: number }; timestamp: string }
+  | { type: 'user:selection-changed'; userId: string; data: { nodeIds: string[] }; timestamp: string }
+  | { type: 'nodes:changed'; userId: string; data: { changes: any[] }; timestamp: string }
+  | { type: 'edges:changed'; userId: string; data: { changes: any[] }; timestamp: string }
+  | { type: 'node:added'; userId: string; data: { node: Node }; timestamp: string }
+  | { type: 'node:deleted'; userId: string; data: { nodeId: string }; timestamp: string }
+  | { type: 'node:updated'; userId: string; data: { nodeId: string; data: any }; timestamp: string }
+  | { type: 'edge:added'; userId: string; data: { edge: Edge }; timestamp: string }
+  | { type: 'edge:deleted'; userId: string; data: { edgeId: string }; timestamp: string }
+  | { type: 'workflow:locked'; userId: string; data: { userId: string }; timestamp: string }
+  | { type: 'workflow:unlocked'; userId: string; data: { userId: string }; timestamp: string };
 
 export interface CollaborationRoom {
   id: string;

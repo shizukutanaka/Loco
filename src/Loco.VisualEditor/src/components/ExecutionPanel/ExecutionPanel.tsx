@@ -21,6 +21,11 @@ import {
 import { getExecutionStatus } from '@/api/workflows';
 import type { WorkflowExecutionResponse } from '@/api/types';
 import { EXECUTION_POLLING_INTERVAL } from '@/utils/constants';
+import {
+  getExecutionCompletionTime,
+  getExecutionOutput,
+  getExecutionError,
+} from '@/utils/typeGuards';
 
 // ============================================================================
 // Types
@@ -149,8 +154,9 @@ export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
     if (!execution.startedAt) return 'N/A';
 
     const start = new Date(execution.startedAt).getTime();
-    const end = execution.completedAt
-      ? new Date(execution.completedAt).getTime()
+    const completionTime = getExecutionCompletionTime(execution);
+    const end = completionTime
+      ? new Date(completionTime).getTime()
       : Date.now();
 
     const duration = end - start;
@@ -203,11 +209,16 @@ export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
                 <Clock className="w-3 h-3" />
                 <span>Duration: {getDuration()}</span>
               </div>
-              {execution.completedAt && (
-                <div>
-                  Completed: {new Date(execution.completedAt).toLocaleTimeString()}
-                </div>
-              )}
+              {(() => {
+                const completionTime = getExecutionCompletionTime(execution);
+                if (completionTime) {
+                  return (
+                    <div>
+                      Completed: {new Date(completionTime).toLocaleTimeString()}
+                    </div>
+                  );
+                }
+              })()}
             </div>
           </div>
         </div>
@@ -216,40 +227,50 @@ export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
         {/* Error Section */}
-        {execution.error && (
-          <div className="p-4 bg-red-50 border-b border-red-100">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h4 className="text-sm font-semibold text-red-900 mb-1">Error</h4>
-                <p className="text-sm text-red-700 mb-2">{execution.error.message}</p>
-                {execution.error.nodeId && (
-                  <p className="text-xs text-red-600">Node: {execution.error.nodeId}</p>
-                )}
-                {execution.error.stack && (
-                  <details className="mt-2">
-                    <summary className="text-xs text-red-600 cursor-pointer hover:underline">
-                      Stack Trace
-                    </summary>
-                    <pre className="mt-2 text-xs text-red-800 bg-red-100 p-2 rounded overflow-x-auto">
-                      {execution.error.stack}
-                    </pre>
-                  </details>
-                )}
+        {(() => {
+          const error = getExecutionError(execution);
+          if (error) {
+            return (
+              <div className="p-4 bg-red-50 border-b border-red-100">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-red-900 mb-1">Error</h4>
+                    <p className="text-sm text-red-700 mb-2">{error.message}</p>
+                    {error.nodeId && (
+                      <p className="text-xs text-red-600">Node: {error.nodeId}</p>
+                    )}
+                    {error.stack && (
+                      <details className="mt-2">
+                        <summary className="text-xs text-red-600 cursor-pointer hover:underline">
+                          Stack Trace
+                        </summary>
+                        <pre className="mt-2 text-xs text-red-800 bg-red-100 p-2 rounded overflow-x-auto">
+                          {error.stack}
+                        </pre>
+                      </details>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            );
+          }
+        })()}
 
         {/* Output Section */}
-        {execution.output && Object.keys(execution.output).length > 0 && (
-          <div className="p-4 border-b border-gray-200">
-            <h4 className="text-sm font-semibold text-gray-900 mb-2">Output</h4>
-            <pre className="text-xs text-gray-700 bg-gray-50 p-3 rounded overflow-x-auto">
-              {JSON.stringify(execution.output, null, 2)}
-            </pre>
-          </div>
-        )}
+        {(() => {
+          const output = getExecutionOutput(execution);
+          if (output && Object.keys(output).length > 0) {
+            return (
+              <div className="p-4 border-b border-gray-200">
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">Output</h4>
+                <pre className="text-xs text-gray-700 bg-gray-50 p-3 rounded overflow-x-auto">
+                  {JSON.stringify(output, null, 2)}
+                </pre>
+              </div>
+            );
+          }
+        })()}
 
         {/* Logs Section */}
         {execution.logs && execution.logs.length > 0 && (
@@ -308,14 +329,20 @@ export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
         )}
 
         {/* Empty State */}
-        {!execution.error &&
-         (!execution.output || Object.keys(execution.output).length === 0) &&
-         (!execution.logs || execution.logs.length === 0) && (
-          <div className="p-8 text-center text-gray-500">
-            <Terminal className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-            <p className="text-sm">No execution data available</p>
-          </div>
-        )}
+        {(() => {
+          const hasError = getExecutionError(execution);
+          const hasOutput = getExecutionOutput(execution);
+          const hasLogs = execution.logs && execution.logs.length > 0;
+
+          if (!hasError && (!hasOutput || Object.keys(hasOutput).length === 0) && !hasLogs) {
+            return (
+              <div className="p-8 text-center text-gray-500">
+                <Terminal className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                <p className="text-sm">No execution data available</p>
+              </div>
+            );
+          }
+        })()}
       </div>
 
     </div>

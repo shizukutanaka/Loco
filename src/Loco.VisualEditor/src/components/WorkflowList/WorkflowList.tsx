@@ -4,7 +4,7 @@
  * Displays a list of all saved workflows with search, filter, and management capabilities.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Search,
   Plus,
@@ -24,6 +24,8 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { useToast } from '@/contexts/ToastContext';
 import { useExecutionStore } from '@/store/executionStore';
 import { TOAST_LONG_DURATION } from '@/utils/constants';
+import { debounce } from '@/utils/debounceThrottle';
+import { isApiSuccess, isApiError, getExecutionCompletionTime } from '@/utils/typeGuards';
 
 // ============================================================================
 // Types
@@ -55,6 +57,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
   const [filteredWorkflows, setFilteredWorkflows] = useState<WorkflowListItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed' | 'failed' | 'running'>('all');
   const [filterTag, setFilterTag] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'name' | 'created' | 'updated'>('updated');
@@ -63,6 +66,21 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
   const { newWorkflow, loadWorkflow } = useWorkflowStore();
   const { setCurrentExecution, addToHistory } = useExecutionStore();
   const toast = useToast();
+
+  // Debounce search query to avoid excessive filtering
+  const debouncedSearchRef = useRef(
+    debounce((query: string) => {
+      setDebouncedSearchQuery(query);
+    }, 300)
+  );
+
+  // Update debounced search on query change
+  useEffect(() => {
+    debouncedSearchRef.current(searchQuery);
+    return () => {
+      debouncedSearchRef.current.cancel();
+    };
+  }, [searchQuery]);
 
 
   // Fetch workflows
@@ -110,13 +128,13 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
   useEffect(() => {
     let filtered = [...workflows];
 
-    // Search filter
-    if (searchQuery) {
+    // Search filter - using debounced query to avoid excessive filtering
+    if (debouncedSearchQuery) {
       filtered = filtered.filter(
         (w) =>
-          w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          w.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          w.tags?.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+          w.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+          w.description?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+          w.tags?.some((tag) => tag.toLowerCase().includes(debouncedSearchQuery.toLowerCase()))
       );
     }
 
@@ -131,7 +149,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
     }
 
     setFilteredWorkflows(filtered);
-  }, [workflows, searchQuery, filterStatus, filterTag]);
+  }, [workflows, debouncedSearchQuery, filterStatus, filterTag]);
 
   // Delete workflow
   const handleDelete = async (workflowId: string) => {
@@ -162,12 +180,12 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
   const handleEdit = async (workflowId: string) => {
     try {
       const response = await getWorkflow(workflowId);
-      if (response.success && response.data) {
+      if (isApiSuccess(response)) {
         loadWorkflow(response.data);
         onClose();
         toast.success(`Workflow "${response.data.name}" loaded successfully!`);
-      } else {
-        toast.error(`Failed to load workflow: ${response.error?.message}`);
+      } else if (isApiError(response)) {
+        toast.error(`Failed to load workflow: ${response.error.message}`);
       }
     } catch (error) {
       console.error('Failed to load workflow:', error);
@@ -179,7 +197,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
   const handleDuplicate = async (workflowId: string) => {
     try {
       const response = await getWorkflow(workflowId);
-      if (response.success && response.data) {
+      if (isApiSuccess(response)) {
         const workflow = response.data;
 
         // Create a copy with modified name and new ID
@@ -194,12 +212,12 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
         // Create the new workflow
         const createResponse = await createWorkflow(workflowToCreateRequest(duplicatedWorkflow));
 
-        if (createResponse.success && createResponse.data) {
+        if (isApiSuccess(createResponse)) {
           toast.success(`Workflow "${duplicatedWorkflow.name}" created successfully!`);
 
           // Refresh workflow list
           const listResponse = await listWorkflows({ sortBy, sortOrder: 'desc' });
-          if (listResponse.success && listResponse.data) {
+          if (isApiSuccess(listResponse)) {
             const items: WorkflowListItem[] = listResponse.data.workflows.map((w) => ({
               id: w.id,
               name: w.name,
@@ -211,11 +229,11 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
             }));
             setWorkflows(items);
           }
-        } else {
-          toast.error(`Failed to duplicate workflow: ${createResponse.error?.message}`);
+        } else if (isApiError(createResponse)) {
+          toast.error(`Failed to duplicate workflow: ${createResponse.error.message}`);
         }
-      } else {
-        toast.error(`Failed to load workflow: ${response.error?.message}`);
+      } else if (isApiError(response)) {
+        toast.error(`Failed to load workflow: ${response.error.message}`);
       }
     } catch (error) {
       console.error('Failed to duplicate workflow:', error);
@@ -231,25 +249,26 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
         input: {},
       });
 
-      if (response.success && response.data) {
+      if (isApiSuccess(response)) {
+        const executionData = response.data;
         // Add to execution history
         addToHistory({
-          executionId: response.data.executionId,
+          executionId: executionData.executionId,
           workflowId,
           workflowName,
-          status: response.data.status,
-          startedAt: response.data.startedAt,
-          completedAt: response.data.completedAt,
+          status: executionData.status,
+          startedAt: executionData.startedAt,
+          completedAt: getExecutionCompletionTime(executionData) || undefined,
         });
 
         // Open execution panel
-        setCurrentExecution(response.data.executionId);
+        setCurrentExecution(executionData.executionId);
         onClose();
 
         toast.success(`Workflow "${workflowName}" is running...`);
-        toast.info(`Execution ID: ${response.data.executionId}`, TOAST_LONG_DURATION);
-      } else {
-        toast.error(`Failed to run workflow: ${response.error?.message}`);
+        toast.info(`Execution ID: ${executionData.executionId}`, TOAST_LONG_DURATION);
+      } else if (isApiError(response)) {
+        toast.error(`Failed to run workflow: ${response.error.message}`);
       }
     } catch (error) {
       console.error('Failed to run workflow:', error);

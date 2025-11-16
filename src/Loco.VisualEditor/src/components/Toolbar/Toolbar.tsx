@@ -26,6 +26,7 @@ import { TagEditor } from '@/components/TagEditor/TagEditor';
 import { CollaborationPanel } from '@/components/CollaborationPanel/CollaborationPanel';
 import { WorkflowTester } from '@/components/WorkflowTester/WorkflowTester';
 import { KeyboardShortcuts } from '@/components/KeyboardShortcuts/KeyboardShortcuts';
+import { isApiSuccess, isApiError, getExecutionCompletionTime } from '@/utils/typeGuards';
 
 // Lazy load TemplateGallery (large component with template data)
 const TemplateGallery = lazy(() => import('@/components/TemplateGallery/TemplateGallery').then(module => ({
@@ -252,7 +253,7 @@ export function Toolbar() {
         const request = workflowToCreateRequest(workflowData);
         const response = await createWorkflow(request);
 
-        if (response.success && response.data) {
+        if (isApiSuccess(response)) {
           // Update workflow in store with server-generated ID
           const updatedWorkflow: Workflow = {
             ...workflowData,
@@ -263,9 +264,9 @@ export function Toolbar() {
           loadWorkflow(updatedWorkflow);
           console.log('Workflow created successfully:', response.data.id);
           toast.success(`Workflow "${workflowData.name}" created successfully!`);
-        } else {
-          console.error('Failed to create workflow:', response.error?.message);
-          toast.error(`Failed to save workflow: ${response.error?.message || 'Unknown error'}`);
+        } else if (isApiError(response)) {
+          console.error('Failed to create workflow:', response.error.message);
+          toast.error(`Failed to save workflow: ${response.error.message || 'Unknown error'}`);
         }
       } else {
         // Update existing workflow
@@ -278,12 +279,12 @@ export function Toolbar() {
           metadata: workflowData.metadata,
         });
 
-        if (response.success && response.data) {
+        if (isApiSuccess(response)) {
           console.log('Workflow updated successfully:', response.data.id);
           toast.success(`Workflow "${workflowData.name}" saved successfully!`);
-        } else {
-          console.error('Failed to update workflow:', response.error?.message);
-          toast.error(`Failed to save workflow: ${response.error?.message || 'Unknown error'}`);
+        } else if (isApiError(response)) {
+          console.error('Failed to update workflow:', response.error.message);
+          toast.error(`Failed to save workflow: ${response.error.message || 'Unknown error'}`);
         }
       }
     } catch (error) {
@@ -312,28 +313,29 @@ export function Toolbar() {
         input: {},
       });
 
-      if (response.success && response.data) {
-        console.log('Workflow execution started:', response.data.executionId);
-        console.log('Status:', response.data.status);
+      if (isApiSuccess(response)) {
+        const executionData = response.data;
+        console.log('Workflow execution started:', executionData.executionId);
+        console.log('Status:', executionData.status);
 
         // Add to execution history
         addToHistory({
-          executionId: response.data.executionId,
+          executionId: executionData.executionId,
           workflowId: workflowData.id,
           workflowName: workflowData.name,
-          status: response.data.status,
-          startedAt: response.data.startedAt,
-          completedAt: response.data.completedAt,
+          status: executionData.status,
+          startedAt: executionData.startedAt,
+          completedAt: getExecutionCompletionTime(executionData) || undefined,
         });
 
         // Open execution panel
-        setCurrentExecution(response.data.executionId);
+        setCurrentExecution(executionData.executionId);
 
         toast.success(`Workflow "${workflowData.name}" is running...`);
-        toast.info(`Execution ID: ${response.data.executionId}`, TOAST_LONG_DURATION);
-      } else {
-        console.error('Failed to execute workflow:', response.error?.message);
-        toast.error(`Failed to run workflow: ${response.error?.message || 'Unknown error'}`);
+        toast.info(`Execution ID: ${executionData.executionId}`, TOAST_LONG_DURATION);
+      } else if (isApiError(response)) {
+        console.error('Failed to execute workflow:', response.error.message);
+        toast.error(`Failed to run workflow: ${response.error.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error executing workflow:', error);
