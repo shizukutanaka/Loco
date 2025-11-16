@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { templates, WorkflowTemplate } from '@/data/templates';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { X, Search, Zap, Database, MessageSquare, Sparkles, Activity } from 'lucide-react';
+import { X, Zap, Database, MessageSquare, Sparkles, Activity } from 'lucide-react';
+import { FormInput } from '@/components/Form';
 
 interface TemplateGalleryProps {
   isOpen: boolean;
@@ -71,17 +72,14 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
           </div>
 
           {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" aria-hidden="true" />
-            <input
-              type="text"
-              placeholder="Search templates..."
-              aria-label="Search workflow templates by name, category, or description"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent"
-            />
-          </div>
+          <FormInput
+            id="template-search"
+            type="text"
+            placeholder="Search templates..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            description="Search workflow templates by name, category, or description"
+          />
 
           {/* Categories */}
           <div className="flex gap-2 mt-4">
