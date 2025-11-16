@@ -5,7 +5,7 @@
  * Improves productivity by providing common actions without navigating toolbars.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Copy,
   Trash2,
@@ -71,6 +71,15 @@ export function QuickActionsMenu({
   onAction,
 }: QuickActionsMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  // Focus management for keyboard navigation
+  useEffect(() => {
+    if (itemRefs.current[selectedIndex]) {
+      itemRefs.current[selectedIndex]?.focus();
+    }
+  }, [selectedIndex, isOpen]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -80,22 +89,37 @@ export function QuickActionsMenu({
       }
     };
 
-    const handleEscape = (event: KeyboardEvent) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onClose();
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        setSelectedIndex((prev) => (prev + 1) % (nodeId ? 9 : 5));
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        setSelectedIndex((prev) => (prev - 1 + (nodeId ? 9 : 5)) % (nodeId ? 9 : 5));
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        const items = nodeId ? nodeMenuItems : canvasMenuItems;
+        const selectedItem = items[selectedIndex];
+        if (selectedItem && !selectedItem.disabled) {
+          onAction(selectedItem.id);
+          onClose();
+        }
       }
     };
 
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleEscape);
+      document.addEventListener('keydown', handleKeyDown);
+      setSelectedIndex(0);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, nodeId]);
 
   // Menu items for nodes
   const nodeMenuItems: MenuItem[] = [
@@ -202,6 +226,8 @@ export function QuickActionsMenu({
   return (
     <div
       ref={menuRef}
+      role="menu"
+      aria-label={nodeId ? 'Node context menu' : 'Canvas context menu'}
       className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-2 min-w-[200px]"
       style={{
         left: `${adjustedPosition.x}px`,
@@ -211,24 +237,32 @@ export function QuickActionsMenu({
       {menuItems.map((item, index) => (
         <div key={item.id}>
           {index > 0 && item.separator && (
-            <div className="border-t border-gray-200 my-1" />
+            <div className="border-t border-gray-200 my-1" aria-hidden="true" />
           )}
           <button
+            ref={(el) => {
+              itemRefs.current[index] = el;
+            }}
+            role="menuitem"
+            aria-disabled={item.disabled}
             onClick={() => {
               if (!item.disabled) {
                 onAction(item.id);
                 onClose();
               }
             }}
+            onMouseEnter={() => setSelectedIndex(index)}
             disabled={item.disabled}
             className={`w-full px-3 py-2 flex items-center justify-between text-sm transition-colors ${
+              selectedIndex === index ? 'bg-loco-primary text-white' : ''
+            } ${
               item.disabled
                 ? 'text-gray-400 cursor-not-allowed'
                 : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
             <div className="flex items-center gap-3">
-              {item.icon}
+              <span aria-hidden="true">{item.icon}</span>
               <span>{item.label}</span>
             </div>
             {item.shortcut && (
