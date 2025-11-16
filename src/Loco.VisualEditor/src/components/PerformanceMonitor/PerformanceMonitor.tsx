@@ -5,7 +5,7 @@
  * and workflow operations including latency, throughput, and resource usage.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   Activity,
   Zap,
@@ -44,6 +44,13 @@ export function PerformanceMonitor() {
   });
 
   const [isMinimized, setIsMinimized] = useState(true);
+  const prevMetricsRef = useRef<PerformanceMetrics | null>(null);
+
+  // Helper to determine trend
+  const calculateTrend = (current: number, previous: number | undefined): 'up' | 'down' => {
+    if (previous === undefined) return 'down';
+    return current > previous ? 'up' : 'down';
+  };
 
   // Measure performance metrics
   useEffect(() => {
@@ -69,14 +76,18 @@ export function PerformanceMonitor() {
           );
         }
 
-        setMetrics((prev) => ({
-          ...prev,
-          fps,
-          memoryUsage,
-          latency: Math.random() * 100, // Simulated latency
-          eventThroughput: Math.random() * 1000, // Simulated throughput
-          dataTransferred: prev.dataTransferred + Math.random() * 1024, // Simulated data
-        }));
+        setMetrics((prev) => {
+          const newMetrics = {
+            ...prev,
+            fps,
+            memoryUsage,
+            latency: Math.random() * 100, // Simulated latency
+            eventThroughput: Math.random() * 1000, // Simulated throughput
+            dataTransferred: prev.dataTransferred + Math.random() * 1024, // Simulated data
+          };
+          prevMetricsRef.current = prev;
+          return newMetrics;
+        });
 
         frameCount = 0;
         lastTime = currentTime;
@@ -151,7 +162,7 @@ export function PerformanceMonitor() {
           label="Frame Rate"
           value={`${metrics.fps} FPS`}
           status={metrics.fps >= 50 ? 'good' : metrics.fps >= 30 ? 'warning' : 'critical'}
-          trend={Math.random() > 0.5 ? 'up' : 'down'}
+          trend={calculateTrend(metrics.fps, prevMetricsRef.current?.fps)}
         />
 
         {/* Latency */}
@@ -160,7 +171,7 @@ export function PerformanceMonitor() {
           label="Avg Latency"
           value={`${metrics.latency.toFixed(1)}ms`}
           status={metrics.latency < 100 ? 'good' : metrics.latency < 300 ? 'warning' : 'critical'}
-          trend={Math.random() > 0.5 ? 'up' : 'down'}
+          trend={calculateTrend(metrics.latency, prevMetricsRef.current?.latency)}
         />
 
         {/* Memory */}

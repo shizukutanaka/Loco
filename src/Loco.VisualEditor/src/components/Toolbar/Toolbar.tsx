@@ -183,7 +183,7 @@ export function Toolbar() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canUndo, canRedo, undo, redo]);
 
   const handleNewWorkflow = () => {
     if (confirm('Create a new workflow? Current workflow will be cleared.')) {

@@ -142,10 +142,18 @@ URL: ${window.location.href}
 User Agent: ${navigator.userAgent}
     `.trim();
 
-    navigator.clipboard.writeText(errorText).then(() => {
-      this.setState({ copied: true });
-      setTimeout(() => this.setState({ copied: false }), 2000);
-    });
+    navigator.clipboard.writeText(errorText)
+      .then(() => {
+        this.setState({ copied: true });
+        setTimeout(() => this.setState({ copied: false }), 2000);
+      })
+      .catch((err) => {
+        console.error('Failed to copy error to clipboard:', err);
+        // Fallback: show alert if clipboard fails
+        if (confirm('Copy to clipboard failed. Would you like to see the error?')) {
+          alert(errorText);
+        }
+      });
   };
 
   render(): ReactNode {
