@@ -31,6 +31,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { COPY_FEEDBACK_DURATION } from '@/utils/constants';
 import { useCollaborationStore } from '@/store/collaborationStore';
 import { useWorkflowStore } from '@/store/workflowStore';
+import { FormInput } from '@/components/Form';
 
 // ============================================================================
 // Types
@@ -285,44 +286,36 @@ export function CollaborationPanel({
                   </h3>
 
                   <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Server URL
-                      </label>
-                      <input
-                        type="text"
-                        value={serverUrl}
-                        onChange={(e) => setServerUrl(e.target.value)}
-                        placeholder="ws://localhost:3001"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary"
-                      />
-                    </div>
+                    <FormInput
+                      id="server-url"
+                      type="text"
+                      label="Server URL"
+                      value={serverUrl}
+                      onChange={(e) => setServerUrl(e.target.value)}
+                      placeholder="ws://localhost:3001"
+                      helpText="WebSocket URL of the collaboration server"
+                    />
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Your Name *
-                      </label>
-                      <input
-                        type="text"
-                        value={userName}
-                        onChange={(e) => setUserName(e.target.value)}
-                        placeholder="Enter your name"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary"
-                      />
-                    </div>
+                    <FormInput
+                      id="user-name"
+                      type="text"
+                      label="Your Name"
+                      value={userName}
+                      onChange={(e) => setUserName(e.target.value)}
+                      placeholder="Enter your name"
+                      required={true}
+                      helpText="Your name for other collaborators"
+                    />
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Email (optional)
-                      </label>
-                      <input
-                        type="email"
-                        value={userEmail}
-                        onChange={(e) => setUserEmail(e.target.value)}
-                        placeholder="your.email@example.com"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary"
-                      />
-                    </div>
+                    <FormInput
+                      id="user-email"
+                      type="email"
+                      label="Email (optional)"
+                      value={userEmail}
+                      onChange={(e) => setUserEmail(e.target.value)}
+                      placeholder="your.email@example.com"
+                      helpText="Email for invitation and collaboration notifications"
+                    />
 
                     {connectionError && (
                       <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg">
@@ -366,19 +359,22 @@ export function CollaborationPanel({
                   <div className="space-y-4">
                     {/* Share Link */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
                         Share Link
                       </label>
                       <div className="flex gap-2">
-                        <input
+                        <FormInput
+                          id="share-link"
                           type="text"
                           value={shareLink}
-                          readOnly
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                          onChange={() => {}}
+                          disabled={true}
+                          className="flex-1"
+                          helpText="Shareable link for other collaborators"
                         />
                         <button
                           onClick={handleCopyLink}
-                          className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                          className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors self-end"
                         >
                           {linkCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                           {linkCopied ? 'Copied!' : 'Copy'}
@@ -387,27 +383,25 @@ export function CollaborationPanel({
                     </div>
 
                     {/* Invite by Email */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Invite by Email
-                      </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="email"
-                          value={inviteEmail}
-                          onChange={(e) => setInviteEmail(e.target.value)}
-                          placeholder="colleague@example.com"
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary"
-                        />
+                    <FormInput
+                      id="invite-email"
+                      type="email"
+                      label="Invite by Email"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      placeholder="colleague@example.com"
+                      helpText="Email address to invite to collaboration"
+                      suffix={
                         <button
                           onClick={handleSendInvite}
-                          className="flex items-center gap-2 px-4 py-2 bg-loco-primary text-white rounded-lg hover:bg-blue-700 transition-colors"
+                          className="flex items-center gap-2 px-3 py-1 bg-loco-primary text-white rounded hover:bg-blue-700 transition-colors text-sm"
+                          tabIndex={-1}
                         >
                           <UserPlus className="w-4 h-4" />
                           Invite
                         </button>
-                      </div>
-                    </div>
+                      }
+                    />
                   </div>
                 </div>
 
