@@ -66,38 +66,76 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col">
-      <Toolbar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Header: Contains toolbar and application controls */}
+      <header className="bg-white border-b border-gray-200" role="banner">
+        <Toolbar />
+      </header>
+
+      {/* Main content area */}
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Workflow editor layout with sidebars and canvas */}
         <div className="flex-1 flex overflow-hidden">
-          <NodePalette />
-          <WorkflowCanvasWrapper />
-          <PropertyPanel />
+          {/* Left sidebar: Node palette for adding nodes */}
+          <aside
+            className="w-64 bg-gray-50 border-r border-gray-200 overflow-y-auto"
+            aria-label="Node palette - Add integrations and components to workflow"
+          >
+            <NodePalette />
+          </aside>
+
+          {/* Center: Workflow canvas */}
+          <section
+            className="flex-1 overflow-hidden"
+            aria-label="Workflow canvas - Design and manage workflow nodes"
+          >
+            <WorkflowCanvasWrapper />
+          </section>
+
+          {/* Right sidebar: Node properties and configuration */}
+          <aside
+            className="w-96 bg-white border-l border-gray-200 overflow-y-auto"
+            aria-label="Properties panel - Configure selected node properties"
+          >
+            <PropertyPanel />
+          </aside>
         </div>
+
+        {/* Execution results panel */}
         {isExecutionPanelOpen && (
-          <ExecutionPanel
-            executionId={currentExecutionId}
-            onClose={closeExecutionPanel}
-          />
+          <section
+            className="border-t border-gray-200 overflow-y-auto"
+            aria-label="Execution results - View workflow execution output and logs"
+          >
+            <ExecutionPanel
+              executionId={currentExecutionId}
+              onClose={closeExecutionPanel}
+            />
+          </section>
         )}
-      </div>
+      </main>
+
+      {/* Floating panels and utilities */}
       <Suspense fallback={null}>
         <ValidationPanel />
       </Suspense>
+
+      {/* Modal dialogs and popups */}
       <NodeSearch isOpen={isNodeSearchOpen} onClose={() => setIsNodeSearchOpen(false)} />
+      <AIAssistant isOpen={isAIAssistantOpen} onClose={() => setIsAIAssistantOpen(false)} />
+
+      {/* Notifications and monitoring */}
       <ToastContainer />
       <PerformanceMonitor />
 
-      {/* AI Assistant */}
-      <AIAssistant isOpen={isAIAssistantOpen} onClose={() => setIsAIAssistantOpen(false)} />
-
-      {/* AI Assistant Toggle Button */}
+      {/* AI Assistant Toggle Button - Fixed position floating action button */}
       {!isAIAssistantOpen && (
         <button
           onClick={() => setIsAIAssistantOpen(true)}
           className="fixed bottom-20 right-4 p-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-shadow z-30"
-          title="Open AI Assistant"
+          title="Open AI Assistant (discuss workflow and get help)"
+          aria-label="Open AI Assistant - Get help with your workflow"
         >
-          <Sparkles className="w-6 h-6" />
+          <Sparkles className="w-6 h-6" aria-hidden="true" />
         </button>
       )}
     </div>
