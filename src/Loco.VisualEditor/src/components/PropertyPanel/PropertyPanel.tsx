@@ -25,6 +25,42 @@ interface NodeData {
 
 type ConfigValue = string | number | Record<string, unknown> | undefined;
 
+interface ValidationError {
+  label?: string;
+  condition?: string;
+  code?: string;
+  action?: string;
+  parameters?: Record<string, string>;
+}
+
+// ============================================================================
+// Validation Functions
+// ============================================================================
+
+const validateLabel = (label: string): string | undefined => {
+  if (!label.trim()) {
+    return 'Node label is required';
+  }
+  if (label.length > 100) {
+    return 'Label must be less than 100 characters';
+  }
+  return undefined;
+};
+
+const validateCondition = (condition: string): string | undefined => {
+  if (!condition.trim()) {
+    return 'Condition expression is required';
+  }
+  return undefined;
+};
+
+const validateCode = (code: string): string | undefined => {
+  if (!code.trim()) {
+    return 'Transform code is required';
+  }
+  return undefined;
+};
+
 // ============================================================================
 // Property Panel Component
 // ============================================================================
@@ -38,10 +74,12 @@ export function PropertyPanel() {
     label: '',
     config: {},
   });
+  const [errors, setErrors] = useState<ValidationError>({});
 
   useEffect(() => {
     if (selectedNode) {
       setLocalData(selectedNode.data);
+      setErrors({}); // Clear errors when switching nodes
     }
   }, [selectedNode]);
 
@@ -62,13 +100,31 @@ export function PropertyPanel() {
 
   const handleLabelChange = (label: string) => {
     setLocalData({ ...localData, label });
-    updateNode(selectedNode.id, { label });
+    const error = validateLabel(label);
+    setErrors({ ...errors, label: error });
+    if (!error) {
+      updateNode(selectedNode.id, { label });
+    }
   };
 
   const handleConfigChange = (key: string, value: ConfigValue) => {
     const newConfig = { ...localData.config, [key]: value };
     setLocalData({ ...localData, config: newConfig });
-    updateNode(selectedNode.id, { config: newConfig });
+
+    // Validate based on field type
+    let error: string | undefined;
+    if (key === 'condition') {
+      error = validateCondition(String(value || ''));
+    } else if (key === 'code') {
+      error = validateCode(String(value || ''));
+    }
+
+    setErrors({ ...errors, [key]: error });
+
+    // Only update if valid
+    if (!error) {
+      updateNode(selectedNode.id, { config: newConfig });
+    }
   };
 
   const handleDelete = () => {
@@ -126,9 +182,24 @@ export function PropertyPanel() {
             type="text"
             value={localData.label || ''}
             onChange={(e) => handleLabelChange(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent"
+            aria-label="Node label"
+            aria-invalid={!!errors.label}
+            aria-describedby={errors.label ? 'label-error' : undefined}
+            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${
+              errors.label
+                ? 'border-red-500 focus:ring-red-500 bg-red-50'
+                : 'border-gray-300 focus:ring-loco-primary'
+            }`}
             placeholder="Enter node label"
           />
+          {errors.label && (
+            <div id="label-error" className="mt-1 text-sm text-red-600 flex items-center gap-1">
+              <span>⚠</span> {errors.label}
+            </div>
+          )}
+          <div className="mt-1 text-xs text-gray-500">
+            {localData.label?.length || 0}/100 characters
+          </div>
         </div>
 
         {/* Integration Info */}
@@ -157,10 +228,22 @@ export function PropertyPanel() {
               <textarea
                 value={localData.config?.condition || ''}
                 onChange={(e) => handleConfigChange('condition', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent font-mono text-sm"
+                aria-label="Condition expression"
+                aria-invalid={!!errors.condition}
+                aria-describedby={errors.condition ? 'condition-error' : undefined}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent font-mono text-sm transition-colors ${
+                  errors.condition
+                    ? 'border-red-500 focus:ring-red-500 bg-red-50'
+                    : 'border-gray-300 focus:ring-loco-primary'
+                }`}
                 rows={3}
                 placeholder="e.g., item.price > 100"
               />
+              {errors.condition && (
+                <div id="condition-error" className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                  <span>⚠</span> {errors.condition}
+                </div>
+              )}
             </div>
           )}
 
@@ -172,10 +255,22 @@ export function PropertyPanel() {
               <textarea
                 value={localData.config?.code || ''}
                 onChange={(e) => handleConfigChange('code', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent font-mono text-sm"
+                aria-label="Transform code in C#"
+                aria-invalid={!!errors.code}
+                aria-describedby={errors.code ? 'code-error' : undefined}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent font-mono text-sm transition-colors ${
+                  errors.code
+                    ? 'border-red-500 focus:ring-red-500 bg-red-50'
+                    : 'border-gray-300 focus:ring-loco-primary'
+                }`}
                 rows={10}
                 placeholder="return items.Select(item => new { ... }).ToList();"
               />
+              {errors.code && (
+                <div id="code-error" className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                  <span>⚠</span> {errors.code}
+                </div>
+              )}
             </div>
           )}
 
