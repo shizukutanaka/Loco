@@ -15,6 +15,7 @@ import { useOfflineDetection } from '@/hooks/useOfflineDetection';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useExecutionStore } from '@/store/executionStore';
 import { useToast } from '@/contexts/ToastContext';
+import { exportWorkflowAsJson } from '@/utils/exportWorkflow';
 
 // Lazy load ValidationPanel (heavy validation logic)
 const ValidationPanel = lazy(() => import('@/components/ValidationPanel/ValidationPanel').then(module => ({
@@ -55,16 +56,8 @@ function App() {
     },
     onExport: () => {
       const workflow = exportWorkflow();
-      const jsonString = JSON.stringify(workflow, null, 2);
-      const blob = new Blob([jsonString], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${workflow.name || 'workflow'}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      exportWorkflowAsJson(workflow);
+      toast.success('Workflow exported successfully');
     },
     onSearch: () => {
       setIsNodeSearchOpen(true);

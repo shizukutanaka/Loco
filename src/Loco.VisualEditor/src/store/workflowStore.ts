@@ -12,6 +12,7 @@ import {
 import { Workflow, WorkflowNode, WorkflowEdge, Viewport } from '@/types/workflow';
 import { getAutoLayoutedNodes } from '@/utils/autoLayout';
 import { deepClone } from '@/utils/deepClone';
+import { deferHistorySnapshot } from '@/utils/deferHistorySnapshot';
 import { MAX_HISTORY_SIZE } from '@/utils/constants';
 
 // History state for undo/redo
@@ -189,7 +190,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     });
 
     if (shouldPushHistory) {
-      setTimeout(() => get().pushToHistory(), 0);
+      deferHistorySnapshot(() => get().pushToHistory());
     }
   },
 
@@ -197,7 +198,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     set({
       nodes: [...get().nodes, node],
     });
-    setTimeout(() => get().pushToHistory(), 0);
+    deferHistorySnapshot(() => get().pushToHistory());
   },
 
   updateNode: (nodeId, data) => {
@@ -208,7 +209,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
           : node
       ),
     });
-    setTimeout(() => get().pushToHistory(), 0);
+    deferHistorySnapshot(() => get().pushToHistory());
   },
 
   deleteNode: (nodeId) => {
@@ -219,7 +220,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       ),
       selectedNodeId: get().selectedNodeId === nodeId ? null : get().selectedNodeId,
     });
-    setTimeout(() => get().pushToHistory(), 0);
+    deferHistorySnapshot(() => get().pushToHistory());
   },
 
   onEdgesChange: (changes) => {
@@ -232,7 +233,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     });
 
     if (shouldPushHistory) {
-      setTimeout(() => get().pushToHistory(), 0);
+      deferHistorySnapshot(() => get().pushToHistory());
     }
   },
 
@@ -240,14 +241,14 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     set({
       edges: addEdge(connection, get().edges),
     });
-    setTimeout(() => get().pushToHistory(), 0);
+    deferHistorySnapshot(() => get().pushToHistory());
   },
 
   deleteEdge: (edgeId) => {
     set({
       edges: get().edges.filter((edge) => edge.id !== edgeId),
     });
-    setTimeout(() => get().pushToHistory(), 0);
+    deferHistorySnapshot(() => get().pushToHistory());
   },
 
   setSelectedNodeId: (nodeId) => {
@@ -269,7 +270,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     });
 
     set({ nodes: layoutedNodes });
-    setTimeout(() => get().pushToHistory(), 0);
+    deferHistorySnapshot(() => get().pushToHistory());
   },
 
   newWorkflow: () => {
@@ -307,7 +308,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       canRedo: false,
     });
     // Initialize history with loaded state
-    setTimeout(() => get().pushToHistory(), 0);
+    deferHistorySnapshot(() => get().pushToHistory());
   },
 
   exportWorkflow: () => {

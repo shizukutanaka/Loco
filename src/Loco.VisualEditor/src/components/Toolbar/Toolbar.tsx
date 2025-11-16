@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { createWorkflow, updateWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
 import type { Workflow } from '@/types/workflow';
+import { exportWorkflowAsJson } from '@/utils/exportWorkflow';
 import { WorkflowList } from '@/components/WorkflowList/WorkflowList';
 import { TagEditor } from '@/components/TagEditor/TagEditor';
 import { CollaborationPanel } from '@/components/CollaborationPanel/CollaborationPanel';
@@ -193,16 +194,8 @@ export function Toolbar() {
 
   const handleExportJSON = () => {
     const workflowData = exportWorkflow();
-    const jsonString = JSON.stringify(workflowData, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${workflow?.name || 'workflow'}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    exportWorkflowAsJson(workflowData);
+    toast.success('Workflow exported successfully');
   };
 
   const handleImportJSON = () => {

@@ -13,6 +13,7 @@ import { validateWorkflow, ValidationReport } from './workflowValidationService'
 import { simulateWorkflow, SimulationResult } from './workflowSimulator';
 import { analyzeWorkflow, AIAnalysisResult } from './aiAnalyzer';
 import { deepClone } from './deepClone';
+import { detectChanged } from './detectChanges';
 import { ANALYSIS_CACHE_TTL } from './constants';
 
 // ============================================================================
@@ -76,55 +77,7 @@ function hashWorkflow(nodes: Node[], edges: Edge[]): string {
   return Math.abs(hash).toString(36);
 }
 
-/**
- * Detect changed nodes between two snapshots
- */
-function detectChangedNodes(prev: WorkflowSnapshot, curr: WorkflowSnapshot): Set<string> {
-  const changed = new Set<string>();
-  const prevMap = new Map(prev.nodes.map((n) => [n.id, JSON.stringify(n)]));
-  const currMap = new Map(curr.nodes.map((n) => [n.id, JSON.stringify(n)]));
-
-  // Find added or modified nodes
-  for (const [id, json] of currMap) {
-    if (!prevMap.has(id) || prevMap.get(id) !== json) {
-      changed.add(id);
-    }
-  }
-
-  // Find deleted nodes
-  for (const id of prevMap.keys()) {
-    if (!currMap.has(id)) {
-      changed.add(id);
-    }
-  }
-
-  return changed;
-}
-
-/**
- * Detect changed edges between two snapshots
- */
-function detectChangedEdges(prev: WorkflowSnapshot, curr: WorkflowSnapshot): Set<string> {
-  const changed = new Set<string>();
-  const prevMap = new Map(prev.edges.map((e) => [e.id, JSON.stringify(e)]));
-  const currMap = new Map(curr.edges.map((e) => [e.id, JSON.stringify(e)]));
-
-  // Find added or modified edges
-  for (const [id, json] of currMap) {
-    if (!prevMap.has(id) || prevMap.get(id) !== json) {
-      changed.add(id);
-    }
-  }
-
-  // Find deleted edges
-  for (const id of prevMap.keys()) {
-    if (!currMap.has(id)) {
-      changed.add(id);
-    }
-  }
-
-  return changed;
-}
+// Change detection functions use the generic detectChanged utility
 
 // ============================================================================
 // Unified Analysis Engine
@@ -155,10 +108,10 @@ export class WorkflowAnalysisEngine {
     if (cacheHit && this.cache.current) {
       const cached = this.cache.current;
       const changedNodes = this.cache.previous
-        ? detectChangedNodes(this.cache.previous, snapshot)
+        ? detectChanged({ items: this.cache.previous.nodes }, { items: snapshot.nodes })
         : new Set<string>();
       const changedEdges = this.cache.previous
-        ? detectChangedEdges(this.cache.previous, snapshot)
+        ? detectChanged({ items: this.cache.previous.edges }, { items: snapshot.edges })
         : new Set<string>();
 
       return {
@@ -192,10 +145,10 @@ export class WorkflowAnalysisEngine {
     };
 
     const changedNodes = this.cache.previous
-      ? detectChangedNodes(this.cache.previous, snapshot)
+      ? detectChanged({ items: this.cache.previous.nodes }, { items: snapshot.nodes })
       : new Set<string>();
     const changedEdges = this.cache.previous
-      ? detectChangedEdges(this.cache.previous, snapshot)
+      ? detectChanged({ items: this.cache.previous.edges }, { items: snapshot.edges })
       : new Set<string>();
 
     return {
