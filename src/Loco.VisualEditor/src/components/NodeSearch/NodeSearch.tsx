@@ -144,11 +144,12 @@ export function NodeSearch({ isOpen, onClose }: NodeSearchProps) {
         {/* Search Input */}
         <div className="p-4 border-b border-gray-200">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" aria-hidden="true" />
             <input
               ref={inputRef}
               type="text"
               placeholder="Search nodes and integrations..."
+              aria-label="Search for nodes and integrations to add to workflow"
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
@@ -159,8 +160,9 @@ export function NodeSearch({ isOpen, onClose }: NodeSearchProps) {
             <button
               onClick={onClose}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded transition-colors"
+              aria-label="Close node search"
             >
-              <X className="w-5 h-5 text-gray-400" />
+              <X className="w-5 h-5 text-gray-400" aria-hidden="true" />
             </button>
           </div>
         </div>

@@ -379,6 +379,7 @@ export function AIAssistant({ isOpen, onClose }: AIAssistantProps) {
               }
             }}
             placeholder="Ask about performance, security, errors..."
+            aria-label="Ask AI assistant questions about your workflow"
             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
             disabled={isAnalyzing}
           />

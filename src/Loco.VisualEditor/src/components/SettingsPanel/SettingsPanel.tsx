@@ -350,6 +350,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                         value={newEnvKey}
                         onChange={(e) => setNewEnvKey(e.target.value)}
                         placeholder="KEY"
+                        aria-label="Environment variable name"
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary"
                       />
                       <input
@@ -357,6 +358,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                         value={newEnvValue}
                         onChange={(e) => setNewEnvValue(e.target.value)}
                         placeholder="value"
+                        aria-label="Environment variable value"
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary"
                       />
                       <button

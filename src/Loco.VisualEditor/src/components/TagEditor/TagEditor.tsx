@@ -163,6 +163,7 @@ export function TagEditor({
                 }, 200);
               }}
               placeholder={placeholder}
+              aria-label={`${placeholder || 'Add tag'} - Press Enter to add or select from suggestions`}
               className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent"
             />
 
