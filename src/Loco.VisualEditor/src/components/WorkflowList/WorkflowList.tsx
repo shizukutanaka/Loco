@@ -26,6 +26,7 @@ import { useExecutionStore } from '@/store/executionStore';
 import { TOAST_LONG_DURATION } from '@/utils/constants';
 import { debounce } from '@/utils/debounceThrottle';
 import { isApiSuccess, isApiError, getExecutionCompletionTime } from '@/utils/typeGuards';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 
 // ============================================================================
 // Types
@@ -66,6 +67,17 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
   const { newWorkflow, loadWorkflow } = useWorkflowStore();
   const { setCurrentExecution, addToHistory } = useExecutionStore();
   const toast = useToast();
+
+  // Refs for focus management
+  const modalRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Apply focus trap to the modal
+  useFocusTrap(modalRef, {
+    isActive: isOpen,
+    onEscape: onClose,
+    restoreFocusRef: closeButtonRef,
+  });
 
   // Debounce search query to avoid excessive filtering
   const debouncedSearchRef = useRef(
@@ -282,6 +294,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6" role="presentation">
       <div
+        ref={modalRef}
         className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col"
         role="dialog"
         aria-modal="true"
@@ -298,12 +311,13 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
             </p>
           </div>
           <button
+            ref={closeButtonRef}
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             aria-label="Close workflows dialog"
             title="Close"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-gray-500" aria-hidden="true" />
           </button>
         </div>
 
