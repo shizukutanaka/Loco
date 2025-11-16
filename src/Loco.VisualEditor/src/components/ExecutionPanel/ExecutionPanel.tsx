@@ -21,6 +21,7 @@ import {
 import { getExecutionStatus } from '@/api/workflows';
 import type { WorkflowExecutionResponse } from '@/api/types';
 import { EXECUTION_POLLING_INTERVAL } from '@/utils/constants';
+import { useLiveRegion } from '@/utils/ariaLiveRegion';
 import {
   getExecutionCompletionTime,
   getExecutionOutput,
@@ -45,6 +46,24 @@ export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [expandedLogs, setExpandedLogs] = useState(true);
   const executionStatusRef = useRef<string | null>(null);
+
+  // Live region for announcing execution status changes
+  const { announce: announceStatus } = useLiveRegion('execution-status', 'assertive');
+
+  // Announce status changes to screen readers
+  useEffect(() => {
+    if (!execution) return;
+
+    const statusMessages = {
+      pending: 'Workflow execution is pending',
+      running: 'Workflow execution is running',
+      completed: `Workflow execution completed successfully. Duration: ${getDuration()}`,
+      failed: `Workflow execution failed: ${getExecutionError(execution)?.message || 'Unknown error'}`,
+      cancelled: 'Workflow execution was cancelled',
+    };
+
+    announceStatus(statusMessages[execution.status]);
+  }, [execution?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch execution status
   useEffect(() => {
