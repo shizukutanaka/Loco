@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, useEffect } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import ReactFlow, {
   Background,
   MiniMap,
@@ -8,7 +8,6 @@ import ReactFlow, {
   OnEdgesChange,
   OnConnect,
   OnSelectionChangeParams,
-  useReactFlow,
   Node,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -21,12 +20,16 @@ import {
   TransformNode,
   LoopNode,
 } from '@/components/NodeTypes';
-import { getIntegrationById } from '@/data/integrations';
 import { CanvasControls } from '@/components/CanvasControls/CanvasControls';
-import { QuickActionsMenu, ActionType } from '@/components/QuickActionsMenu/QuickActionsMenu';
+import { QuickActionsMenu } from '@/components/QuickActionsMenu/QuickActionsMenu';
 import { CollaborationOverlay } from '@/components/CollaborationOverlay/CollaborationOverlay';
-import { useToast } from '@/contexts/ToastContext';
 import { useCollaborationStore } from '@/store/collaborationStore';
+import {
+  useCanvasZoomControls,
+  useCanvasKeyboardShortcuts,
+  useCanvasContextMenu,
+  useCanvasQuickActions,
+} from '@/hooks';
 
 const nodeTypes: NodeTypes = {
   trigger: TriggerNode,
@@ -38,21 +41,8 @@ const nodeTypes: NodeTypes = {
 
 export function WorkflowCanvas() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const reactFlowInstance = useReactFlow();
   const [showMinimap, setShowMinimap] = useState(true);
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
-  const [contextMenu, setContextMenu] = useState<{
-    isOpen: boolean;
-    position: { x: number; y: number };
-    nodeId: string | null;
-    nodeType: string | null;
-  }>({
-    isOpen: false,
-    position: { x: 0, y: 0 },
-    nodeId: null,
-    nodeType: null,
-  });
-  const toast = useToast();
   const {
     nodes,
     edges,
@@ -62,36 +52,45 @@ export function WorkflowCanvas() {
     addNode,
     setSelectedNodeId,
     deleteNode,
-    updateNode,
   } = useWorkflowStore();
 
-  const {
-    isConnected,
-    updateSelection,
-    sendNodeAdded,
-    sendNodeDeleted,
-    sendNodeUpdated,
-  } = useCollaborationStore();
+  const { isConnected, updateSelection } = useCollaborationStore();
 
-  // Listen for canvas control events from keyboard shortcuts
-  useEffect(() => {
-    const handleZoomIn = () => reactFlowInstance.zoomIn({ duration: 200 });
-    const handleZoomOut = () => reactFlowInstance.zoomOut({ duration: 200 });
-    const handleResetZoom = () => reactFlowInstance.setViewport({ x: 0, y: 0, zoom: 1 }, { duration: 400 });
-    const handleFitView = () => reactFlowInstance.fitView({ padding: 0.2, duration: 400 });
+  // Setup canvas control event listeners (zoom in/out, fit view, etc)
+  useCanvasZoomControls();
 
-    window.addEventListener('canvas:zoom-in', handleZoomIn);
-    window.addEventListener('canvas:zoom-out', handleZoomOut);
-    window.addEventListener('canvas:reset-zoom', handleResetZoom);
-    window.addEventListener('canvas:fit-view', handleFitView);
+  // Setup canvas context menu
+  const contextMenu = useCanvasContextMenu();
 
-    return () => {
-      window.removeEventListener('canvas:zoom-in', handleZoomIn);
-      window.removeEventListener('canvas:zoom-out', handleZoomOut);
-      window.removeEventListener('canvas:reset-zoom', handleResetZoom);
-      window.removeEventListener('canvas:fit-view', handleFitView);
-    };
-  }, [reactFlowInstance]);
+  // Setup keyboard shortcuts for deletion and duplication
+  useCanvasKeyboardShortcuts({
+    selectedNodeIds: selectedNodes,
+    onDeleteNodes: (nodeIds) => nodeIds.forEach(deleteNode),
+    onDuplicateNode: () => {
+      const selectedNode = nodes.find((n) => n.id === selectedNodes[0]);
+      if (selectedNode) {
+        const newNode = {
+          ...selectedNode,
+          id: `node-${Date.now()}`,
+          position: {
+            x: selectedNode.position.x + 100,
+            y: selectedNode.position.y + 100,
+          },
+          data: { ...selectedNode.data },
+        };
+        addNode(newNode);
+      }
+    },
+    onClearSelection: () => setSelectedNodes([]),
+  });
+
+  // Setup quick actions handler
+  const { handleQuickAction } = useCanvasQuickActions({
+    nodes,
+    contextMenuNodeId: contextMenu.nodeId,
+    contextMenuPosition: contextMenu.position,
+    onSelectNode: setSelectedNodeId,
+  });
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -114,19 +113,15 @@ export function WorkflowCanvas() {
         y: event.clientY - reactFlowBounds.top - 40,
       };
 
-      const integration = nodeData.integration
-        ? getIntegrationById(nodeData.integration)
-        : null;
-
       const newNode = {
         id: `node-${Date.now()}`,
         type: nodeData.type,
         position,
         data: {
-          label: nodeData.label || integration?.name || 'New Node',
+          label: nodeData.label || 'New Node',
           integration: nodeData.integration,
           config: {},
-          description: integration?.description || '',
+          description: nodeData.description || '',
         },
       };
 
@@ -145,31 +140,18 @@ export function WorkflowCanvas() {
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
       event.preventDefault();
-      setContextMenu({
-        isOpen: true,
-        position: { x: event.clientX, y: event.clientY },
-        nodeId: node.id || null,
-        nodeType: node.type || null,
-      });
+      contextMenu.openContextMenu(event.clientX, event.clientY, node.id || null, node.type || null);
       setSelectedNodeId(node.id || null);
     },
-    [setSelectedNodeId]
+    [contextMenu, setSelectedNodeId]
   );
 
   const onPaneContextMenu = useCallback(
     (event: React.MouseEvent) => {
       event.preventDefault();
-      const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect();
-      if (reactFlowBounds) {
-        setContextMenu({
-          isOpen: true,
-          position: { x: event.clientX, y: event.clientY },
-          nodeId: null,
-          nodeType: null,
-        });
-      }
+      contextMenu.openCanvasContextMenu(event.clientX, event.clientY);
     },
-    []
+    [contextMenu]
   );
 
   const onPaneClick = useCallback(() => {
@@ -217,155 +199,6 @@ export function WorkflowCanvas() {
     [setSelectedNodeId, isConnected, updateSelection]
   );
 
-  // Listen for delete key to delete selected nodes
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in input/textarea
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-        return;
-      }
-
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-      const ctrlKey = isMac ? e.metaKey : e.ctrlKey;
-
-      // Delete or Backspace key
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNodes.length > 0) {
-        e.preventDefault();
-        selectedNodes.forEach((nodeId) => deleteNode(nodeId));
-        setSelectedNodes([]);
-      }
-
-      // Duplicate with Ctrl+D
-      if (ctrlKey && e.key === 'd' && contextMenu.nodeId) {
-        e.preventDefault();
-        handleQuickAction('duplicate');
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNodes, deleteNode, contextMenu.nodeId]);
-
-  const handleQuickAction = useCallback(
-    (action: ActionType) => {
-      const selectedNode = nodes.find((n) => n.id === contextMenu.nodeId);
-
-      switch (action) {
-        case 'duplicate':
-          if (selectedNode) {
-            const newNode = {
-              ...selectedNode,
-              id: `node-${Date.now()}`,
-              position: {
-                x: selectedNode.position.x + 100,
-                y: selectedNode.position.y + 100,
-              },
-              data: { ...selectedNode.data },
-            };
-            addNode(newNode);
-
-            // Send to collaboration service
-            if (isConnected) {
-              sendNodeAdded(newNode);
-            }
-
-            toast.success('Node duplicated');
-          }
-          break;
-
-        case 'delete':
-          if (contextMenu.nodeId) {
-            deleteNode(contextMenu.nodeId);
-
-            // Send to collaboration service
-            if (isConnected) {
-              sendNodeDeleted(contextMenu.nodeId);
-            }
-
-            toast.info('Node deleted');
-          }
-          break;
-
-        case 'rename':
-          if (contextMenu.nodeId && selectedNode) {
-            const newName = prompt('Enter new name:', selectedNode.data.label);
-            if (newName) {
-              updateNode(contextMenu.nodeId, { label: newName });
-
-              // Send to collaboration service
-              if (isConnected) {
-                sendNodeUpdated(contextMenu.nodeId, { label: newName });
-              }
-
-              toast.success('Node renamed');
-            }
-          }
-          break;
-
-        case 'run':
-          toast.info('Running workflow from this node...');
-          break;
-
-        case 'group':
-          toast.info('Grouping nodes (feature coming soon)');
-          break;
-
-        case 'connect':
-          toast.info('Connect mode (feature coming soon)');
-          break;
-
-        case 'disconnect':
-          if (contextMenu.nodeId) {
-            // Remove all edges connected to this node
-            // Note: We need to implement deleteEdge in the store
-            toast.info('Disconnected node (feature coming soon)');
-          }
-          break;
-
-        case 'properties':
-          if (contextMenu.nodeId) {
-            setSelectedNodeId(contextMenu.nodeId);
-            toast.info('Open property panel');
-          }
-          break;
-
-        case 'info':
-          if (selectedNode) {
-            alert(`Node Info:\nID: ${selectedNode.id}\nType: ${selectedNode.type}\nLabel: ${selectedNode.data.label}`);
-          }
-          break;
-
-        // Add node actions for canvas right-click
-        case 'add-trigger':
-        case 'add-action':
-        case 'add-condition':
-        case 'add-transform':
-        case 'add-loop':
-          const nodeType = action.replace('add-', '');
-          const position = reactFlowInstance.project({
-            x: contextMenu.position.x - (reactFlowWrapper.current?.offsetLeft || 0),
-            y: contextMenu.position.y - (reactFlowWrapper.current?.offsetTop || 0),
-          });
-          const newNode = {
-            id: `node-${Date.now()}`,
-            type: nodeType,
-            position,
-            data: {
-              label: `New ${nodeType}`,
-              config: {},
-            },
-          };
-          addNode(newNode);
-          toast.success(`Added ${nodeType} node`);
-          break;
-
-        default:
-          break;
-      }
-    },
-    [nodes, edges, contextMenu, addNode, deleteNode, updateNode, setSelectedNodeId, reactFlowInstance, toast, isConnected, sendNodeAdded, sendNodeDeleted, sendNodeUpdated]
-  );
 
   return (
     <div ref={reactFlowWrapper} className="flex-1 h-full relative">
@@ -432,7 +265,7 @@ export function WorkflowCanvas() {
         position={contextMenu.position}
         nodeId={contextMenu.nodeId}
         nodeType={contextMenu.nodeType}
-        onClose={() => setContextMenu({ ...contextMenu, isOpen: false })}
+        onClose={contextMenu.closeContextMenu}
         onAction={handleQuickAction}
       />
     </div>
