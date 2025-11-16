@@ -21,6 +21,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
+import { FormInput, FormSelect, FormToggle } from '@/components/Form';
 
 // ============================================================================
 // Types
@@ -211,56 +212,49 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                     {/* Auto-save */}
                     <div className="flex items-center justify-between">
                       <div>
-                        <label className="text-sm font-medium text-gray-700">Enable Auto-save</label>
+                        <p className="text-sm font-medium text-gray-700">Enable Auto-save</p>
                         <p className="text-xs text-gray-500 mt-1">
                           Automatically save workflow drafts
                         </p>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={enableAutoSave}
-                          onChange={(e) => setEnableAutoSave(e.target.checked)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-loco-primary"></div>
-                      </label>
+                      <FormToggle
+                        id="enable-auto-save"
+                        checked={enableAutoSave}
+                        onChange={(e) => setEnableAutoSave(e.target.checked)}
+                        size="md"
+                        labelPosition="left"
+                      />
                     </div>
 
                     {/* Auto-save interval */}
                     {enableAutoSave && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Auto-save Interval (seconds)
-                        </label>
-                        <input
-                          type="number"
-                          value={autoSaveInterval}
-                          onChange={(e) => setAutoSaveInterval(Number(e.target.value))}
-                          min="10"
-                          max="300"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary"
-                        />
-                      </div>
+                      <FormInput
+                        id="auto-save-interval"
+                        type="number"
+                        label="Auto-save Interval (seconds)"
+                        value={autoSaveInterval}
+                        onChange={(e) => setAutoSaveInterval(Number(e.target.value))}
+                        min={10}
+                        max={300}
+                        helpText="Interval between automatic saves (10-300 seconds)"
+                      />
                     )}
 
                     {/* Show validation panel */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between pt-2">
                       <div>
-                        <label className="text-sm font-medium text-gray-700">Show Validation Panel</label>
+                        <p className="text-sm font-medium text-gray-700">Show Validation Panel</p>
                         <p className="text-xs text-gray-500 mt-1">
                           Display validation errors and warnings
                         </p>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={showValidationPanel}
-                          onChange={(e) => setShowValidationPanel(e.target.checked)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-loco-primary"></div>
-                      </label>
+                      <FormToggle
+                        id="show-validation-panel"
+                        checked={showValidationPanel}
+                        onChange={(e) => setShowValidationPanel(e.target.checked)}
+                        size="md"
+                        labelPosition="left"
+                      />
                     </div>
                   </div>
                 </div>
@@ -275,38 +269,30 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
                   <div className="space-y-4">
                     {/* API Base URL */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        API Base URL
-                      </label>
-                      <input
-                        type="url"
-                        value={apiBaseUrl}
-                        onChange={(e) => setApiBaseUrl(e.target.value)}
-                        placeholder="http://localhost:5000"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Base URL for the Loco API server
-                      </p>
-                    </div>
+                    <FormInput
+                      id="api-base-url"
+                      type="url"
+                      label="API Base URL"
+                      value={apiBaseUrl}
+                      onChange={(e) => setApiBaseUrl(e.target.value)}
+                      placeholder="http://localhost:5000"
+                      helpText="Base URL for the Loco API server"
+                    />
 
                     {/* API Key */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        API Key (Optional)
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showSecrets ? 'text' : 'password'}
-                          value={apiKey}
-                          onChange={(e) => setApiKey(e.target.value)}
-                          placeholder="Enter your API key"
-                          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary"
-                        />
+                    <FormInput
+                      id="api-key"
+                      type={showSecrets ? 'text' : 'password'}
+                      label="API Key (Optional)"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder="Enter your API key"
+                      helpText="API key for authenticated requests"
+                      suffix={
                         <button
                           onClick={() => setShowSecrets(!showSecrets)}
-                          className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded"
+                          className="hover:bg-gray-100 rounded p-1"
+                          tabIndex={-1}
                         >
                           {showSecrets ? (
                             <EyeOff className="w-4 h-4 text-gray-500" />
@@ -314,11 +300,8 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                             <Eye className="w-4 h-4 text-gray-500" />
                           )}
                         </button>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        API key for authenticated requests
-                      </p>
-                    </div>
+                      }
+                    />
 
                     {/* Security Notice */}
                     <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -345,25 +328,27 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                     <h4 className="text-sm font-semibold text-gray-700 mb-3">Add New Variable</h4>
                     <div className="flex gap-2">
-                      <input
+                      <FormInput
+                        id="env-key"
                         type="text"
                         value={newEnvKey}
                         onChange={(e) => setNewEnvKey(e.target.value)}
                         placeholder="KEY"
-                        aria-label="Environment variable name"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary"
+                        description="Environment variable name"
+                        className="flex-1"
                       />
-                      <input
+                      <FormInput
+                        id="env-value"
                         type="text"
                         value={newEnvValue}
                         onChange={(e) => setNewEnvValue(e.target.value)}
                         placeholder="value"
-                        aria-label="Environment variable value"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary"
+                        description="Environment variable value"
+                        className="flex-1"
                       />
                       <button
                         onClick={handleAddEnvVar}
-                        className="flex items-center gap-2 px-4 py-2 bg-loco-primary text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 bg-loco-primary text-white rounded-lg hover:bg-blue-700 transition-colors self-end"
                       >
                         <Plus className="w-4 h-4" />
                         Add
@@ -409,20 +394,18 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
                   <div className="space-y-4">
                     {/* Theme */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Theme
-                      </label>
-                      <select
-                        value={theme}
-                        onChange={(e) => setTheme(e.target.value as typeof theme)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary"
-                      >
-                        <option value="light">Light</option>
-                        <option value="dark">Dark</option>
-                        <option value="system">System</option>
-                      </select>
-                    </div>
+                    <FormSelect
+                      id="theme"
+                      label="Theme"
+                      value={theme}
+                      onChange={(e) => setTheme(e.target.value as typeof theme)}
+                      options={[
+                        { value: 'light', label: 'Light' },
+                        { value: 'dark', label: 'Dark' },
+                        { value: 'system', label: 'System' },
+                      ]}
+                      showEmpty={false}
+                    />
 
                     {/* Grid Size */}
                     <div>
@@ -441,22 +424,20 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                     </div>
 
                     {/* Show Minimap */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between pt-2">
                       <div>
-                        <label className="text-sm font-medium text-gray-700">Show Minimap</label>
+                        <p className="text-sm font-medium text-gray-700">Show Minimap</p>
                         <p className="text-xs text-gray-500 mt-1">
                           Display workflow minimap
                         </p>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={showMinimap}
-                          onChange={(e) => setShowMinimap(e.target.checked)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-loco-primary"></div>
-                      </label>
+                      <FormToggle
+                        id="show-minimap"
+                        checked={showMinimap}
+                        onChange={(e) => setShowMinimap(e.target.checked)}
+                        size="md"
+                        labelPosition="left"
+                      />
                     </div>
                   </div>
                 </div>
@@ -473,20 +454,18 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                     {/* Enable Notifications */}
                     <div className="flex items-center justify-between">
                       <div>
-                        <label className="text-sm font-medium text-gray-700">Enable Notifications</label>
+                        <p className="text-sm font-medium text-gray-700">Enable Notifications</p>
                         <p className="text-xs text-gray-500 mt-1">
                           Show toast notifications
                         </p>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={enableNotifications}
-                          onChange={(e) => setEnableNotifications(e.target.checked)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-loco-primary"></div>
-                      </label>
+                      <FormToggle
+                        id="enable-notifications"
+                        checked={enableNotifications}
+                        onChange={(e) => setEnableNotifications(e.target.checked)}
+                        size="md"
+                        labelPosition="left"
+                      />
                     </div>
 
                     {enableNotifications && (
@@ -494,39 +473,35 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                         {/* Notify on Success */}
                         <div className="flex items-center justify-between pl-6">
                           <div>
-                            <label className="text-sm font-medium text-gray-700">Notify on Success</label>
+                            <p className="text-sm font-medium text-gray-700">Notify on Success</p>
                             <p className="text-xs text-gray-500 mt-1">
                               Show notifications for successful operations
                             </p>
                           </div>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={notifyOnSuccess}
-                              onChange={(e) => setNotifyOnSuccess(e.target.checked)}
-                              className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-loco-primary"></div>
-                          </label>
+                          <FormToggle
+                            id="notify-on-success"
+                            checked={notifyOnSuccess}
+                            onChange={(e) => setNotifyOnSuccess(e.target.checked)}
+                            size="md"
+                            labelPosition="left"
+                          />
                         </div>
 
                         {/* Notify on Error */}
                         <div className="flex items-center justify-between pl-6">
                           <div>
-                            <label className="text-sm font-medium text-gray-700">Notify on Error</label>
+                            <p className="text-sm font-medium text-gray-700">Notify on Error</p>
                             <p className="text-xs text-gray-500 mt-1">
                               Show notifications for errors
                             </p>
                           </div>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={notifyOnError}
-                              onChange={(e) => setNotifyOnError(e.target.checked)}
-                              className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-loco-primary"></div>
-                          </label>
+                          <FormToggle
+                            id="notify-on-error"
+                            checked={notifyOnError}
+                            onChange={(e) => setNotifyOnError(e.target.checked)}
+                            size="md"
+                            labelPosition="left"
+                          />
                         </div>
                       </>
                     )}
