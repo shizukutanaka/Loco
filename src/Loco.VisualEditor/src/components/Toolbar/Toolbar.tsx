@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useExecutionStore } from '@/store/executionStore';
 import { useToast } from '@/contexts/ToastContext';
+import { useLiveRegion } from '@/utils/ariaLiveRegion';
 import { TOAST_LONG_DURATION } from '@/utils/constants';
 import {
   Save,
@@ -53,6 +54,13 @@ export function Toolbar() {
   const [isKeyboardShortcutsOpen, setIsKeyboardShortcutsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
+
+  // Live regions for accessibility announcements
+  const { announce: announceSave } = useLiveRegion('toolbar-save-status', 'assertive');
+  const { announce: announceRun } = useLiveRegion('toolbar-run-status', 'assertive');
+  const { announce: announceImport } = useLiveRegion('toolbar-import-status', 'polite');
+  const { announce: announceExport } = useLiveRegion('toolbar-export-status', 'polite');
+  const { announce: announceLayout } = useLiveRegion('toolbar-layout-status', 'polite');
 
   // Listen for keyboard shortcut events
   useEffect(() => {
@@ -196,6 +204,7 @@ export function Toolbar() {
   const handleExportJSON = () => {
     const workflowData = exportWorkflow();
     exportWorkflowAsJson(workflowData);
+    announceExport(`Workflow "${workflowData.name}" exported successfully`);
     toast.success('Workflow exported successfully');
   };
 
@@ -228,9 +237,11 @@ export function Toolbar() {
             // Load the workflow
             loadWorkflow(workflowData);
             setWorkflowName(workflowData.name);
+            announceImport(`Workflow "${workflowData.name}" imported successfully`);
             toast.success(`Workflow "${workflowData.name}" imported successfully!`);
           } catch (error) {
             console.error('Failed to import workflow:', error);
+            announceImport('Failed to import workflow: Invalid JSON format');
             toast.error('Failed to import workflow: Invalid JSON format');
           }
         };
@@ -263,9 +274,11 @@ export function Toolbar() {
           };
           loadWorkflow(updatedWorkflow);
           console.log('Workflow created successfully:', response.data.id);
+          announceSave(`Workflow "${workflowData.name}" created and saved successfully`);
           toast.success(`Workflow "${workflowData.name}" created successfully!`);
         } else if (isApiError(response)) {
           console.error('Failed to create workflow:', response.error.message);
+          announceSave(`Failed to save workflow: ${response.error.message || 'Unknown error'}`);
           toast.error(`Failed to save workflow: ${response.error.message || 'Unknown error'}`);
         }
       } else {
@@ -281,14 +294,17 @@ export function Toolbar() {
 
         if (isApiSuccess(response)) {
           console.log('Workflow updated successfully:', response.data.id);
+          announceSave(`Workflow "${workflowData.name}" saved successfully`);
           toast.success(`Workflow "${workflowData.name}" saved successfully!`);
         } else if (isApiError(response)) {
           console.error('Failed to update workflow:', response.error.message);
+          announceSave(`Failed to save workflow: ${response.error.message || 'Unknown error'}`);
           toast.error(`Failed to save workflow: ${response.error.message || 'Unknown error'}`);
         }
       }
     } catch (error) {
       console.error('Error saving workflow:', error);
+      announceSave('An unexpected error occurred while saving the workflow');
       toast.error('An unexpected error occurred while saving the workflow');
     } finally {
       setIsSaving(false);
@@ -302,6 +318,7 @@ export function Toolbar() {
 
       // Check if workflow has a valid ID
       if (!workflowData.id || workflowData.id.startsWith('workflow-')) {
+        announceRun('Please save the workflow before running it');
         toast.warning('Please save the workflow before running it');
         setIsRunning(false);
         return;
@@ -331,14 +348,17 @@ export function Toolbar() {
         // Open execution panel
         setCurrentExecution(executionData.executionId);
 
+        announceRun(`Workflow "${workflowData.name}" started executing, execution ID: ${executionData.executionId}`);
         toast.success(`Workflow "${workflowData.name}" is running...`);
         toast.info(`Execution ID: ${executionData.executionId}`, TOAST_LONG_DURATION);
       } else if (isApiError(response)) {
         console.error('Failed to execute workflow:', response.error.message);
+        announceRun(`Failed to run workflow: ${response.error.message || 'Unknown error'}`);
         toast.error(`Failed to run workflow: ${response.error.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error executing workflow:', error);
+      announceRun('An unexpected error occurred while running the workflow');
       toast.error('An unexpected error occurred while running the workflow');
     } finally {
       setIsRunning(false);
@@ -367,6 +387,7 @@ export function Toolbar() {
 
   const handleAutoLayout = () => {
     autoLayout('TB'); // Top-to-bottom layout by default
+    announceLayout('Workflow layout optimized and nodes automatically arranged');
     toast.success('Workflow layout optimized');
   };
 
