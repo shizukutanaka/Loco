@@ -28,6 +28,7 @@ import {
   MousePointer2,
 } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
+import { COPY_FEEDBACK_DURATION } from '@/utils/constants';
 import { useCollaborationStore } from '@/store/collaborationStore';
 import { useWorkflowStore } from '@/store/workflowStore';
 
@@ -155,7 +156,7 @@ export function CollaborationPanel({
       navigator.clipboard.writeText(shareLink);
       setLinkCopied(true);
       toast.success('Share link copied to clipboard');
-      setTimeout(() => setLinkCopied(false), 2000);
+      setTimeout(() => setLinkCopied(false), COPY_FEEDBACK_DURATION);
     }
   };
 

@@ -5,7 +5,7 @@
  * Provides real-time execution monitoring and historical results.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   PlayCircle,
   XCircle,
@@ -39,11 +39,13 @@ export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
   const [execution, setExecution] = useState<WorkflowExecutionResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [expandedLogs, setExpandedLogs] = useState(true);
+  const executionStatusRef = useRef<string | null>(null);
 
   // Fetch execution status
   useEffect(() => {
     if (!executionId) {
       setExecution(null);
+      executionStatusRef.current = null;
       return;
     }
 
@@ -53,6 +55,7 @@ export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
         const response = await getExecutionStatus(executionId);
         if (response.success && response.data) {
           setExecution(response.data);
+          executionStatusRef.current = response.data.status;
         }
       } catch (error) {
         console.error('Failed to fetch execution status:', error);
@@ -63,15 +66,16 @@ export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
 
     fetchExecution();
 
-    // Poll for updates if execution is running
+    // Poll for updates if execution is running or pending
     const interval = setInterval(() => {
-      if (execution?.status === 'running' || execution?.status === 'pending') {
+      const status = executionStatusRef.current;
+      if (status === 'running' || status === 'pending') {
         fetchExecution();
       }
     }, EXECUTION_POLLING_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [executionId, execution?.status]);
+  }, [executionId]);
 
   if (!executionId) {
     return (
