@@ -1,25 +1,88 @@
 import { useWorkflowStore } from '@/store/workflowStore';
 import { getIntegrationById } from '@/data/integrations';
 import { X, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { FormInput, FormTextarea, FormSelect } from '@/components/Form';
-import {
-  usePropertyPanelFormState,
-  usePropertyPanelActions,
-} from '@/hooks';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+interface NodeConfig {
+  condition?: string;
+  code?: string;
+  action?: string;
+  parameters?: Record<string, string | number>;
+  [key: string]: unknown;
+}
+
+interface NodeData {
+  label: string;
+  integration?: string;
+  config: NodeConfig;
+  description?: string;
+  [key: string]: unknown;
+}
+
+type ConfigValue = string | number | Record<string, unknown> | undefined;
+
+interface ValidationError {
+  label?: string;
+  condition?: string;
+  code?: string;
+  action?: string;
+  parameters?: Record<string, string>;
+}
+
+// ============================================================================
+// Validation Functions
+// ============================================================================
+
+const validateLabel = (label: string): string | undefined => {
+  if (!label.trim()) {
+    return 'Node label is required';
+  }
+  if (label.length > 100) {
+    return 'Label must be less than 100 characters';
+  }
+  return undefined;
+};
+
+const validateCondition = (condition: string): string | undefined => {
+  if (!condition.trim()) {
+    return 'Condition expression is required';
+  }
+  return undefined;
+};
+
+const validateCode = (code: string): string | undefined => {
+  if (!code.trim()) {
+    return 'Transform code is required';
+  }
+  return undefined;
+};
 
 // ============================================================================
 // Property Panel Component
 // ============================================================================
 
 export function PropertyPanel() {
-  const { nodes, selectedNodeId } = useWorkflowStore();
+  const { nodes, selectedNodeId, updateNode, deleteNode, setSelectedNodeId } =
+    useWorkflowStore();
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
+  const [localData, setLocalData] = useState<NodeData>({
+    label: '',
+    config: {},
+  });
+  const [errors, setErrors] = useState<ValidationError>({});
 
-  // Use custom hooks
-  const { localData, errors, handleLabelChange, handleConfigChange } =
-    usePropertyPanelFormState(selectedNodeId);
-  const { handleDelete, handleClose } = usePropertyPanelActions(selectedNodeId);
+  useEffect(() => {
+    if (selectedNode) {
+      setLocalData(selectedNode.data);
+      setErrors({}); // Clear errors when switching nodes
+    }
+  }, [selectedNode]);
 
   if (!selectedNode) {
     return (
@@ -36,6 +99,39 @@ export function PropertyPanel() {
     ? getIntegrationById(selectedNode.data.integration)
     : null;
 
+  const handleLabelChange = (label: string) => {
+    setLocalData({ ...localData, label });
+    const error = validateLabel(label);
+    setErrors({ ...errors, label: error });
+    if (!error) {
+      updateNode(selectedNode.id, { label });
+    }
+  };
+
+  const handleConfigChange = (key: string, value: ConfigValue) => {
+    const newConfig = { ...localData.config, [key]: value };
+    setLocalData({ ...localData, config: newConfig });
+
+    // Validate based on field type
+    let error: string | undefined;
+    if (key === 'condition') {
+      error = validateCondition(String(value || ''));
+    } else if (key === 'code') {
+      error = validateCode(String(value || ''));
+    }
+
+    setErrors({ ...errors, [key]: error });
+
+    // Only update if valid
+    if (!error) {
+      updateNode(selectedNode.id, { config: newConfig });
+    }
+  };
+
+  const handleDelete = () => {
+    deleteNode(selectedNode.id);
+  };
+
   return (
     <div className="w-96 bg-white border-l border-gray-200 flex flex-col h-full">
       <div className="p-4 border-b border-gray-200 flex items-center justify-between">
@@ -49,7 +145,7 @@ export function PropertyPanel() {
             <Trash2 className="w-4 h-4" />
           </button>
           <button
-            onClick={handleClose}
+            onClick={() => setSelectedNodeId(null)}
             className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
             title="Close"
           >

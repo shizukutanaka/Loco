@@ -9,3 +9,6 @@ export { useCanvasQuickActions } from './useCanvasQuickActions';
 export { useWorkflowListData, type WorkflowListItem } from './useWorkflowListData';
 export { useWorkflowListFilters } from './useWorkflowListFilters';
 export { useWorkflowListActions } from './useWorkflowListActions';
+export { usePropertyPanelValidation, type ValidationError } from './usePropertyPanelValidation';
+export { usePropertyPanelFormState, type NodeData, type NodeConfig } from './usePropertyPanelFormState';
+export { usePropertyPanelActions } from './usePropertyPanelActions';

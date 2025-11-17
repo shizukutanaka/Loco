@@ -6,6 +6,20 @@ import {
   usePropertyPanelFormState,
   usePropertyPanelActions,
 } from '@/hooks';
+import {
+  usePropertyPanelFormState,
+  usePropertyPanelActions,
+} from '@/hooks';
+import {
+  usePropertyPanelFormState,
+  usePropertyPanelActions,
+} from '@/hooks';
+import {
+  usePropertyPanelFormState,
+  usePropertyPanelActions,
+} from '@/hooks';
+  const { localData, errors, handleLabelChange, handleConfigChange } =
+} from '@/hooks';
 
 // ============================================================================
 // Property Panel Component
@@ -17,8 +31,9 @@ export function PropertyPanel() {
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
 
   // Use custom hooks
-  const { localData, errors, handleLabelChange, handleConfigChange } =
-    usePropertyPanelFormState(selectedNodeId);
+  const { errors, validate } = usePropertyPanelValidation();
+  const { localData, handleLabelChange, handleConfigChange } =
+    usePropertyPanelFormState(selectedNodeId, validate);
   const { handleDelete, handleClose } = usePropertyPanelActions(selectedNodeId);
 
   if (!selectedNode) {
