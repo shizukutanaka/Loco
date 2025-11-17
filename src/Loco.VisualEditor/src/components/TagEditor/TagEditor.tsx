@@ -4,7 +4,7 @@
  * Provides an inline tag editor with autocomplete suggestions for workflow categorization.
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { X, Plus, Tag } from 'lucide-react';
 
 // ============================================================================
@@ -50,7 +50,7 @@ export const PREDEFINED_TAGS = [
 // Tag Editor Component
 // ============================================================================
 
-export function TagEditor({
+function TagEditorComponent({
   tags,
   onChange,
   suggestions = PREDEFINED_TAGS,
@@ -85,7 +85,8 @@ export function TagEditor({
     }
   }, [isInputVisible]);
 
-  const handleAddTag = (tag: string) => {
+  // Memoize add tag handler
+  const handleAddTag = useCallback((tag: string) => {
     const trimmedTag = tag.trim().toLowerCase();
 
     if (!trimmedTag) return;
@@ -95,13 +96,15 @@ export function TagEditor({
     onChange([...tags, trimmedTag]);
     setInputValue('');
     setIsInputVisible(false);
-  };
+  }, [tags, maxTags, onChange]);
 
-  const handleRemoveTag = (tagToRemove: string) => {
+  // Memoize remove tag handler
+  const handleRemoveTag = useCallback((tagToRemove: string) => {
     onChange(tags.filter((tag) => tag !== tagToRemove));
-  };
+  }, [tags, onChange]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  // Memoize key down handler
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
 
@@ -124,7 +127,7 @@ export function TagEditor({
     } else if (e.key === 'Backspace' && !inputValue && tags.length > 0) {
       handleRemoveTag(tags[tags.length - 1]);
     }
-  };
+  }, [filteredSuggestions, selectedSuggestionIndex, handleAddTag, inputValue, tags, handleRemoveTag]);
 
   return (
     <div className="relative">
@@ -203,3 +206,6 @@ export function TagEditor({
     </div>
   );
 }
+
+export const TagEditor = memo(TagEditorComponent);
+TagEditor.displayName = 'TagEditor';
