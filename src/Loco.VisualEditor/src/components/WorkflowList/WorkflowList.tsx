@@ -4,7 +4,7 @@
  * Displays a list of all saved workflows with search, filter, and management capabilities.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useRef, useState } from 'react';
 import {
   Search,
   Plus,
@@ -19,15 +19,13 @@ import {
   X,
   Tag,
 } from 'lucide-react';
-import { listWorkflows, deleteWorkflow, getWorkflow, createWorkflow, executeWorkflow, workflowToCreateRequest } from '@/api/workflows';
-import { useWorkflowStore } from '@/store/workflowStore';
-import { useToast } from '@/contexts/ToastContext';
-import { useExecutionStore } from '@/store/executionStore';
-import { TOAST_LONG_DURATION } from '@/utils/constants';
-import { debounce } from '@/utils/debounceThrottle';
-import { isApiSuccess, isApiError, getExecutionCompletionTime } from '@/utils/typeGuards';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { SkeletonCard } from '@/components/Skeleton/Skeleton';
+import {
+  useWorkflowListData,
+  useWorkflowListFilters,
+  useWorkflowListActions,
+} from '@/hooks';
 
 // ============================================================================
 // Types
@@ -38,40 +36,17 @@ interface WorkflowListProps {
   onClose: () => void;
 }
 
-interface WorkflowListItem {
-  id: string;
-  name: string;
-  description?: string;
-  nodeCount: number;
-  edgeCount: number;
-  createdAt: string;
-  updatedAt: string;
-  lastExecutionStatus?: 'completed' | 'failed' | 'running';
-  tags?: string[];
-}
-
 // ============================================================================
 // Workflow List Component
 // ============================================================================
 
 export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
-  const [workflows, setWorkflows] = useState<WorkflowListItem[]>([]);
-  const [filteredWorkflows, setFilteredWorkflows] = useState<WorkflowListItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'completed' | 'failed' | 'running'>('all');
-  const [filterTag, setFilterTag] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'name' | 'created' | 'updated'>('updated');
-  const [allTags, setAllTags] = useState<string[]>([]);
-
-  const { newWorkflow, loadWorkflow } = useWorkflowStore();
-  const { setCurrentExecution, addToHistory } = useExecutionStore();
-  const toast = useToast();
-
   // Refs for focus management
   const modalRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Manage sortBy state directly to avoid circular dependency
+  const [sortBy, setSortBy] = useState<'name' | 'created' | 'updated'>('updated');
 
   // Apply focus trap to the modal
   useFocusTrap(modalRef, {
@@ -80,215 +55,31 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
     restoreFocusRef: closeButtonRef,
   });
 
-  // Debounce search query to avoid excessive filtering
-  const debouncedSearchRef = useRef(
-    debounce((query: string) => {
-      setDebouncedSearchQuery(query);
-    }, 300)
-  );
+  // Data hook - fetches workflows and extracts tags
+  const { workflows, isLoading, allTags, updateWorkflows } = useWorkflowListData({
+    isOpen,
+    sortBy,
+  });
 
-  // Update debounced search on query change
-  useEffect(() => {
-    debouncedSearchRef.current(searchQuery);
-    return () => {
-      debouncedSearchRef.current.cancel();
-    };
-  }, [searchQuery]);
+  // Filters hook - manages all filtering
+  const {
+    searchQuery,
+    setSearchQuery,
+    filterStatus,
+    setFilterStatus,
+    filterTag,
+    setFilterTag,
+    filteredWorkflows,
+  } = useWorkflowListFilters(workflows);
 
-
-  // Fetch workflows
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const fetchWorkflows = async () => {
-      setIsLoading(true);
-      try {
-        const response = await listWorkflows({ sortBy, sortOrder: 'desc' });
-
-        if (response.success && response.data) {
-          const items: WorkflowListItem[] = response.data.workflows.map((w) => ({
-            id: w.id,
-            name: w.name,
-            description: w.description,
-            nodeCount: w.nodes.length,
-            edgeCount: w.edges.length,
-            createdAt: w.createdAt,
-            updatedAt: w.updatedAt,
-            tags: w.metadata?.tags,
-          }));
-          setWorkflows(items);
-          setFilteredWorkflows(items);
-
-          // Extract all unique tags
-          const tagsSet = new Set<string>();
-          items.forEach((item) => {
-            item.tags?.forEach((tag) => tagsSet.add(tag));
-          });
-          setAllTags(Array.from(tagsSet).sort());
-        }
-      } catch (error) {
-        console.error('Failed to fetch workflows:', error);
-        toast.error('Failed to load workflows');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchWorkflows();
-  }, [isOpen, sortBy, toast]);
-
-  // Filter workflows
-  useEffect(() => {
-    let filtered = [...workflows];
-
-    // Search filter - using debounced query to avoid excessive filtering
-    if (debouncedSearchQuery) {
-      filtered = filtered.filter(
-        (w) =>
-          w.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-          w.description?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-          w.tags?.some((tag) => tag.toLowerCase().includes(debouncedSearchQuery.toLowerCase()))
-      );
-    }
-
-    // Status filter
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter((w) => w.lastExecutionStatus === filterStatus);
-    }
-
-    // Tag filter
-    if (filterTag !== 'all') {
-      filtered = filtered.filter((w) => w.tags?.includes(filterTag));
-    }
-
-    setFilteredWorkflows(filtered);
-  }, [workflows, debouncedSearchQuery, filterStatus, filterTag]);
-
-  // Delete workflow
-  const handleDelete = async (workflowId: string) => {
-    if (!confirm('Are you sure you want to delete this workflow?')) return;
-
-    try {
-      const response = await deleteWorkflow(workflowId);
-      if (response.success) {
-        setWorkflows(workflows.filter((w) => w.id !== workflowId));
-        toast.success('Workflow deleted successfully');
-      } else {
-        toast.error(`Failed to delete workflow: ${response.error?.message}`);
-      }
-    } catch (error) {
-      console.error('Failed to delete workflow:', error);
-      toast.error('An error occurred while deleting the workflow');
-    }
-  };
-
-  // Create new workflow
-  const handleNew = () => {
-    newWorkflow();
-    onClose();
-    toast.info('New workflow created');
-  };
-
-  // Load workflow for editing
-  const handleEdit = async (workflowId: string) => {
-    try {
-      const response = await getWorkflow(workflowId);
-      if (isApiSuccess(response)) {
-        loadWorkflow(response.data);
-        onClose();
-        toast.success(`Workflow "${response.data.name}" loaded successfully!`);
-      } else if (isApiError(response)) {
-        toast.error(`Failed to load workflow: ${response.error.message}`);
-      }
-    } catch (error) {
-      console.error('Failed to load workflow:', error);
-      toast.error('An error occurred while loading the workflow');
-    }
-  };
-
-  // Duplicate workflow
-  const handleDuplicate = async (workflowId: string) => {
-    try {
-      const response = await getWorkflow(workflowId);
-      if (isApiSuccess(response)) {
-        const workflow = response.data;
-
-        // Create a copy with modified name and new ID
-        const duplicatedWorkflow = {
-          ...workflow,
-          id: crypto.randomUUID(), // Generate new ID
-          name: `${workflow.name} (Copy)`,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
-        // Create the new workflow
-        const createResponse = await createWorkflow(workflowToCreateRequest(duplicatedWorkflow));
-
-        if (isApiSuccess(createResponse)) {
-          toast.success(`Workflow "${duplicatedWorkflow.name}" created successfully!`);
-
-          // Refresh workflow list
-          const listResponse = await listWorkflows({ sortBy, sortOrder: 'desc' });
-          if (isApiSuccess(listResponse)) {
-            const items: WorkflowListItem[] = listResponse.data.workflows.map((w) => ({
-              id: w.id,
-              name: w.name,
-              description: w.description,
-              nodeCount: w.nodes.length,
-              edgeCount: w.edges.length,
-              createdAt: w.createdAt,
-              updatedAt: w.updatedAt,
-            }));
-            setWorkflows(items);
-          }
-        } else if (isApiError(createResponse)) {
-          toast.error(`Failed to duplicate workflow: ${createResponse.error.message}`);
-        }
-      } else if (isApiError(response)) {
-        toast.error(`Failed to load workflow: ${response.error.message}`);
-      }
-    } catch (error) {
-      console.error('Failed to duplicate workflow:', error);
-      toast.error('An error occurred while duplicating the workflow');
-    }
-  };
-
-  // Run workflow
-  const handleRun = async (workflowId: string, workflowName: string) => {
-    try {
-      const response = await executeWorkflow({
-        workflowId,
-        input: {},
-      });
-
-      if (isApiSuccess(response)) {
-        const executionData = response.data;
-        // Add to execution history
-        addToHistory({
-          executionId: executionData.executionId,
-          workflowId,
-          workflowName,
-          status: executionData.status,
-          startedAt: executionData.startedAt,
-          completedAt: getExecutionCompletionTime(executionData) || undefined,
-        });
-
-        // Open execution panel
-        setCurrentExecution(executionData.executionId);
-        onClose();
-
-        toast.success(`Workflow "${workflowName}" is running...`);
-        toast.info(`Execution ID: ${executionData.executionId}`, TOAST_LONG_DURATION);
-      } else if (isApiError(response)) {
-        toast.error(`Failed to run workflow: ${response.error.message}`);
-      }
-    } catch (error) {
-      console.error('Failed to run workflow:', error);
-      toast.error('An error occurred while running the workflow');
-    }
-  };
-
+  // Actions hook - provides event handlers
+  const { handleNew, handleDelete, handleEdit, handleDuplicate, handleRun } =
+    useWorkflowListActions({
+      workflows,
+      sortBy,
+      onUpdateWorkflows: updateWorkflows,
+      onClose,
+    });
 
   if (!isOpen) return null;
 

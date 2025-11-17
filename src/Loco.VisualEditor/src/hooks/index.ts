@@ -6,3 +6,6 @@ export { useCanvasZoomControls } from './useCanvasZoomControls';
 export { useCanvasKeyboardShortcuts } from './useCanvasKeyboardShortcuts';
 export { useCanvasContextMenu } from './useCanvasContextMenu';
 export { useCanvasQuickActions } from './useCanvasQuickActions';
+export { useWorkflowListData, type WorkflowListItem } from './useWorkflowListData';
+export { useWorkflowListFilters } from './useWorkflowListFilters';
+export { useWorkflowListActions } from './useWorkflowListActions';
