@@ -5,7 +5,7 @@
  * Provides real-time execution monitoring and historical results.
  */
 
-import { useState } from 'react';
+import { useState, useCallback, memo } from 'react';
 import {
   AlertCircle,
   ChevronDown,
@@ -38,10 +38,21 @@ interface ExecutionPanelProps {
 }
 
 // ============================================================================
+// Constants (Memoized - prevent recreation on every render)
+// ============================================================================
+
+const LOG_LEVEL_STYLES = {
+  error: 'bg-red-50 text-red-700',
+  warn: 'bg-yellow-50 text-yellow-700',
+  debug: 'bg-gray-50 text-gray-600',
+  info: 'bg-blue-50 text-blue-700',
+} as const;
+
+// ============================================================================
 // Execution Panel Component
 // ============================================================================
 
-export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
+function ExecutionPanelComponent({ executionId, onClose }: ExecutionPanelProps) {
   const [expandedLogs, setExpandedLogs] = useState(true);
 
   // Polling and data fetching
@@ -52,6 +63,11 @@ export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
 
   // Accessibility announcements
   useExecutionAccessibility(execution);
+
+  // Memoize toggle handler
+  const toggleLogs = useCallback(() => {
+    setExpandedLogs((prev) => !prev);
+  }, []);
 
   if (!executionId) {
     return (
@@ -227,7 +243,7 @@ export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
         {execution.logs && execution.logs.length > 0 && (
           <div className="border-b border-gray-200">
             <button
-              onClick={() => setExpandedLogs(!expandedLogs)}
+              onClick={toggleLogs}
               className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-center gap-2">
@@ -249,13 +265,7 @@ export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
                   <div
                     key={index}
                     className={`text-xs p-2 rounded ${
-                      log.level === 'error'
-                        ? 'bg-red-50 text-red-700'
-                        : log.level === 'warn'
-                        ? 'bg-yellow-50 text-yellow-700'
-                        : log.level === 'debug'
-                        ? 'bg-gray-50 text-gray-600'
-                        : 'bg-blue-50 text-blue-700'
+                      LOG_LEVEL_STYLES[log.level as keyof typeof LOG_LEVEL_STYLES] || LOG_LEVEL_STYLES.info
                     }`}
                   >
                     <div className="flex items-start gap-2">
@@ -299,3 +309,6 @@ export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
     </div>
   );
 }
+
+export const ExecutionPanel = memo(ExecutionPanelComponent);
+ExecutionPanel.displayName = 'ExecutionPanel';
