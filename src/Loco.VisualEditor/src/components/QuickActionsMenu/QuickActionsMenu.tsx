@@ -5,7 +5,7 @@
  * Improves productivity by providing common actions without navigating toolbars.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, memo, useCallback, useMemo } from 'react';
 import {
   Copy,
   Trash2,
@@ -59,10 +59,97 @@ interface MenuItem {
 }
 
 // ============================================================================
+// Static Menu Items (memoized outside component)
+// ============================================================================
+
+const NODE_MENU_ITEMS_BASE: MenuItem[] = [
+  {
+    id: 'duplicate',
+    label: 'Duplicate',
+    icon: <Copy className="w-4 h-4" />,
+    shortcut: 'Ctrl+D',
+  },
+  {
+    id: 'rename',
+    label: 'Rename',
+    icon: <Edit className="w-4 h-4" />,
+    shortcut: 'F2',
+  },
+  {
+    id: 'run',
+    label: 'Run from Here',
+    icon: <PlayCircle className="w-4 h-4" />,
+  },
+  {
+    id: 'delete',
+    label: 'Delete',
+    icon: <Trash2 className="w-4 h-4" />,
+    shortcut: 'Del',
+    separator: true,
+  },
+  {
+    id: 'group',
+    label: 'Group Nodes',
+    icon: <Layers className="w-4 h-4" />,
+    shortcut: 'Ctrl+G',
+  },
+  {
+    id: 'connect',
+    label: 'Connect To...',
+    icon: <Link className="w-4 h-4" />,
+  },
+  {
+    id: 'disconnect',
+    label: 'Disconnect',
+    icon: <Unlink className="w-4 h-4" />,
+    separator: true,
+  },
+  {
+    id: 'properties',
+    label: 'Properties',
+    icon: <Settings className="w-4 h-4" />,
+    shortcut: 'Alt+Enter',
+  },
+  {
+    id: 'info',
+    label: 'Node Info',
+    icon: <Info className="w-4 h-4" />,
+  },
+];
+
+const CANVAS_MENU_ITEMS: MenuItem[] = [
+  {
+    id: 'add-trigger',
+    label: 'Add Trigger',
+    icon: <ChevronRight className="w-4 h-4" />,
+  },
+  {
+    id: 'add-action',
+    label: 'Add Action',
+    icon: <ChevronRight className="w-4 h-4" />,
+  },
+  {
+    id: 'add-condition',
+    label: 'Add Condition',
+    icon: <ChevronRight className="w-4 h-4" />,
+  },
+  {
+    id: 'add-transform',
+    label: 'Add Transform',
+    icon: <ChevronRight className="w-4 h-4" />,
+  },
+  {
+    id: 'add-loop',
+    label: 'Add Loop',
+    icon: <ChevronRight className="w-4 h-4" />,
+  },
+];
+
+// ============================================================================
 // Quick Actions Menu Component
 // ============================================================================
 
-export function QuickActionsMenu({
+function QuickActionsMenuComponent({
   isOpen,
   position,
   nodeId,
@@ -74,6 +161,17 @@ export function QuickActionsMenu({
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
+  // Get menu items with dynamic disabled state for node menu
+  const menuItems = useMemo(() => {
+    if (nodeId) {
+      return NODE_MENU_ITEMS_BASE.map((item) => ({
+        ...item,
+        disabled: item.disabled || (item.id === 'run' && (nodeType === 'condition' || nodeType === 'loop')),
+      }));
+    }
+    return CANVAS_MENU_ITEMS;
+  }, [nodeId, nodeType]);
+
   // Focus management for keyboard navigation
   useEffect(() => {
     if (itemRefs.current[selectedIndex]) {
@@ -81,34 +179,34 @@ export function QuickActionsMenu({
     }
   }, [selectedIndex, isOpen]);
 
+  // Memoized keyboard and click outside handlers
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      onClose();
+    }
+  }, [onClose]);
+
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      onClose();
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setSelectedIndex((prev) => (prev + 1) % menuItems.length);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setSelectedIndex((prev) => (prev - 1 + menuItems.length) % menuItems.length);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      const selectedItem = menuItems[selectedIndex];
+      if (selectedItem && !selectedItem.disabled) {
+        onAction(selectedItem.id);
+        onClose();
+      }
+    }
+  }, [onClose, menuItems, selectedIndex, onAction]);
+
   // Close menu when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        onClose();
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      } else if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        setSelectedIndex((prev) => (prev + 1) % (nodeId ? 9 : 5));
-      } else if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        setSelectedIndex((prev) => (prev - 1 + (nodeId ? 9 : 5)) % (nodeId ? 9 : 5));
-      } else if (event.key === 'Enter') {
-        event.preventDefault();
-        const items = nodeId ? nodeMenuItems : canvasMenuItems;
-        const selectedItem = items[selectedIndex];
-        if (selectedItem && !selectedItem.disabled) {
-          onAction(selectedItem.id);
-          onClose();
-        }
-      }
-    };
-
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('keydown', handleKeyDown);
@@ -119,109 +217,33 @@ export function QuickActionsMenu({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose, nodeId]);
+  }, [isOpen, handleClickOutside, handleKeyDown]);
 
-  // Menu items for nodes
-  const nodeMenuItems: MenuItem[] = [
-    {
-      id: 'duplicate',
-      label: 'Duplicate',
-      icon: <Copy className="w-4 h-4" />,
-      shortcut: 'Ctrl+D',
-    },
-    {
-      id: 'rename',
-      label: 'Rename',
-      icon: <Edit className="w-4 h-4" />,
-      shortcut: 'F2',
-    },
-    {
-      id: 'run',
-      label: 'Run from Here',
-      icon: <PlayCircle className="w-4 h-4" />,
-      disabled: nodeType === 'condition' || nodeType === 'loop',
-    },
-    {
-      id: 'delete',
-      label: 'Delete',
-      icon: <Trash2 className="w-4 h-4" />,
-      shortcut: 'Del',
-      separator: true,
-    },
-    {
-      id: 'group',
-      label: 'Group Nodes',
-      icon: <Layers className="w-4 h-4" />,
-      shortcut: 'Ctrl+G',
-    },
-    {
-      id: 'connect',
-      label: 'Connect To...',
-      icon: <Link className="w-4 h-4" />,
-    },
-    {
-      id: 'disconnect',
-      label: 'Disconnect',
-      icon: <Unlink className="w-4 h-4" />,
-      separator: true,
-    },
-    {
-      id: 'properties',
-      label: 'Properties',
-      icon: <Settings className="w-4 h-4" />,
-      shortcut: 'Alt+Enter',
-    },
-    {
-      id: 'info',
-      label: 'Node Info',
-      icon: <Info className="w-4 h-4" />,
-    },
-  ];
+  // Memoized position adjustment
+  const adjustedPosition = useMemo(() => {
+    const adjusted = { ...position };
+    const menuHeight = menuItems.length * 40 + 20;
+    const menuWidth = 200;
 
-  // Menu items for canvas (when no node is selected)
-  const canvasMenuItems: MenuItem[] = [
-    {
-      id: 'add-trigger',
-      label: 'Add Trigger',
-      icon: <ChevronRight className="w-4 h-4" />,
-    },
-    {
-      id: 'add-action',
-      label: 'Add Action',
-      icon: <ChevronRight className="w-4 h-4" />,
-    },
-    {
-      id: 'add-condition',
-      label: 'Add Condition',
-      icon: <ChevronRight className="w-4 h-4" />,
-    },
-    {
-      id: 'add-transform',
-      label: 'Add Transform',
-      icon: <ChevronRight className="w-4 h-4" />,
-    },
-    {
-      id: 'add-loop',
-      label: 'Add Loop',
-      icon: <ChevronRight className="w-4 h-4" />,
-    },
-  ];
+    if (position.x + menuWidth > window.innerWidth) {
+      adjusted.x = window.innerWidth - menuWidth - 10;
+    }
+    if (position.y + menuHeight > window.innerHeight) {
+      adjusted.y = window.innerHeight - menuHeight - 10;
+    }
 
-  const menuItems = nodeId ? nodeMenuItems : canvasMenuItems;
+    return adjusted;
+  }, [position, menuItems.length]);
+
+  // Memoized button click handler
+  const handleItemClick = useCallback((item: MenuItem) => {
+    if (!item.disabled) {
+      onAction(item.id);
+      onClose();
+    }
+  }, [onAction, onClose]);
 
   if (!isOpen) return null;
-
-  // Calculate position to keep menu within viewport
-  const adjustedPosition = { ...position };
-  const menuHeight = menuItems.length * 40 + 20; // Approximate height
-  const menuWidth = 200;
-
-  if (position.x + menuWidth > window.innerWidth) {
-    adjustedPosition.x = window.innerWidth - menuWidth - 10;
-  }
-  if (position.y + menuHeight > window.innerHeight) {
-    adjustedPosition.y = window.innerHeight - menuHeight - 10;
-  }
 
   return (
     <div
@@ -245,12 +267,7 @@ export function QuickActionsMenu({
             }}
             role="menuitem"
             aria-disabled={item.disabled}
-            onClick={() => {
-              if (!item.disabled) {
-                onAction(item.id);
-                onClose();
-              }
-            }}
+            onClick={() => handleItemClick(item)}
             onMouseEnter={() => setSelectedIndex(index)}
             disabled={item.disabled}
             className={`w-full px-3 py-2 flex items-center justify-between text-sm transition-colors ${
@@ -274,3 +291,6 @@ export function QuickActionsMenu({
     </div>
   );
 }
+
+export const QuickActionsMenu = memo(QuickActionsMenuComponent);
+QuickActionsMenu.displayName = 'QuickActionsMenu';
