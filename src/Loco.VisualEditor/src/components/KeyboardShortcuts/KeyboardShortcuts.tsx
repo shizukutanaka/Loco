@@ -8,7 +8,7 @@
  * - Quick access guide
  */
 
-import { useState } from 'react';
+import { useState, useCallback, useMemo, memo } from 'react';
 import {
   X,
   Search,
@@ -52,224 +52,245 @@ interface Shortcut {
   icon?: React.ReactNode;
 }
 
+interface Category {
+  id: ShortcutCategory | 'all';
+  name: string;
+  icon: React.ReactNode;
+}
+
+// ============================================================================
+// Constants (Memoized - prevent recreation on every render)
+// ============================================================================
+
+const SHORTCUTS: Shortcut[] = [
+  // File Operations
+  {
+    id: 'new',
+    category: 'file',
+    keys: ['Ctrl', 'N'],
+    description: 'Create new workflow',
+    icon: <Command className="w-4 h-4" />,
+  },
+  {
+    id: 'save',
+    category: 'file',
+    keys: ['Ctrl', 'S'],
+    description: 'Save current workflow',
+    icon: <Save className="w-4 h-4" />,
+  },
+  {
+    id: 'undo',
+    category: 'file',
+    keys: ['Ctrl', 'Z'],
+    description: 'Undo last action',
+    icon: <History className="w-4 h-4" />,
+  },
+  {
+    id: 'redo',
+    category: 'file',
+    keys: ['Ctrl', 'Y'],
+    description: 'Redo last action',
+    icon: <History className="w-4 h-4" />,
+  },
+  {
+    id: 'import',
+    category: 'file',
+    keys: ['Ctrl', 'O'],
+    description: 'Import workflow from JSON',
+    icon: <Upload className="w-4 h-4" />,
+  },
+  {
+    id: 'export',
+    category: 'file',
+    keys: ['Ctrl', 'E'],
+    description: 'Export workflow to JSON',
+    icon: <Download className="w-4 h-4" />,
+  },
+  {
+    id: 'duplicate',
+    category: 'file',
+    keys: ['Ctrl', 'D'],
+    description: 'Duplicate selected node',
+    icon: <Copy className="w-4 h-4" />,
+  },
+
+  // Navigation
+  {
+    id: 'workflows',
+    category: 'navigation',
+    keys: ['Ctrl', 'K'],
+    description: 'Open My Workflows list',
+    icon: <List className="w-4 h-4" />,
+  },
+  {
+    id: 'templates',
+    category: 'navigation',
+    keys: ['Ctrl', 'T'],
+    description: 'Browse template gallery',
+    icon: <LayoutTemplate className="w-4 h-4" />,
+  },
+  {
+    id: 'settings',
+    category: 'navigation',
+    keys: ['Ctrl', ','],
+    description: 'Open settings panel',
+    icon: <Settings className="w-4 h-4" />,
+  },
+  {
+    id: 'help',
+    category: 'navigation',
+    keys: ['?'],
+    description: 'Show this help panel',
+    icon: <Keyboard className="w-4 h-4" />,
+  },
+  {
+    id: 'help-alt',
+    category: 'navigation',
+    keys: ['Ctrl', '/'],
+    description: 'Show this help panel (alternative)',
+    icon: <Keyboard className="w-4 h-4" />,
+  },
+
+  // Execution
+  {
+    id: 'run',
+    category: 'execution',
+    keys: ['Ctrl', 'Enter'],
+    description: 'Run current workflow',
+    icon: <Play className="w-4 h-4" />,
+  },
+  {
+    id: 'test',
+    category: 'execution',
+    keys: ['Ctrl', 'Shift', 'T'],
+    description: 'Test & validate workflow',
+    icon: <CheckCircle className="w-4 h-4" />,
+  },
+
+  // Tools
+  {
+    id: 'schedules',
+    category: 'tools',
+    keys: ['Ctrl', 'Shift', 'S'],
+    description: 'Manage schedules',
+    icon: <Calendar className="w-4 h-4" />,
+  },
+  {
+    id: 'webhooks',
+    category: 'tools',
+    keys: ['Ctrl', 'Shift', 'W'],
+    description: 'Manage webhooks',
+    icon: <Globe className="w-4 h-4" />,
+  },
+  {
+    id: 'metrics',
+    category: 'tools',
+    keys: ['Ctrl', 'Shift', 'M'],
+    description: 'View metrics dashboard',
+    icon: <BarChart3 className="w-4 h-4" />,
+  },
+  {
+    id: 'collaborate',
+    category: 'tools',
+    keys: ['Ctrl', 'Shift', 'C'],
+    description: 'Open collaboration panel',
+    icon: <Users className="w-4 h-4" />,
+  },
+  {
+    id: 'plugins',
+    category: 'tools',
+    keys: ['Ctrl', 'Shift', 'P'],
+    description: 'Browse plugin marketplace',
+    icon: <Package className="w-4 h-4" />,
+  },
+
+  // Version Control
+  {
+    id: 'commit',
+    category: 'view',
+    keys: ['Ctrl', 'Shift', 'K'],
+    description: 'Commit workflow changes',
+    icon: <GitCommit className="w-4 h-4" />,
+  },
+  {
+    id: 'history',
+    category: 'view',
+    keys: ['Ctrl', 'H'],
+    description: 'View version history',
+    icon: <History className="w-4 h-4" />,
+  },
+
+  // View
+  {
+    id: 'zoom-in',
+    category: 'view',
+    keys: ['Ctrl', '+'],
+    description: 'Zoom in canvas',
+  },
+  {
+    id: 'zoom-out',
+    category: 'view',
+    keys: ['Ctrl', '-'],
+    description: 'Zoom out canvas',
+  },
+  {
+    id: 'zoom-reset',
+    category: 'view',
+    keys: ['Ctrl', '0'],
+    description: 'Reset canvas zoom',
+  },
+  {
+    id: 'fit-view',
+    category: 'view',
+    keys: ['Ctrl', 'Shift', 'F'],
+    description: 'Fit workflow to view',
+  },
+];
+
+const CATEGORIES: Category[] = [
+  { id: 'all', name: 'All Shortcuts', icon: <Keyboard className="w-4 h-4" /> },
+  { id: 'file', name: 'File Operations', icon: <Save className="w-4 h-4" /> },
+  { id: 'navigation', name: 'Navigation', icon: <List className="w-4 h-4" /> },
+  { id: 'execution', name: 'Execution', icon: <Play className="w-4 h-4" /> },
+  { id: 'tools', name: 'Tools', icon: <Settings className="w-4 h-4" /> },
+  { id: 'view', name: 'View', icon: <Command className="w-4 h-4" /> },
+];
+
+// Utility function: Get key display for current platform
+const getKeyDisplay = (key: string): string => {
+  // Replace Ctrl with Cmd on Mac
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  if (isMac && key === 'Ctrl') return '⌘';
+  if (isMac && key === 'Alt') return '⌥';
+  if (isMac && key === 'Shift') return '⇧';
+  return key;
+};
+
 // ============================================================================
 // Keyboard Shortcuts Component
 // ============================================================================
 
-export function KeyboardShortcuts({ isOpen, onClose }: KeyboardShortcutsProps) {
+function KeyboardShortcutsComponent({ isOpen, onClose }: KeyboardShortcutsProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ShortcutCategory | 'all'>('all');
 
-  const shortcuts: Shortcut[] = [
-    // File Operations
-    {
-      id: 'new',
-      category: 'file',
-      keys: ['Ctrl', 'N'],
-      description: 'Create new workflow',
-      icon: <Command className="w-4 h-4" />,
-    },
-    {
-      id: 'save',
-      category: 'file',
-      keys: ['Ctrl', 'S'],
-      description: 'Save current workflow',
-      icon: <Save className="w-4 h-4" />,
-    },
-    {
-      id: 'undo',
-      category: 'file',
-      keys: ['Ctrl', 'Z'],
-      description: 'Undo last action',
-      icon: <History className="w-4 h-4" />,
-    },
-    {
-      id: 'redo',
-      category: 'file',
-      keys: ['Ctrl', 'Y'],
-      description: 'Redo last action',
-      icon: <History className="w-4 h-4" />,
-    },
-    {
-      id: 'import',
-      category: 'file',
-      keys: ['Ctrl', 'O'],
-      description: 'Import workflow from JSON',
-      icon: <Upload className="w-4 h-4" />,
-    },
-    {
-      id: 'export',
-      category: 'file',
-      keys: ['Ctrl', 'E'],
-      description: 'Export workflow to JSON',
-      icon: <Download className="w-4 h-4" />,
-    },
-    {
-      id: 'duplicate',
-      category: 'file',
-      keys: ['Ctrl', 'D'],
-      description: 'Duplicate selected node',
-      icon: <Copy className="w-4 h-4" />,
-    },
+  // Memoize filtered shortcuts to prevent recalculation
+  const filteredShortcuts = useMemo(
+    () =>
+      SHORTCUTS.filter((shortcut) => {
+        const matchesSearch =
+          shortcut.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          shortcut.keys.some((key) => key.toLowerCase().includes(searchQuery.toLowerCase()));
+        const matchesCategory = selectedCategory === 'all' || shortcut.category === selectedCategory;
+        return matchesSearch && matchesCategory;
+      }),
+    [searchQuery, selectedCategory]
+  );
 
-    // Navigation
-    {
-      id: 'workflows',
-      category: 'navigation',
-      keys: ['Ctrl', 'K'],
-      description: 'Open My Workflows list',
-      icon: <List className="w-4 h-4" />,
-    },
-    {
-      id: 'templates',
-      category: 'navigation',
-      keys: ['Ctrl', 'T'],
-      description: 'Browse template gallery',
-      icon: <LayoutTemplate className="w-4 h-4" />,
-    },
-    {
-      id: 'settings',
-      category: 'navigation',
-      keys: ['Ctrl', ','],
-      description: 'Open settings panel',
-      icon: <Settings className="w-4 h-4" />,
-    },
-    {
-      id: 'help',
-      category: 'navigation',
-      keys: ['?'],
-      description: 'Show this help panel',
-      icon: <Keyboard className="w-4 h-4" />,
-    },
-    {
-      id: 'help-alt',
-      category: 'navigation',
-      keys: ['Ctrl', '/'],
-      description: 'Show this help panel (alternative)',
-      icon: <Keyboard className="w-4 h-4" />,
-    },
-
-    // Execution
-    {
-      id: 'run',
-      category: 'execution',
-      keys: ['Ctrl', 'Enter'],
-      description: 'Run current workflow',
-      icon: <Play className="w-4 h-4" />,
-    },
-    {
-      id: 'test',
-      category: 'execution',
-      keys: ['Ctrl', 'Shift', 'T'],
-      description: 'Test & validate workflow',
-      icon: <CheckCircle className="w-4 h-4" />,
-    },
-
-    // Tools
-    {
-      id: 'schedules',
-      category: 'tools',
-      keys: ['Ctrl', 'Shift', 'S'],
-      description: 'Manage schedules',
-      icon: <Calendar className="w-4 h-4" />,
-    },
-    {
-      id: 'webhooks',
-      category: 'tools',
-      keys: ['Ctrl', 'Shift', 'W'],
-      description: 'Manage webhooks',
-      icon: <Globe className="w-4 h-4" />,
-    },
-    {
-      id: 'metrics',
-      category: 'tools',
-      keys: ['Ctrl', 'Shift', 'M'],
-      description: 'View metrics dashboard',
-      icon: <BarChart3 className="w-4 h-4" />,
-    },
-    {
-      id: 'collaborate',
-      category: 'tools',
-      keys: ['Ctrl', 'Shift', 'C'],
-      description: 'Open collaboration panel',
-      icon: <Users className="w-4 h-4" />,
-    },
-    {
-      id: 'plugins',
-      category: 'tools',
-      keys: ['Ctrl', 'Shift', 'P'],
-      description: 'Browse plugin marketplace',
-      icon: <Package className="w-4 h-4" />,
-    },
-
-    // Version Control
-    {
-      id: 'commit',
-      category: 'view',
-      keys: ['Ctrl', 'Shift', 'K'],
-      description: 'Commit workflow changes',
-      icon: <GitCommit className="w-4 h-4" />,
-    },
-    {
-      id: 'history',
-      category: 'view',
-      keys: ['Ctrl', 'H'],
-      description: 'View version history',
-      icon: <History className="w-4 h-4" />,
-    },
-
-    // View
-    {
-      id: 'zoom-in',
-      category: 'view',
-      keys: ['Ctrl', '+'],
-      description: 'Zoom in canvas',
-    },
-    {
-      id: 'zoom-out',
-      category: 'view',
-      keys: ['Ctrl', '-'],
-      description: 'Zoom out canvas',
-    },
-    {
-      id: 'zoom-reset',
-      category: 'view',
-      keys: ['Ctrl', '0'],
-      description: 'Reset canvas zoom',
-    },
-    {
-      id: 'fit-view',
-      category: 'view',
-      keys: ['Ctrl', 'Shift', 'F'],
-      description: 'Fit workflow to view',
-    },
-  ];
-
-  const categories = [
-    { id: 'all' as const, name: 'All Shortcuts', icon: <Keyboard className="w-4 h-4" /> },
-    { id: 'file' as const, name: 'File Operations', icon: <Save className="w-4 h-4" /> },
-    { id: 'navigation' as const, name: 'Navigation', icon: <List className="w-4 h-4" /> },
-    { id: 'execution' as const, name: 'Execution', icon: <Play className="w-4 h-4" /> },
-    { id: 'tools' as const, name: 'Tools', icon: <Settings className="w-4 h-4" /> },
-    { id: 'view' as const, name: 'View', icon: <Command className="w-4 h-4" /> },
-  ];
-
-  const filteredShortcuts = shortcuts.filter((shortcut) => {
-    const matchesSearch =
-      shortcut.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      shortcut.keys.some((key) => key.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesCategory = selectedCategory === 'all' || shortcut.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  const getKeyDisplay = (key: string) => {
-    // Replace Ctrl with Cmd on Mac
-    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-    if (isMac && key === 'Ctrl') return '⌘';
-    if (isMac && key === 'Alt') return '⌥';
-    if (isMac && key === 'Shift') return '⇧';
-    return key;
-  };
+  // Memoize category button handler
+  const handleCategoryChange = useCallback((categoryId: ShortcutCategory | 'all') => {
+    setSelectedCategory(categoryId);
+  }, []);
 
   if (!isOpen) return null;
 
@@ -310,10 +331,10 @@ export function KeyboardShortcuts({ isOpen, onClose }: KeyboardShortcutsProps) {
 
           {/* Category Tabs */}
           <div className="flex gap-2 overflow-x-auto pb-2">
-            {categories.map((category) => (
+            {CATEGORIES.map((category) => (
               <button
                 key={category.id}
-                onClick={() => setSelectedCategory(category.id)}
+                onClick={() => handleCategoryChange(category.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
                   selectedCategory === category.id
                     ? 'bg-loco-primary text-white'
@@ -386,3 +407,6 @@ export function KeyboardShortcuts({ isOpen, onClose }: KeyboardShortcutsProps) {
     </div>
   );
 }
+
+export const KeyboardShortcuts = memo(KeyboardShortcutsComponent);
+KeyboardShortcuts.displayName = 'KeyboardShortcuts';
