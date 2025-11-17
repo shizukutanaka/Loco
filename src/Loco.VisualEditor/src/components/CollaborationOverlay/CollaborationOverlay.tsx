@@ -8,7 +8,7 @@
  * - Lock status
  */
 
-import { useEffect, useRef, memo } from 'react';
+import { useEffect, useRef, memo, useCallback } from 'react';
 import { useReactFlow } from 'reactflow';
 import { useCollaborationStore } from '@/store/collaborationStore';
 import { MousePointer2, Lock, Users } from 'lucide-react';
@@ -59,8 +59,9 @@ UserCursor.displayName = 'UserCursor';
 // Collaboration Overlay Component
 // ============================================================================
 
-export function CollaborationOverlay() {
+function CollaborationOverlayComponent() {
   const canvasRef = useRef<HTMLDivElement>(null);
+  const lastUpdateTimeRef = useRef(0);
   const reactFlowInstance = useReactFlow();
   const {
     isConnected,
@@ -73,16 +74,13 @@ export function CollaborationOverlay() {
     updateCursor,
   } = useCollaborationStore();
 
-  // Track mouse movement and send cursor updates
-  useEffect(() => {
-    if (!isConnected || !canvasRef.current) return;
-
-    let lastUpdateTime = 0;
-    const updateInterval = 50; // Throttle updates to 20fps
-
-    const handleMouseMove = (e: MouseEvent) => {
+  // Memoize mouse move handler to preserve referential equality
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
       const now = Date.now();
-      if (now - lastUpdateTime < updateInterval) return;
+      const updateInterval = 50; // Throttle updates to 20fps
+
+      if (now - lastUpdateTimeRef.current < updateInterval) return;
 
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -93,8 +91,14 @@ export function CollaborationOverlay() {
       });
 
       updateCursor(position.x, position.y);
-      lastUpdateTime = now;
-    };
+      lastUpdateTimeRef.current = now;
+    },
+    [updateCursor, reactFlowInstance]
+  );
+
+  // Track mouse movement and send cursor updates
+  useEffect(() => {
+    if (!isConnected || !canvasRef.current) return;
 
     const canvas = canvasRef.current;
     canvas.addEventListener('mousemove', handleMouseMove);
@@ -102,7 +106,7 @@ export function CollaborationOverlay() {
     return () => {
       canvas.removeEventListener('mousemove', handleMouseMove);
     };
-  }, [isConnected, updateCursor, reactFlowInstance]);
+  }, [isConnected, handleMouseMove]);
 
   // Highlight selected nodes for each user
   useEffect(() => {
@@ -207,11 +211,14 @@ export function CollaborationOverlay() {
   );
 }
 
+export const CollaborationOverlay = memo(CollaborationOverlayComponent);
+CollaborationOverlay.displayName = 'CollaborationOverlay';
+
 // ============================================================================
 // Collaboration Status Bar Component
 // ============================================================================
 
-export function CollaborationStatusBar() {
+function CollaborationStatusBarComponent() {
   const { isConnected, isConnecting, connectionError, collaborators } =
     useCollaborationStore();
 
@@ -258,3 +265,6 @@ export function CollaborationStatusBar() {
     </div>
   );
 }
+
+export const CollaborationStatusBar = memo(CollaborationStatusBarComponent);
+CollaborationStatusBar.displayName = 'CollaborationStatusBar';
