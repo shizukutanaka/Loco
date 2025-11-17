@@ -9,7 +9,7 @@
  * - Security analysis
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import {
   X,
   Send,
@@ -47,10 +47,48 @@ interface AIAssistantProps {
 }
 
 // ============================================================================
+// Constants (Memoized - prevent recreation on every render)
+// ============================================================================
+
+const INSIGHT_ICONS = {
+  performance: <TrendingUp className="w-5 h-5 text-blue-600" />,
+  security: <Lock className="w-5 h-5 text-red-600" />,
+  optimization: <Sparkles className="w-5 h-5 text-purple-600" />,
+  pattern: <Lightbulb className="w-5 h-5 text-yellow-600" />,
+};
+
+const PRIORITY_COLORS = {
+  high: 'bg-red-100 text-red-800',
+  medium: 'bg-yellow-100 text-yellow-800',
+  low: 'bg-blue-100 text-blue-800',
+};
+
+// Utility functions (memoized outside component)
+const getInsightIcon = (type: string) => {
+  return INSIGHT_ICONS[type as keyof typeof INSIGHT_ICONS] || <AlertCircle className="w-5 h-5 text-gray-600" />;
+};
+
+const getPriorityColor = (priority: string) => {
+  return PRIORITY_COLORS[priority as keyof typeof PRIORITY_COLORS] || 'bg-gray-100 text-gray-800';
+};
+
+// Query routing configuration for memoization
+const QUERY_ROUTES = {
+  performance: (input: string) =>
+    input.includes('performance') || input.includes('optimize') || input.includes('speed'),
+  security: (input: string) =>
+    input.includes('security') || input.includes('safe') || input.includes('risk'),
+  error_fix: (input: string) =>
+    input.includes('error') || input.includes('fix') || input.includes('issue'),
+  pattern: (input: string) =>
+    input.includes('pattern'),
+};
+
+// ============================================================================
 // AI Assistant Component
 // ============================================================================
 
-export function AIAssistant({ isOpen, onClose }: AIAssistantProps) {
+function AIAssistantComponent({ isOpen, onClose }: AIAssistantProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -66,7 +104,7 @@ export function AIAssistant({ isOpen, onClose }: AIAssistantProps) {
     }
   }, [isOpen]);
 
-  const performInitialAnalysis = async () => {
+  const performInitialAnalysis = useCallback(async () => {
     setIsAnalyzing(true);
     try {
       // Use unified analysis engine
@@ -89,9 +127,9 @@ export function AIAssistant({ isOpen, onClose }: AIAssistantProps) {
     } finally {
       setIsAnalyzing(false);
     }
-  };
+  }, [nodes, edges, toast]);
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     if (!input.trim()) return;
 
     const userMessage: Message = {
@@ -114,32 +152,20 @@ export function AIAssistant({ isOpen, onClose }: AIAssistantProps) {
       let responseContent = '';
       let responseInsights: AIInsight[] = [];
 
-      // Route based on user input
+      // Route based on user input using memoized configuration
       const inputLower = input.toLowerCase();
 
-      if (
-        inputLower.includes('performance') ||
-        inputLower.includes('optimize') ||
-        inputLower.includes('speed')
-      ) {
+      if (QUERY_ROUTES.performance(inputLower)) {
         responseContent =
           'Here are the main performance optimization opportunities I found:';
         responseInsights = analysis.insights.filter((i) => i.type === 'performance');
-      } else if (
-        inputLower.includes('security') ||
-        inputLower.includes('safe') ||
-        inputLower.includes('risk')
-      ) {
+      } else if (QUERY_ROUTES.security(inputLower)) {
         responseContent = 'Here are the security concerns I detected:';
         responseInsights = analysis.insights.filter((i) => i.type === 'security');
-      } else if (
-        inputLower.includes('error') ||
-        inputLower.includes('fix') ||
-        inputLower.includes('issue')
-      ) {
+      } else if (QUERY_ROUTES.error_fix(inputLower)) {
         responseContent = 'Here are the critical issues that need fixing:';
         responseInsights = analysis.insights.filter((i) => i.type === 'error_fix');
-      } else if (inputLower.includes('pattern')) {
+      } else if (QUERY_ROUTES.pattern(inputLower)) {
         responseContent = 'Here are the workflow patterns I detected:';
         responseInsights = analysis.insights.filter((i) => i.type === 'pattern');
       } else {
@@ -171,9 +197,9 @@ export function AIAssistant({ isOpen, onClose }: AIAssistantProps) {
     } finally {
       setIsAnalyzing(false);
     }
-  };
+  }, [input, nodes, edges, toast]);
 
-  const toggleInsightExpanded = (insightId: string) => {
+  const toggleInsightExpanded = useCallback((insightId: string) => {
     setExpandedInsights((prev) => {
       const next = new Set(prev);
       if (next.has(insightId)) {
@@ -183,43 +209,15 @@ export function AIAssistant({ isOpen, onClose }: AIAssistantProps) {
       }
       return next;
     });
-  };
+  }, []);
 
-  const copyInsightToClipboard = (insight: AIInsight) => {
+  const copyInsightToClipboard = useCallback((insight: AIInsight) => {
     const text = `${insight.title}\n${insight.description}\n\n${insight.explanation}\n\nActions:\n${insight.suggestedActions.map((a) => `- ${a.action}: ${a.impact}`).join('\n')}`;
     navigator.clipboard.writeText(text);
     setCopiedInsightId(insight.id);
     setTimeout(() => setCopiedInsightId(null), COPY_FEEDBACK_DURATION);
     toast.success('Insight copied to clipboard');
-  };
-
-  const getInsightIcon = (type: string) => {
-    switch (type) {
-      case 'performance':
-        return <TrendingUp className="w-5 h-5 text-blue-600" />;
-      case 'security':
-        return <Lock className="w-5 h-5 text-red-600" />;
-      case 'optimization':
-        return <Sparkles className="w-5 h-5 text-purple-600" />;
-      case 'pattern':
-        return <Lightbulb className="w-5 h-5 text-yellow-600" />;
-      default:
-        return <AlertCircle className="w-5 h-5 text-gray-600" />;
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'bg-red-100 text-red-800';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'low':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+  }, [toast]);
 
   if (!isOpen) return null;
 
@@ -396,3 +394,6 @@ export function AIAssistant({ isOpen, onClose }: AIAssistantProps) {
     </div>
   );
 }
+
+export const AIAssistant = memo(AIAssistantComponent);
+AIAssistant.displayName = 'AIAssistant';
