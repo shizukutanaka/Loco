@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { ValidationReport } from '@/utils/workflowValidationService';
 import { AlertCircle, AlertTriangle, CheckCircle, X } from 'lucide-react';
 
-export function ValidationPanel() {
+// ============================================================================
+// Validation Panel Component
+// ============================================================================
+
+function ValidationPanelComponent() {
   const { nodes, edges } = useWorkflowStore();
   const [validationReport, setValidationReport] = useState<ValidationReport | null>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -33,15 +37,36 @@ export function ValidationPanel() {
 
   if (!validationReport) return null;
 
-  const errors = validationReport.issues.filter((i) => i.severity === 'error');
-  const warnings = validationReport.issues.filter((i) => i.severity === 'warning');
-  const hasIssues = errors.length > 0 || warnings.length > 0;
+  // Memoize filtered issues to prevent recalculation on every render
+  const errors = useMemo(
+    () => validationReport.issues.filter((i) => i.severity === 'error'),
+    [validationReport]
+  );
+
+  const warnings = useMemo(
+    () => validationReport.issues.filter((i) => i.severity === 'warning'),
+    [validationReport]
+  );
+
+  const hasIssues = useMemo(
+    () => errors.length > 0 || warnings.length > 0,
+    [errors, warnings]
+  );
+
+  // Memoize visibility toggle handlers
+  const handleShowPanel = useCallback(() => {
+    setIsVisible(true);
+  }, []);
+
+  const handleHidePanel = useCallback(() => {
+    setIsVisible(false);
+  }, []);
 
   if (!isVisible && hasIssues) {
     // Show compact indicator when panel is hidden
     return (
       <button
-        onClick={() => setIsVisible(true)}
+        onClick={handleShowPanel}
         className="fixed bottom-4 right-4 p-3 bg-white border-2 border-gray-200 rounded-lg shadow-lg hover:shadow-xl transition-shadow"
       >
         <div className="flex items-center gap-2">
@@ -72,7 +97,8 @@ export function ValidationPanel() {
 
   if (!isVisible) return null;
 
-  const isValid = errors.length === 0;
+  // Memoize validity check to prevent recalculation
+  const isValid = useMemo(() => errors.length === 0, [errors]);
 
   return (
     <div className="fixed bottom-4 right-4 w-96 bg-white border-2 border-gray-200 rounded-lg shadow-xl max-h-96 flex flex-col">
@@ -92,7 +118,7 @@ export function ValidationPanel() {
           )}
         </div>
         <button
-          onClick={() => setIsVisible(false)}
+          onClick={handleHidePanel}
           className="p-1 hover:bg-gray-100 rounded transition-colors"
         >
           <X className="w-4 h-4 text-gray-500" />
@@ -175,3 +201,6 @@ export function ValidationPanel() {
     </div>
   );
 }
+
+export const ValidationPanel = memo(ValidationPanelComponent);
+ValidationPanel.displayName = 'ValidationPanel';
