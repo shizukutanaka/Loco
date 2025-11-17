@@ -1,15 +1,23 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo, memo } from 'react';
 import { templates, WorkflowTemplate } from '@/data/templates';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { X, Zap, Database, MessageSquare, Sparkles, Activity } from 'lucide-react';
 import { FormInput } from '@/components/Form';
+
+// ============================================================================
+// Types
+// ============================================================================
 
 interface TemplateGalleryProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const categoryIcons = {
+// ============================================================================
+// Constants (Memoized - prevent recreation on every render)
+// ============================================================================
+
+const CATEGORY_ICONS = {
   communication: MessageSquare,
   automation: Zap,
   data: Database,
@@ -17,7 +25,7 @@ const categoryIcons = {
   monitoring: Activity,
 };
 
-const categoryLabels = {
+const CATEGORY_LABELS = {
   communication: 'Communication',
   automation: 'Automation',
   data: 'Data',
@@ -25,24 +33,35 @@ const categoryLabels = {
   monitoring: 'Monitoring',
 };
 
-export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
+// ============================================================================
+// Template Gallery Component
+// ============================================================================
+
+function TemplateGalleryComponent({ isOpen, onClose }: TemplateGalleryProps) {
   const { loadWorkflow } = useWorkflowStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const filteredTemplates = templates.filter((template) => {
-    const matchesSearch =
-      template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      template.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = !selectedCategory || template.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  // Memoize filtered templates to prevent recalculation on every render
+  const filteredTemplates = useMemo(() => {
+    return templates.filter((template) => {
+      const matchesSearch =
+        template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        template.description.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = !selectedCategory || template.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [searchQuery, selectedCategory]);
 
-  const categories = Array.from(new Set(templates.map((t) => t.category)));
+  // Memoize categories extraction to prevent array recreation
+  const categories = useMemo(() => {
+    return Array.from(new Set(templates.map((t) => t.category)));
+  }, []);
 
-  const handleSelectTemplate = (template: WorkflowTemplate) => {
+  // Memoize template selection handler
+  const handleSelectTemplate = useCallback((template: WorkflowTemplate) => {
     // Clone the workflow with new IDs
     const newWorkflow = {
       ...template.workflow,
@@ -54,7 +73,7 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
 
     loadWorkflow(newWorkflow);
     onClose();
-  };
+  }, [loadWorkflow, onClose]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -94,7 +113,7 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
               All
             </button>
             {categories.map((category) => {
-              const Icon = categoryIcons[category];
+              const Icon = CATEGORY_ICONS[category];
               return (
                 <button
                   key={category}
@@ -106,7 +125,7 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
                   }`}
                 >
                   <Icon className="w-4 h-4" />
-                  {categoryLabels[category]}
+                  {CATEGORY_LABELS[category]}
                 </button>
               );
             })}
@@ -125,7 +144,7 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredTemplates.map((template) => {
-                const Icon = categoryIcons[template.category];
+                const Icon = CATEGORY_ICONS[template.category];
                 return (
                   <div
                     key={template.id}
@@ -140,7 +159,7 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
                         </h3>
                         <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
                           <Icon className="w-3 h-3" />
-                          <span>{categoryLabels[template.category]}</span>
+                          <span>{CATEGORY_LABELS[template.category]}</span>
                         </div>
                       </div>
                     </div>
@@ -177,3 +196,6 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
     </div>
   );
 }
+
+export const TemplateGallery = memo(TemplateGalleryComponent);
+TemplateGallery.displayName = 'TemplateGallery';
