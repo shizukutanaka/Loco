@@ -5,29 +5,28 @@
  * Provides real-time execution monitoring and historical results.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import {
-  PlayCircle,
-  XCircle,
-  CheckCircle,
-  Clock,
   AlertCircle,
   ChevronDown,
   ChevronRight,
   Terminal,
   Activity,
   X,
+  XCircle,
+  Clock,
 } from 'lucide-react';
-import { getExecutionStatus } from '@/api/workflows';
-import type { WorkflowExecutionResponse } from '@/api/types';
-import { EXECUTION_POLLING_INTERVAL } from '@/utils/constants';
-import { useLiveRegion } from '@/utils/ariaLiveRegion';
 import {
   getExecutionCompletionTime,
   getExecutionOutput,
   getExecutionError,
 } from '@/utils/typeGuards';
 import { Skeleton } from '@/components/Skeleton/Skeleton';
+import {
+  useExecutionPolling,
+  useExecutionStatusHelpers,
+  useExecutionAccessibility,
+} from '@/hooks';
 
 // ============================================================================
 // Types
@@ -43,64 +42,16 @@ interface ExecutionPanelProps {
 // ============================================================================
 
 export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
-  const [execution, setExecution] = useState<WorkflowExecutionResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [expandedLogs, setExpandedLogs] = useState(true);
-  const executionStatusRef = useRef<string | null>(null);
 
-  // Live region for announcing execution status changes
-  const { announce: announceStatus } = useLiveRegion('execution-status', 'assertive');
+  // Polling and data fetching
+  const { execution, isLoading } = useExecutionPolling(executionId);
 
-  // Announce status changes to screen readers
-  useEffect(() => {
-    if (!execution) return;
+  // Status display helpers
+  const { getStatusIcon, getStatusColor, getDuration } = useExecutionStatusHelpers(execution);
 
-    const statusMessages = {
-      pending: 'Workflow execution is pending',
-      running: 'Workflow execution is running',
-      completed: `Workflow execution completed successfully. Duration: ${getDuration()}`,
-      failed: `Workflow execution failed: ${getExecutionError(execution)?.message || 'Unknown error'}`,
-      cancelled: 'Workflow execution was cancelled',
-    };
-
-    announceStatus(statusMessages[execution.status]);
-  }, [execution?.status]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Fetch execution status
-  useEffect(() => {
-    if (!executionId) {
-      setExecution(null);
-      executionStatusRef.current = null;
-      return;
-    }
-
-    const fetchExecution = async () => {
-      setIsLoading(true);
-      try {
-        const response = await getExecutionStatus(executionId);
-        if (response.success && response.data) {
-          setExecution(response.data);
-          executionStatusRef.current = response.data.status;
-        }
-      } catch (error) {
-        console.error('Failed to fetch execution status:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchExecution();
-
-    // Poll for updates if execution is running or pending
-    const interval = setInterval(() => {
-      const status = executionStatusRef.current;
-      if (status === 'running' || status === 'pending') {
-        fetchExecution();
-      }
-    }, EXECUTION_POLLING_INTERVAL);
-
-    return () => clearInterval(interval);
-  }, [executionId]);
+  // Accessibility announcements
+  useExecutionAccessibility(execution);
 
   if (!executionId) {
     return (
@@ -168,59 +119,6 @@ export function ExecutionPanel({ executionId, onClose }: ExecutionPanelProps) {
       </div>
     );
   }
-
-  // Status icon and color
-  const getStatusIcon = () => {
-    switch (execution.status) {
-      case 'running':
-        return <PlayCircle className="w-5 h-5 text-blue-500 animate-pulse" />;
-      case 'completed':
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case 'failed':
-        return <XCircle className="w-5 h-5 text-red-500" />;
-      case 'cancelled':
-        return <XCircle className="w-5 h-5 text-orange-500" />;
-      case 'pending':
-      default:
-        return <Clock className="w-5 h-5 text-gray-500" />;
-    }
-  };
-
-  const getStatusColor = () => {
-    switch (execution.status) {
-      case 'running':
-        return 'bg-blue-100 text-blue-700';
-      case 'completed':
-        return 'bg-green-100 text-green-700';
-      case 'failed':
-        return 'bg-red-100 text-red-700';
-      case 'cancelled':
-        return 'bg-orange-100 text-orange-700';
-      case 'pending':
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
-  };
-
-  // Calculate duration
-  const getDuration = () => {
-    if (!execution.startedAt) return 'N/A';
-
-    const start = new Date(execution.startedAt).getTime();
-    const completionTime = getExecutionCompletionTime(execution);
-    const end = completionTime
-      ? new Date(completionTime).getTime()
-      : Date.now();
-
-    const duration = end - start;
-    const seconds = Math.floor(duration / 1000);
-    const minutes = Math.floor(seconds / 60);
-
-    if (minutes > 0) {
-      return `${minutes}m ${seconds % 60}s`;
-    }
-    return `${seconds}s`;
-  };
 
   return (
     <div className="h-96 bg-white border-t border-gray-200 flex flex-col">
