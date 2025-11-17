@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense, useCallback, useMemo, memo } from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useLiveRegion } from '@/utils/ariaLiveRegion';
 import {
@@ -33,7 +33,7 @@ const SettingsPanel = lazy(() => import('@/components/SettingsPanel/SettingsPane
   default: module.SettingsPanel
 })));
 
-export function Toolbar() {
+function ToolbarComponent() {
   const { workflow, updateWorkflowMetadata, autoLayout } = useWorkflowStore();
   const { announce: announceLayout } = useLiveRegion('toolbar-layout-status', 'polite');
 
@@ -45,12 +45,15 @@ export function Toolbar() {
   // Local state for workflow name editing
   const [workflowName, setWorkflowName] = useState(workflow?.name || 'New Workflow');
 
-  // Setup keyboard shortcuts with handlers pointing to modal actions
-  useToolbarKeyboardShortcuts({
-    onNew: () => {
-      operations.handleNewWorkflow();
-      setWorkflowName('New Workflow');
-    },
+  // Memoized handler for new workflow
+  const handleNewWorkflow = useCallback(() => {
+    operations.handleNewWorkflow();
+    setWorkflowName('New Workflow');
+  }, [operations]);
+
+  // Memoize keyboard handlers object
+  const keyboardHandlers = useMemo(() => ({
+    onNew: handleNewWorkflow,
     onSave: operations.handleSaveWorkflow,
     onImport: operations.handleImportJSON,
     onExport: operations.handleExportJSON,
@@ -61,18 +64,23 @@ export function Toolbar() {
     onOpenCollaboration: modals.openCollaborationPanel,
     onOpenKeyboardShortcuts: modals.openKeyboardShortcuts,
     onRun: execution.handleRunWorkflow,
-  });
+  }), [handleNewWorkflow, operations, modals, execution]);
 
-  const handleNameBlur = () => {
+  // Setup keyboard shortcuts with memoized handlers
+  useToolbarKeyboardShortcuts(keyboardHandlers);
+
+  // Memoized handler for name blur
+  const handleNameBlur = useCallback(() => {
     modals.stopEditingName();
     if (workflowName.trim()) {
       updateWorkflowMetadata({ name: workflowName });
     } else {
       setWorkflowName(workflow?.name || 'New Workflow');
     }
-  };
+  }, [workflowName, workflow?.name, updateWorkflowMetadata, modals]);
 
-  const handleTagsChange = (tags: string[]) => {
+  // Memoized handler for tags change
+  const handleTagsChange = useCallback((tags: string[]) => {
     updateWorkflowMetadata({
       metadata: {
         ...workflow?.metadata,
@@ -81,12 +89,13 @@ export function Toolbar() {
         tags,
       },
     });
-  };
+  }, [workflow?.metadata, updateWorkflowMetadata]);
 
-  const handleAutoLayout = () => {
+  // Memoized handler for auto layout
+  const handleAutoLayout = useCallback(() => {
     autoLayout('TB'); // Top-to-bottom layout by default
     announceLayout('Workflow layout optimized and nodes automatically arranged');
-  };
+  }, [autoLayout, announceLayout]);
 
   return (
     <>
@@ -131,10 +140,7 @@ export function Toolbar() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => {
-              operations.handleNewWorkflow();
-              setWorkflowName('New Workflow');
-            }}
+            onClick={handleNewWorkflow}
             className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             title="New Workflow"
             aria-label="Create a new workflow (Ctrl+N)"
@@ -320,3 +326,6 @@ export function Toolbar() {
     </>
   );
 }
+
+export const Toolbar = memo(ToolbarComponent);
+Toolbar.displayName = 'Toolbar';
