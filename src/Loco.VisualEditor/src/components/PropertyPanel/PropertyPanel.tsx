@@ -1,3 +1,4 @@
+import { memo, useMemo, useCallback } from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { getIntegrationById } from '@/data/integrations';
 import { X, Trash2 } from 'lucide-react';
@@ -11,7 +12,7 @@ import {
 // Property Panel Component
 // ============================================================================
 
-export function PropertyPanel() {
+function PropertyPanelComponent() {
   const { nodes, selectedNodeId } = useWorkflowStore();
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
@@ -20,6 +21,12 @@ export function PropertyPanel() {
   const { localData, errors, handleLabelChange, handleConfigChange } =
     usePropertyPanelFormState(selectedNodeId);
   const { handleDelete, handleClose } = usePropertyPanelActions(selectedNodeId);
+
+  // Memoize event handler for action selection to prevent FormSelect re-renders
+  const handleActionChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => handleConfigChange('action', e.target.value),
+    [handleConfigChange]
+  );
 
   if (!selectedNode) {
     return (
@@ -32,9 +39,23 @@ export function PropertyPanel() {
     );
   }
 
-  const integration = selectedNode.data.integration
-    ? getIntegrationById(selectedNode.data.integration)
-    : null;
+  // Update integration memoization after guard to ensure selectedNode exists
+  const memoizedIntegration = useMemo(
+    () => getIntegrationById(selectedNode.data.integration),
+    [selectedNode.data.integration]
+  );
+
+  // Use memoizedIntegration instead of integration
+  const finalIntegration = memoizedIntegration;
+
+  // Memoize action options to prevent unnecessary FormSelect re-renders
+  const actionOptions = useMemo(
+    () => finalIntegration?.actions?.map((action) => ({
+      value: action.id,
+      label: action.name,
+    })) || [],
+    [finalIntegration?.actions]
+  );
 
   return (
     <div className="w-96 bg-white border-l border-gray-200 flex flex-col h-full">
@@ -91,16 +112,16 @@ export function PropertyPanel() {
         />
 
         {/* Integration Info */}
-        {integration && (
+        {finalIntegration && (
           <div className="mb-4 p-3 bg-gray-50 rounded-lg">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-2xl">{integration.icon}</span>
+              <span className="text-2xl">{finalIntegration.icon}</span>
               <div>
-                <div className="font-medium text-sm">{integration.name}</div>
-                <div className="text-xs text-gray-600">{integration.category}</div>
+                <div className="font-medium text-sm">{finalIntegration.name}</div>
+                <div className="text-xs text-gray-600">{finalIntegration.category}</div>
               </div>
             </div>
-            <div className="text-xs text-gray-600">{integration.description}</div>
+            <div className="text-xs text-gray-600">{finalIntegration.description}</div>
           </div>
         )}
 
@@ -136,25 +157,22 @@ export function PropertyPanel() {
             />
           )}
 
-          {integration && integration.actions && integration.actions.length > 0 && (
+          {finalIntegration && actionOptions.length > 0 && (
             <>
               {/* Action Selection */}
               <FormSelect
                 id="action-selection"
                 label="Action"
                 value={localData.config?.action || ''}
-                onChange={(e) => handleConfigChange('action', e.target.value)}
-                options={integration.actions.map((action) => ({
-                  value: action.id,
-                  label: action.name,
-                }))}
+                onChange={(e) => handleActionChange(e)}
+                options={actionOptions}
                 placeholder="Select an action"
               />
 
               {/* Action Parameters */}
               {localData.config?.action && (
                 <>
-                  {integration.actions
+                  {finalIntegration.actions
                     .find((a) => a.id === localData.config.action)
                     ?.parameters.map((param) => (
                       <div key={param.name}>
@@ -234,3 +252,6 @@ export function PropertyPanel() {
     </div>
   );
 }
+
+export const PropertyPanel = memo(PropertyPanelComponent);
+PropertyPanel.displayName = 'PropertyPanel';
