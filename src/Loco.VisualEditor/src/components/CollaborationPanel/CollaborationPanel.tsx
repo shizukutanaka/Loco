@@ -9,7 +9,7 @@
  * - User invitation functionality
  */
 
-import { useState } from 'react';
+import { useState, useCallback, memo } from 'react';
 import {
   X,
   Users,
@@ -32,6 +32,23 @@ import { COPY_FEEDBACK_DURATION } from '@/utils/constants';
 import { useCollaborationStore } from '@/store/collaborationStore';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { FormInput } from '@/components/Form';
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Icon mapping for activity types (memoized outside component)
+const ACTIVITY_ICON_MAP = {
+  edit: <Edit3 className="w-3 h-3" />,
+  view: <Eye className="w-3 h-3" />,
+  save: <Check className="w-3 h-3" />,
+  lock: <Lock className="w-3 h-3" />,
+  unlock: <Unlock className="w-3 h-3" />,
+  comment: <Activity className="w-3 h-3" />,
+  run: <Activity className="w-3 h-3" />,
+};
 
 // ============================================================================
 // Types
@@ -60,7 +77,7 @@ interface ActivityLog {
 // Collaboration Panel Component
 // ============================================================================
 
-export function CollaborationPanel({
+function CollaborationPanelComponent({
   workflowId,
   isOpen,
   onClose,
@@ -162,15 +179,13 @@ export function CollaborationPanel({
   };
 
   // Send invitation
-  const handleSendInvite = () => {
+  const handleSendInvite = useCallback(() => {
     if (!inviteEmail) {
       toast.error('Please enter an email address');
       return;
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(inviteEmail)) {
+    if (!EMAIL_REGEX.test(inviteEmail)) {
       toast.error('Please enter a valid email address');
       return;
     }
@@ -192,7 +207,7 @@ export function CollaborationPanel({
     toast.info('Email sending requires backend API integration', 5000);
     setInviteEmail('');
     setInviteMessage('');
-  };
+  }, [inviteEmail, toast]);
 
   // Add activity to log
   const addActivity = (type: ActivityType, description: string, nodeId?: string) => {
@@ -224,23 +239,10 @@ export function CollaborationPanel({
     return date.toLocaleDateString();
   };
 
-  // Get activity icon
-  const getActivityIcon = (type: ActivityType) => {
-    switch (type) {
-      case 'edit':
-        return <Edit3 className="w-3 h-3" />;
-      case 'view':
-        return <Eye className="w-3 h-3" />;
-      case 'save':
-        return <Check className="w-3 h-3" />;
-      case 'lock':
-        return <Lock className="w-3 h-3" />;
-      case 'unlock':
-        return <Unlock className="w-3 h-3" />;
-      default:
-        return <Activity className="w-3 h-3" />;
-    }
-  };
+  // Get activity icon from memoized map
+  const getActivityIcon = useCallback((type: ActivityType) => {
+    return ACTIVITY_ICON_MAP[type] || ACTIVITY_ICON_MAP['comment'];
+  }, []);
 
   // Get user status color
   const getUserStatusColor = (hasActiveCursor: boolean) => {
@@ -547,3 +549,6 @@ export function CollaborationPanel({
     </div>
   );
 }
+
+export const CollaborationPanel = memo(CollaborationPanelComponent);
+CollaborationPanel.displayName = 'CollaborationPanel';
