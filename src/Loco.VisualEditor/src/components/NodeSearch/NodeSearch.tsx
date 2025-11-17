@@ -1,7 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { Search, X } from 'lucide-react';
 import { integrations } from '@/data/integrations';
 import { useWorkflowStore } from '@/store/workflowStore';
+
+// ============================================================================
+// Types
+// ============================================================================
 
 interface NodeSearchProps {
   isOpen: boolean;
@@ -17,58 +21,77 @@ interface SearchResult {
   type: 'integration' | 'node' | 'basic';
 }
 
-export function NodeSearch({ isOpen, onClose }: NodeSearchProps) {
+interface BasicNode {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+}
+
+// ============================================================================
+// Constants (Memoized - prevent recreation on every render)
+// ============================================================================
+
+const BASIC_NODES: BasicNode[] = [
+  { id: 'condition', name: 'Condition', description: 'Branch workflow based on conditions', icon: '🔀' },
+  { id: 'transform', name: 'Transform', description: 'Transform data with C# code', icon: '🔄' },
+  { id: 'loop', name: 'Loop', description: 'Iterate over items', icon: '🔁' },
+];
+
+// ============================================================================
+// Node Search Component
+// ============================================================================
+
+function NodeSearchComponent({ isOpen, onClose }: NodeSearchProps) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const { addNode } = useWorkflowStore();
 
-  // Build search results
-  const searchResults: SearchResult[] = [];
+  // Memoize search results to prevent recalculation on every render
+  const searchResults = useMemo(() => {
+    const results: SearchResult[] = [];
 
-  if (query.trim()) {
-    const lowerQuery = query.toLowerCase();
+    if (query.trim()) {
+      const lowerQuery = query.toLowerCase();
 
-    // Search integrations
-    integrations.forEach((integration) => {
-      if (
-        integration.name.toLowerCase().includes(lowerQuery) ||
-        integration.description.toLowerCase().includes(lowerQuery)
-      ) {
-        searchResults.push({
-          id: integration.id,
-          name: integration.name,
-          description: integration.description,
-          category: integration.category,
-          icon: integration.icon,
-          type: 'integration',
-        });
-      }
-    });
+      // Search integrations
+      integrations.forEach((integration) => {
+        if (
+          integration.name.toLowerCase().includes(lowerQuery) ||
+          integration.description.toLowerCase().includes(lowerQuery)
+        ) {
+          results.push({
+            id: integration.id,
+            name: integration.name,
+            description: integration.description,
+            category: integration.category,
+            icon: integration.icon,
+            type: 'integration',
+          });
+        }
+      });
 
-    // Search basic nodes
-    const basicNodes = [
-      { id: 'condition', name: 'Condition', description: 'Branch workflow based on conditions', icon: '🔀' },
-      { id: 'transform', name: 'Transform', description: 'Transform data with C# code', icon: '🔄' },
-      { id: 'loop', name: 'Loop', description: 'Iterate over items', icon: '🔁' },
-    ];
+      // Search basic nodes
+      BASIC_NODES.forEach((node) => {
+        if (
+          node.name.toLowerCase().includes(lowerQuery) ||
+          node.description.toLowerCase().includes(lowerQuery)
+        ) {
+          results.push({
+            id: node.id,
+            name: node.name,
+            description: node.description,
+            category: 'basic',
+            icon: node.icon,
+            type: 'basic',
+          });
+        }
+      });
+    }
 
-    basicNodes.forEach((node) => {
-      if (
-        node.name.toLowerCase().includes(lowerQuery) ||
-        node.description.toLowerCase().includes(lowerQuery)
-      ) {
-        searchResults.push({
-          id: node.id,
-          name: node.name,
-          description: node.description,
-          category: 'basic',
-          icon: node.icon,
-          type: 'basic',
-        });
-      }
-    });
-  }
+    return results;
+  }, [query]);
 
   // Focus input when opened
   useEffect(() => {
@@ -79,40 +102,8 @@ export function NodeSearch({ isOpen, onClose }: NodeSearchProps) {
     }
   }, [isOpen]);
 
-  // Handle keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!isOpen) return;
-
-      switch (event.key) {
-        case 'ArrowDown':
-          event.preventDefault();
-          setSelectedIndex((prev) =>
-            prev < searchResults.length - 1 ? prev + 1 : prev
-          );
-          break;
-        case 'ArrowUp':
-          event.preventDefault();
-          setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
-          break;
-        case 'Enter':
-          event.preventDefault();
-          if (searchResults[selectedIndex]) {
-            handleSelectResult(searchResults[selectedIndex]);
-          }
-          break;
-        case 'Escape':
-          event.preventDefault();
-          onClose();
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, selectedIndex, searchResults, onClose]);
-
-  const handleSelectResult = (result: SearchResult) => {
+  // Memoize result selection handler
+  const handleSelectResult = useCallback((result: SearchResult) => {
     // Add node to center of canvas
     const newNode = {
       id: `node-${Date.now()}`,
@@ -128,7 +119,41 @@ export function NodeSearch({ isOpen, onClose }: NodeSearchProps) {
 
     addNode(newNode);
     onClose();
-  };
+  }, [addNode, onClose]);
+
+  // Memoize keyboard handler to preserve referential equality
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    if (!isOpen) return;
+
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        setSelectedIndex((prev) =>
+          prev < searchResults.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        event.preventDefault();
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
+        break;
+      case 'Enter':
+        event.preventDefault();
+        if (searchResults[selectedIndex]) {
+          handleSelectResult(searchResults[selectedIndex]);
+        }
+        break;
+      case 'Escape':
+        event.preventDefault();
+        onClose();
+        break;
+    }
+  }, [isOpen, selectedIndex, searchResults, onClose, handleSelectResult]);
+
+  // Handle keyboard navigation
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   if (!isOpen) return null;
 
@@ -232,3 +257,6 @@ export function NodeSearch({ isOpen, onClose }: NodeSearchProps) {
     </div>
   );
 }
+
+export const NodeSearch = memo(NodeSearchComponent);
+NodeSearch.displayName = 'NodeSearch';
