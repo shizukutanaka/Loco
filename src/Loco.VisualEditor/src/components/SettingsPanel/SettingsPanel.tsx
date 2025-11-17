@@ -5,7 +5,7 @@
  * Includes API keys, environment variables, and user preferences.
  */
 
-import { useState } from 'react';
+import { useState, useCallback, memo } from 'react';
 import {
   Settings,
   Key,
@@ -41,10 +41,30 @@ interface EnvironmentVariable {
 type SettingsTab = 'general' | 'api' | 'environment' | 'appearance' | 'notifications';
 
 // ============================================================================
+// Constants (Memoized - prevent recreation on every render)
+// ============================================================================
+
+const THEME_OPTIONS = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'system', label: 'System' },
+];
+
+const TAB_BUTTON_BASE_CLASS = 'w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors';
+
+const TABS_CONFIG: Array<{ id: SettingsTab; label: string; icon: React.ComponentType<any> }> = [
+  { id: 'general', label: 'General', icon: Settings },
+  { id: 'api', label: 'API', icon: Key },
+  { id: 'environment', label: 'Environment', icon: Globe },
+  { id: 'appearance', label: 'Appearance', icon: Palette },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+];
+
+// ============================================================================
 // Settings Panel Component
 // ============================================================================
 
-export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
+function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const [envVars, setEnvVars] = useState<EnvironmentVariable[]>([
     { key: 'API_BASE_URL', value: 'http://localhost:5000', isSecret: false },
@@ -74,8 +94,8 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
   const toast = useToast();
 
-  // Add environment variable
-  const handleAddEnvVar = () => {
+  // Memoized handlers to prevent unnecessary re-renders
+  const handleAddEnvVar = useCallback(() => {
     if (!newEnvKey || !newEnvValue) {
       toast.warning('Please enter both key and value');
       return;
@@ -90,16 +110,14 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     setNewEnvKey('');
     setNewEnvValue('');
     toast.success('Environment variable added');
-  };
+  }, [newEnvKey, newEnvValue, envVars, toast]);
 
-  // Remove environment variable
-  const handleRemoveEnvVar = (key: string) => {
-    setEnvVars(envVars.filter((v) => v.key !== key));
+  const handleRemoveEnvVar = useCallback((key: string) => {
+    setEnvVars((vars) => vars.filter((v) => v.key !== key));
     toast.success('Environment variable removed');
-  };
+  }, [toast]);
 
-  // Save settings
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     // Save to localStorage
     const settings = {
       general: { autoSaveInterval, enableAutoSave, showValidationPanel },
@@ -112,7 +130,11 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     localStorage.setItem('loco_settings', JSON.stringify(settings));
     toast.success('Settings saved successfully');
     onClose();
-  };
+  }, [autoSaveInterval, enableAutoSave, showValidationPanel, apiKey, apiBaseUrl, theme, gridSize, showMinimap, enableNotifications, notifyOnSuccess, notifyOnError, envVars, toast, onClose]);
+
+  const handleTabChange = useCallback((tab: SettingsTab) => {
+    setActiveTab(tab);
+  }, []);
 
   if (!isOpen) return null;
 
@@ -138,65 +160,24 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
           {/* Tabs Sidebar */}
           <div className="w-64 border-r border-gray-200 p-4">
             <nav className="space-y-1">
-              <button
-                onClick={() => setActiveTab('general')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  activeTab === 'general'
-                    ? 'bg-loco-primary text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <Settings className="w-5 h-5" />
-                <span className="font-medium">General</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('api')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  activeTab === 'api'
-                    ? 'bg-loco-primary text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <Key className="w-5 h-5" />
-                <span className="font-medium">API</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('environment')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  activeTab === 'environment'
-                    ? 'bg-loco-primary text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <Globe className="w-5 h-5" />
-                <span className="font-medium">Environment</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('appearance')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  activeTab === 'appearance'
-                    ? 'bg-loco-primary text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <Palette className="w-5 h-5" />
-                <span className="font-medium">Appearance</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('notifications')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  activeTab === 'notifications'
-                    ? 'bg-loco-primary text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <Bell className="w-5 h-5" />
-                <span className="font-medium">Notifications</span>
-              </button>
+              {TABS_CONFIG.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleTabChange(tab.id)}
+                    className={`${TAB_BUTTON_BASE_CLASS} ${
+                      isActive
+                        ? 'bg-loco-primary text-white'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span className="font-medium">{tab.label}</span>
+                  </button>
+                );
+              })}
             </nav>
           </div>
 
@@ -399,11 +380,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                       label="Theme"
                       value={theme}
                       onChange={(e) => setTheme(e.target.value as typeof theme)}
-                      options={[
-                        { value: 'light', label: 'Light' },
-                        { value: 'dark', label: 'Dark' },
-                        { value: 'system', label: 'System' },
-                      ]}
+                      options={THEME_OPTIONS}
                       showEmpty={false}
                     />
 
@@ -532,3 +509,6 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     </div>
   );
 }
+
+export const SettingsPanel = memo(SettingsPanelComponent);
+SettingsPanel.displayName = 'SettingsPanel';
