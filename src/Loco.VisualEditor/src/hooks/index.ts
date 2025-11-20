@@ -15,3 +15,6 @@ export { usePropertyPanelActions } from './usePropertyPanelActions';
 export { useExecutionPolling } from './useExecutionPolling';
 export { useExecutionStatusHelpers } from './useExecutionStatusHelpers';
 export { useExecutionAccessibility } from './useExecutionAccessibility';
+export { useFormInput } from './useFormInput';
+export { useActivityFeed, type ActivityLog, type ActivityType } from './useActivityFeed';
+export { useCollaborationSession, type CollaborationUser } from './useCollaborationSession';
