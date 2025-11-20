@@ -18,3 +18,4 @@ export { useExecutionAccessibility } from './useExecutionAccessibility';
 export { useFormInput } from './useFormInput';
 export { useActivityFeed, type ActivityLog, type ActivityType } from './useActivityFeed';
 export { useCollaborationSession, type CollaborationUser } from './useCollaborationSession';
+export { useVirtualScroll } from './useVirtualScroll';
