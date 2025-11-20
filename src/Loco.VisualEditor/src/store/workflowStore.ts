@@ -11,7 +11,7 @@ import {
 } from 'reactflow';
 import { Workflow, WorkflowNode, WorkflowEdge, Viewport } from '@/types/workflow';
 import { getAutoLayoutedNodes } from '@/utils/autoLayout';
-import { deepClone } from '@/utils/deepClone';
+import { createOptimizedHistorySnapshot } from '@/utils/structuralSharing';
 import { deferHistorySnapshot } from '@/utils/deferHistorySnapshot';
 import { MAX_HISTORY_SIZE } from '@/utils/constants';
 
@@ -118,8 +118,18 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     // Remove any future history if we're not at the end
     const newHistory = history.slice(0, historyIndex + 1);
 
-    // Add current state to history
-    newHistory.push({ nodes: deepClone(nodes), edges: deepClone(edges) });
+    // Get previous state for structural sharing comparison
+    const previousState = historyIndex >= 0 ? history[historyIndex] : undefined;
+
+    // Add current state to history with optimized cloning
+    // Only creates new array references if content has actually changed
+    const snapshot = createOptimizedHistorySnapshot(
+      nodes,
+      edges,
+      previousState?.nodes,
+      previousState?.edges
+    );
+    newHistory.push(snapshot);
 
     // Limit history size
     if (newHistory.length > MAX_HISTORY_SIZE) {
@@ -141,9 +151,11 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     const newIndex = historyIndex - 1;
     const state = history[newIndex];
 
+    // No need to deep clone - history snapshots are already immutable
+    // Reusing references from history is safe due to structural sharing
     set({
-      nodes: deepClone(state.nodes),
-      edges: deepClone(state.edges),
+      nodes: state.nodes,
+      edges: state.edges,
       historyIndex: newIndex,
       canUndo: newIndex > 0,
       canRedo: true,
@@ -159,9 +171,11 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     const newIndex = historyIndex + 1;
     const state = history[newIndex];
 
+    // No need to deep clone - history snapshots are already immutable
+    // Reusing references from history is safe due to structural sharing
     set({
-      nodes: deepClone(state.nodes),
-      edges: deepClone(state.edges),
+      nodes: state.nodes,
+      edges: state.edges,
       historyIndex: newIndex,
       canUndo: true,
       canRedo: newIndex < history.length - 1,
