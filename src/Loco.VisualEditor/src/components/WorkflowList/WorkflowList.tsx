@@ -4,7 +4,7 @@
  * Displays a list of all saved workflows with search, filter, and management capabilities.
  */
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useCallback, memo } from 'react';
 import {
   Search,
   Plus,
@@ -40,7 +40,7 @@ interface WorkflowListProps {
 // Workflow List Component
 // ============================================================================
 
-export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
+function WorkflowListComponent({ isOpen, onClose }: WorkflowListProps) {
   // Refs for focus management
   const modalRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -80,6 +80,67 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
       onUpdateWorkflows: updateWorkflows,
       onClose,
     });
+
+  // Memoize search handler to preserve referential equality
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setSearchQuery(e.target.value);
+    },
+    [setSearchQuery]
+  );
+
+  // Memoize filter status handler to preserve referential equality
+  const handleFilterStatusChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      setFilterStatus(e.target.value as typeof filterStatus);
+    },
+    [setFilterStatus]
+  );
+
+  // Memoize tag filter handler to preserve referential equality
+  const handleTagFilterChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      setFilterTag(e.target.value);
+    },
+    [setFilterTag]
+  );
+
+  // Memoize sort handler to preserve referential equality
+  const handleSortChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      setSortBy(e.target.value as typeof sortBy);
+    },
+    [setSortBy]
+  );
+
+  // Memoize workflow card action handlers to preserve referential equality
+  const handleWorkflowEdit = useCallback(
+    (workflowId: string) => {
+      handleEdit(workflowId);
+    },
+    [handleEdit]
+  );
+
+  const handleWorkflowRun = useCallback(
+    (workflowId: string, workflowName: string) => {
+      handleRun(workflowId, workflowName);
+    },
+    [handleRun]
+  );
+
+  const handleWorkflowDuplicate = useCallback(
+    (workflowId: string) => {
+      handleDuplicate(workflowId);
+    },
+    [handleDuplicate]
+  );
+
+  const handleWorkflowDelete = useCallback(
+    (workflowId: string) => {
+      handleDelete(workflowId);
+    },
+    [handleDelete]
+  );
 
   if (!isOpen) return null;
 
@@ -123,7 +184,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
               placeholder="Search workflows..."
               aria-label="Search workflows by name, description, or tags"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent"
             />
           </div>
@@ -131,7 +192,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
           {/* Filter */}
           <select
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
+            onChange={handleFilterStatusChange}
             aria-label="Filter workflows by execution status"
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent"
           >
@@ -145,7 +206,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
           {allTags.length > 0 && (
             <select
               value={filterTag}
-              onChange={(e) => setFilterTag(e.target.value)}
+              onChange={handleTagFilterChange}
               aria-label="Filter workflows by tag"
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent"
             >
@@ -161,7 +222,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
           {/* Sort */}
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            onChange={handleSortChange}
             aria-label="Sort workflows"
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-loco-primary focus:border-transparent"
           >
@@ -261,7 +322,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
                   {/* Actions */}
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleEdit(workflow.id)}
+                      onClick={() => handleWorkflowEdit(workflow.id)}
                       className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-loco-primary text-white rounded text-xs hover:bg-blue-700 transition-colors"
                       title="Edit"
                     >
@@ -269,7 +330,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
                       Edit
                     </button>
                     <button
-                      onClick={() => handleRun(workflow.id, workflow.name)}
+                      onClick={() => handleWorkflowRun(workflow.id, workflow.name)}
                       className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
                       aria-label={`Run workflow ${workflow.name}`}
                       title="Run"
@@ -277,7 +338,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
                       <Play className="w-4 h-4" aria-hidden="true" />
                     </button>
                     <button
-                      onClick={() => handleDuplicate(workflow.id)}
+                      onClick={() => handleWorkflowDuplicate(workflow.id)}
                       className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
                       aria-label={`Duplicate workflow ${workflow.name}`}
                       title="Duplicate"
@@ -285,7 +346,7 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
                       <Copy className="w-4 h-4" aria-hidden="true" />
                     </button>
                     <button
-                      onClick={() => handleDelete(workflow.id)}
+                      onClick={() => handleWorkflowDelete(workflow.id)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
                       aria-label={`Delete workflow ${workflow.name}`}
                       title="Delete"
@@ -302,3 +363,6 @@ export function WorkflowList({ isOpen, onClose }: WorkflowListProps) {
     </div>
   );
 }
+
+export const WorkflowList = memo(WorkflowListComponent);
+WorkflowList.displayName = 'WorkflowList';

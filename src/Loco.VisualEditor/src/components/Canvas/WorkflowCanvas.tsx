@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, memo } from 'react';
 import ReactFlow, {
   Background,
   MiniMap,
@@ -31,7 +31,11 @@ import {
   useCanvasQuickActions,
 } from '@/hooks';
 
-const nodeTypes: NodeTypes = {
+// ============================================================================
+// Constants (Memoized - prevent recreation on every render)
+// ============================================================================
+
+const NODE_TYPES: NodeTypes = {
   trigger: TriggerNode,
   action: ActionNode,
   condition: ConditionNode,
@@ -39,7 +43,20 @@ const nodeTypes: NodeTypes = {
   loop: LoopNode,
 };
 
-export function WorkflowCanvas() {
+const NODE_COLORS = {
+  trigger: '#86efac',
+  action: '#93c5fd',
+  condition: '#fde047',
+  transform: '#d8b4fe',
+  loop: '#fdba74',
+  default: '#e5e7eb',
+} as const;
+
+// ============================================================================
+// Workflow Canvas Component
+// ============================================================================
+
+function WorkflowCanvasComponent() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [showMinimap, setShowMinimap] = useState(true);
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
@@ -159,22 +176,11 @@ export function WorkflowCanvas() {
     setSelectedNodes([]);
   }, [setSelectedNodeId]);
 
+  // Memoize node color retrieval to prevent recalculation on every render
   const getNodeColor = useCallback(
     (node: Node) => {
-      switch (node.type) {
-        case 'trigger':
-          return '#86efac';
-        case 'action':
-          return '#93c5fd';
-        case 'condition':
-          return '#fde047';
-        case 'transform':
-          return '#d8b4fe';
-        case 'loop':
-          return '#fdba74';
-        default:
-          return '#e5e7eb';
-      }
+      const nodeType = node.type as keyof typeof NODE_COLORS;
+      return NODE_COLORS[nodeType] || NODE_COLORS.default;
     },
     []
   );
@@ -234,7 +240,7 @@ export function WorkflowCanvas() {
         onPaneClick={onPaneClick}
         onPaneContextMenu={onPaneContextMenu}
         onSelectionChange={onSelectionChange}
-        nodeTypes={nodeTypes}
+        nodeTypes={NODE_TYPES}
         fitView
         snapToGrid
         snapGrid={[15, 15]}
@@ -271,6 +277,9 @@ export function WorkflowCanvas() {
     </div>
   );
 }
+
+export const WorkflowCanvas = memo(WorkflowCanvasComponent);
+WorkflowCanvas.displayName = 'WorkflowCanvas';
 
 export function WorkflowCanvasWrapper() {
   return (
