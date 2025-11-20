@@ -21,7 +21,7 @@ interface HistoryState {
   edges: Edge[];
 }
 
-interface WorkflowState {
+export interface WorkflowState {
   // Current workflow
   workflow: Workflow | null;
 
