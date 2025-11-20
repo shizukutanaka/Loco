@@ -6,7 +6,7 @@
  */
 
 import { create } from 'zustand';
-import { Node, Edge } from 'reactflow';
+import { Node, Edge, NodeChange, EdgeChange } from 'reactflow';
 import {
   collaborationService,
   CollaborationUser,
@@ -46,11 +46,11 @@ interface CollaborationState {
   updateSelection: (nodeIds: string[]) => void;
 
   // Workflow changes
-  sendNodeChanges: (changes: any[]) => void;
-  sendEdgeChanges: (changes: any[]) => void;
+  sendNodeChanges: (changes: NodeChange[]) => void;
+  sendEdgeChanges: (changes: EdgeChange[]) => void;
   sendNodeAdded: (node: Node) => void;
   sendNodeDeleted: (nodeId: string) => void;
-  sendNodeUpdated: (nodeId: string, data: any) => void;
+  sendNodeUpdated: (nodeId: string, data: Partial<Node['data']>) => void;
   sendEdgeAdded: (edge: Edge) => void;
   sendEdgeDeleted: (edgeId: string) => void;
 
@@ -159,12 +159,12 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
   },
 
   // Send node changes
-  sendNodeChanges: (changes: any[]) => {
+  sendNodeChanges: (changes: NodeChange[]) => {
     collaborationService.sendNodeChanges(changes);
   },
 
   // Send edge changes
-  sendEdgeChanges: (changes: any[]) => {
+  sendEdgeChanges: (changes: EdgeChange[]) => {
     collaborationService.sendEdgeChanges(changes);
   },
 
@@ -179,7 +179,7 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
   },
 
   // Send node updated
-  sendNodeUpdated: (nodeId: string, data: any) => {
+  sendNodeUpdated: (nodeId: string, data: Partial<Node['data']>) => {
     collaborationService.sendNodeUpdated(nodeId, data);
   },
 
