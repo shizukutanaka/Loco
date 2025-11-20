@@ -44,8 +44,8 @@ interface WorkflowState {
   updateWorkflowMetadata: (metadata: Partial<Workflow>) => void;
 
   // History actions
-  undo: () => void;
-  redo: () => void;
+  undo: () => boolean;
+  redo: () => boolean;
   pushToHistory: () => void;
 
   // Node actions
@@ -136,7 +136,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   undo: () => {
     const { history, historyIndex } = get();
-    if (historyIndex <= 0) return;
+    if (historyIndex <= 0) return false;
 
     const newIndex = historyIndex - 1;
     const state = history[newIndex];
@@ -148,11 +148,13 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       canUndo: newIndex > 0,
       canRedo: true,
     });
+
+    return true;
   },
 
   redo: () => {
     const { history, historyIndex } = get();
-    if (historyIndex >= history.length - 1) return;
+    if (historyIndex >= history.length - 1) return false;
 
     const newIndex = historyIndex + 1;
     const state = history[newIndex];
@@ -164,6 +166,8 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       canUndo: true,
       canRedo: newIndex < history.length - 1,
     });
+
+    return true;
   },
 
   updateWorkflowMetadata: (metadata) => {

@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { useHistoryStore } from '@/store/historyStore';
 
 interface KeyboardShortcutsOptions {
   onSave?: () => void;
@@ -14,8 +13,7 @@ interface KeyboardShortcutsOptions {
 }
 
 export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
-  const { selectedNodeId, deleteNode } = useWorkflowStore();
-  const { undo, redo, canUndo, canRedo } = useHistoryStore();
+  const { selectedNodeId, deleteNode, undo, redo, canUndo, canRedo } = useWorkflowStore();
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -49,9 +47,8 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
       // Ctrl/Cmd + Z: Undo
       if (ctrlKey && event.key === 'z' && !event.shiftKey) {
         event.preventDefault();
-        if (canUndo()) {
-          const previousWorkflow = undo();
-          if (previousWorkflow && options.onUndo) {
+        if (canUndo && undo()) {
+          if (options.onUndo) {
             options.onUndo();
           }
         }
@@ -60,9 +57,8 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
       // Ctrl/Cmd + Shift + Z or Ctrl/Cmd + Y: Redo
       if ((ctrlKey && event.shiftKey && event.key === 'z') || (ctrlKey && event.key === 'y')) {
         event.preventDefault();
-        if (canRedo()) {
-          const nextWorkflow = redo();
-          if (nextWorkflow && options.onRedo) {
+        if (canRedo && redo()) {
+          if (options.onRedo) {
             options.onRedo();
           }
         }
