@@ -19,3 +19,7 @@ export { useFormInput } from './useFormInput';
 export { useActivityFeed, type ActivityLog, type ActivityType } from './useActivityFeed';
 export { useCollaborationSession, type CollaborationUser } from './useCollaborationSession';
 export { useVirtualScroll } from './useVirtualScroll';
+export { useEnvironmentVariables } from './useEnvironmentVariables';
+export { useExecutionLogs } from './useExecutionLogs';
+export { useListFiltering, type FilterPredicate, type SearchPredicate } from './useListFiltering';
+export { useSecretVisibility } from './useSecretVisibility';
