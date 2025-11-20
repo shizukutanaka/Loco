@@ -9,7 +9,7 @@
  * - User invitation functionality
  */
 
-import { useState, useCallback, memo } from 'react';
+import { useState, useCallback, useMemo, memo } from 'react';
 import {
   X,
   Users,
@@ -111,8 +111,67 @@ function CollaborationPanelComponent({
   const [linkCopied, setLinkCopied] = useState(false);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
 
+  // Memoize form input handlers to preserve referential equality
+  const handleServerUrlChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => setServerUrl(e.target.value),
+    []
+  );
+
+  const handleUserNameChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => setUserName(e.target.value),
+    []
+  );
+
+  const handleUserEmailChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => setUserEmail(e.target.value),
+    []
+  );
+
+  const handleInviteEmailChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => setInviteEmail(e.target.value),
+    []
+  );
+
+  // Memoize node lookup for activity logging to prevent O(n) searches per activity
+  const nodeMap = useMemo(() => {
+    return new Map(nodes.map((n) => [n.id, n.data.label]));
+  }, [nodes]);
+
+  // Memoize formatTime function to preserve referential equality
+  const formatTime = useCallback((timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return date.toLocaleDateString();
+  }, []);
+
+  // Add activity to log with memoized node lookup
+  const addActivity = useCallback(
+    (type: ActivityType, description: string, nodeId?: string) => {
+      const activity: ActivityLog = {
+        id: crypto.randomUUID(),
+        userId: currentUser?.id || '',
+        userName: currentUser?.name || 'Unknown',
+        type,
+        description,
+        timestamp: new Date().toISOString(),
+        nodeId,
+        nodeName: nodeId ? nodeMap.get(nodeId) : undefined,
+      };
+
+      setActivities((prev) => [activity, ...prev].slice(0, 50));
+    },
+    [currentUser, nodeMap]
+  );
+
   // Connect to collaboration server
-  const handleConnect = async () => {
+  const handleConnect = useCallback(async () => {
     if (!userName) {
       toast.error('Please enter your name');
       return;
@@ -136,19 +195,19 @@ function CollaborationPanelComponent({
     } catch (error) {
       toast.error(`Failed to connect: ${error}`);
     }
-  };
+  }, [userName, serverUrl, userEmail, workflowId, connect, joinWorkflow, toast, addActivity]);
 
   // Disconnect from server
-  const handleDisconnect = () => {
+  const handleDisconnect = useCallback(() => {
     leaveWorkflow();
     disconnect();
     toast.info('Disconnected from collaboration');
     setShareLink('');
     setActivities([]);
-  };
+  }, [leaveWorkflow, disconnect, toast]);
 
   // Toggle workflow lock
-  const handleToggleLock = async () => {
+  const handleToggleLock = useCallback(async () => {
     if (isWorkflowLocked) {
       if (lockedByUser === currentUser?.id) {
         unlockWorkflow();
@@ -166,17 +225,17 @@ function CollaborationPanelComponent({
         toast.error('Failed to lock workflow');
       }
     }
-  };
+  }, [isWorkflowLocked, lockedByUser, currentUser?.id, unlockWorkflow, lockWorkflow, toast, addActivity]);
 
   // Copy share link
-  const handleCopyLink = () => {
+  const handleCopyLink = useCallback(() => {
     if (shareLink) {
       navigator.clipboard.writeText(shareLink);
       setLinkCopied(true);
       toast.success('Share link copied to clipboard');
       setTimeout(() => setLinkCopied(false), COPY_FEEDBACK_DURATION);
     }
-  };
+  }, [shareLink, toast]);
 
   // Send invitation
   const handleSendInvite = useCallback(() => {
@@ -209,46 +268,19 @@ function CollaborationPanelComponent({
     setInviteMessage('');
   }, [inviteEmail, toast]);
 
-  // Add activity to log
-  const addActivity = (type: ActivityType, description: string, nodeId?: string) => {
-    const activity: ActivityLog = {
-      id: crypto.randomUUID(),
-      userId: currentUser?.id || '',
-      userName: currentUser?.name || 'Unknown',
-      type,
-      description,
-      timestamp: new Date().toISOString(),
-      nodeId,
-      nodeName: nodeId ? nodes.find((n) => n.id === nodeId)?.data.label : undefined,
-    };
+  // Memoize user status color getter to preserve referential equality
+  const getUserStatusColor = useCallback(
+    (hasActiveCursor: boolean) => {
+      return hasActiveCursor ? 'text-green-500' : 'text-gray-400';
+    },
+    []
+  );
 
-    setActivities((prev) => [activity, ...prev].slice(0, 50)); // Keep last 50 activities
-  };
-
-  // Format timestamp
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-
-    if (minutes < 1) return 'just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return date.toLocaleDateString();
-  };
-
-  // Get activity icon from memoized map
-  const getActivityIcon = useCallback((type: ActivityType) => {
-    return ACTIVITY_ICON_MAP[type] || ACTIVITY_ICON_MAP['comment'];
-  }, []);
-
-  // Get user status color
-  const getUserStatusColor = (hasActiveCursor: boolean) => {
-    if (hasActiveCursor) return 'text-green-500';
-    return 'text-gray-400';
-  };
+  // Get activity icon from memoized constant map
+  const getActivityIcon = useCallback(
+    (type: ActivityType) => ACTIVITY_ICON_MAP[type] || ACTIVITY_ICON_MAP['comment'],
+    []
+  );
 
   if (!isOpen) return null;
 
@@ -293,7 +325,7 @@ function CollaborationPanelComponent({
                       type="text"
                       label="Server URL"
                       value={serverUrl}
-                      onChange={(e) => setServerUrl(e.target.value)}
+                      onChange={handleServerUrlChange}
                       placeholder="ws://localhost:3001"
                       helpText="WebSocket URL of the collaboration server"
                     />
@@ -303,7 +335,7 @@ function CollaborationPanelComponent({
                       type="text"
                       label="Your Name"
                       value={userName}
-                      onChange={(e) => setUserName(e.target.value)}
+                      onChange={handleUserNameChange}
                       placeholder="Enter your name"
                       required={true}
                       helpText="Your name for other collaborators"
@@ -314,7 +346,7 @@ function CollaborationPanelComponent({
                       type="email"
                       label="Email (optional)"
                       value={userEmail}
-                      onChange={(e) => setUserEmail(e.target.value)}
+                      onChange={handleUserEmailChange}
                       placeholder="your.email@example.com"
                       helpText="Email for invitation and collaboration notifications"
                     />
@@ -390,7 +422,7 @@ function CollaborationPanelComponent({
                       type="email"
                       label="Invite by Email"
                       value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
+                      onChange={handleInviteEmailChange}
                       placeholder="colleague@example.com"
                       helpText="Email address to invite to collaboration"
                       suffix={
