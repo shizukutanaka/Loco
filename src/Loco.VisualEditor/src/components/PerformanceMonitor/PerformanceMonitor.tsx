@@ -5,7 +5,7 @@
  * and workflow operations including latency, throughput, and resource usage.
  */
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo, memo } from 'react';
 import {
   Activity,
   Zap,
@@ -43,7 +43,7 @@ interface PerformanceMetrics {
 // Performance Monitor Component
 // ============================================================================
 
-export function PerformanceMonitor() {
+function PerformanceMonitorComponent() {
   const [metrics, setMetrics] = useState<PerformanceMetrics>({
     fps: 60,
     latency: 0,
@@ -56,11 +56,11 @@ export function PerformanceMonitor() {
   const [isMinimized, setIsMinimized] = useState(true);
   const prevMetricsRef = useRef<PerformanceMetrics | null>(null);
 
-  // Helper to determine trend
-  const calculateTrend = (current: number, previous: number | undefined): 'up' | 'down' => {
+  // Memoize trend calculation to preserve referential equality
+  const calculateTrend = useCallback((current: number, previous: number | undefined): 'up' | 'down' => {
     if (previous === undefined) return 'down';
     return current > previous ? 'up' : 'down';
-  };
+  }, []);
 
   // Measure performance metrics
   useEffect(() => {
@@ -111,8 +111,8 @@ export function PerformanceMonitor() {
     return () => cancelAnimationFrame(animationId);
   }, []);
 
-  // Determine status colors
-  const getHealthStatus = () => {
+  // Memoize health status computation to prevent recalculation on every render
+  const health = useMemo(() => {
     if (metrics.fps < 30 || metrics.latency > 500 || metrics.memoryUsage > 90) {
       return { color: 'text-red-600', bg: 'bg-red-50', label: 'Critical' };
     } else if (
@@ -123,14 +123,14 @@ export function PerformanceMonitor() {
       return { color: 'text-yellow-600', bg: 'bg-yellow-50', label: 'Warning' };
     }
     return { color: 'text-green-600', bg: 'bg-green-50', label: 'Healthy' };
-  };
+  }, [metrics.fps, metrics.latency, metrics.memoryUsage]);
 
-  const health = getHealthStatus();
-  const formatBytes = (bytes: number) => {
+  // Memoize bytes formatting function to preserve referential equality
+  const formatBytes = useCallback((bytes: number) => {
     if (bytes < 1024) return `${bytes}B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-  };
+  }, []);
 
   if (isMinimized) {
     return (
@@ -233,6 +233,27 @@ export function PerformanceMonitor() {
   );
 }
 
+export const PerformanceMonitor = memo(PerformanceMonitorComponent);
+PerformanceMonitor.displayName = 'PerformanceMonitor';
+
+// ============================================================================
+// Constants (Memoized - prevent recreation on every render)
+// ============================================================================
+
+const STATUS_COLORS = {
+  good: 'text-green-600',
+  warning: 'text-yellow-600',
+  critical: 'text-red-600',
+  info: 'text-blue-600',
+};
+
+const STATUS_BG = {
+  good: 'bg-green-50',
+  warning: 'bg-yellow-50',
+  critical: 'bg-red-50',
+  info: 'bg-blue-50',
+};
+
 // ============================================================================
 // Metric Row Component
 // ============================================================================
@@ -246,7 +267,7 @@ interface MetricRowProps {
   progress?: number;
 }
 
-function MetricRow({
+function MetricRowComponent({
   icon,
   label,
   value,
@@ -254,30 +275,17 @@ function MetricRow({
   trend,
   progress,
 }: MetricRowProps) {
-  const statusColors = {
-    good: 'text-green-600',
-    warning: 'text-yellow-600',
-    critical: 'text-red-600',
-    info: 'text-blue-600',
-  };
-
-  const statusBg = {
-    good: 'bg-green-50',
-    warning: 'bg-yellow-50',
-    critical: 'bg-red-50',
-    info: 'bg-blue-50',
-  };
 
   return (
     <div className="flex items-center justify-between p-2 rounded bg-gray-50">
       <div className="flex items-center gap-2 flex-1">
-        <span className={`${statusColors[status]}`}>{icon}</span>
+        <span className={`${STATUS_COLORS[status]}`}>{icon}</span>
         <div className="flex-1">
           <div className="text-xs font-medium text-gray-700">{label}</div>
           {progress !== undefined && (
             <div className="mt-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
               <div
-                className={`h-full transition-all ${statusBg[status]}`}
+                className={`h-full transition-all ${STATUS_BG[status]}`}
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -299,3 +307,6 @@ function MetricRow({
     </div>
   );
 }
+
+export const MetricRow = memo(MetricRowComponent);
+MetricRow.displayName = 'MetricRow';

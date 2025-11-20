@@ -5,7 +5,7 @@
  * Provides consistent ARIA attributes, keyboard support, and visual feedback.
  */
 
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useCallback, memo } from 'react';
 
 interface AccessibleButtonProps {
   /** Button content (text or icon) */
@@ -53,7 +53,7 @@ interface AccessibleButtonProps {
  *   <Bell className="w-4 h-4" />
  * </AccessibleButton>
  */
-export function AccessibleButton({
+function AccessibleButtonComponent({
   children,
   ariaLabel,
   ariaDescribedBy,
@@ -66,14 +66,15 @@ export function AccessibleButton({
   tabIndex = 0,
   onKeyDown,
 }: AccessibleButtonProps) {
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+  // Memoize keyboard handler to preserve referential equality
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLButtonElement>) => {
     // Allow Enter and Space to trigger click on buttons
     if ((e.key === 'Enter' || e.key === ' ') && !disabled) {
       e.preventDefault();
       onClick?.(e as unknown as React.MouseEvent<HTMLButtonElement>);
     }
     onKeyDown?.(e);
-  };
+  }, [disabled, onClick, onKeyDown]);
 
   return (
     <button
@@ -94,11 +95,14 @@ export function AccessibleButton({
   );
 }
 
+export const AccessibleButton = memo(AccessibleButtonComponent);
+AccessibleButton.displayName = 'AccessibleButton';
+
 /**
  * Accessible Icon Button - specialized for icon-only buttons
  * Ensures aria-label is always provided for screen readers
  */
-export function AccessibleIconButton({
+function AccessibleIconButtonComponent({
   ariaLabel,
   children,
   disabled = false,
@@ -122,6 +126,9 @@ export function AccessibleIconButton({
     </AccessibleButton>
   );
 }
+
+export const AccessibleIconButton = memo(AccessibleIconButtonComponent);
+AccessibleIconButton.displayName = 'AccessibleIconButton';
 
 /**
  * Accessible Modal Dialog Wrapper
@@ -163,7 +170,7 @@ interface AccessibleDialogProps {
  *   <form>{...}</form>
  * </AccessibleDialog>
  */
-export function AccessibleDialog({
+function AccessibleDialogComponent({
   title,
   children,
   isOpen,
@@ -172,13 +179,14 @@ export function AccessibleDialog({
   className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6',
   contentClassName = 'bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col',
 }: AccessibleDialogProps) {
-  React.useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
+  // Memoize escape key handler to preserve referential equality
+  const handleEscape = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape' && isOpen) {
+      onClose();
+    }
+  }, [isOpen, onClose]);
 
+  React.useEffect(() => {
     if (isOpen) {
       document.addEventListener('keydown', handleEscape);
       // Prevent scrolling when modal is open
@@ -189,7 +197,7 @@ export function AccessibleDialog({
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, handleEscape]);
 
   if (!isOpen) return null;
 
@@ -236,3 +244,6 @@ export function AccessibleDialog({
     </div>
   );
 }
+
+export const AccessibleDialog = memo(AccessibleDialogComponent);
+AccessibleDialog.displayName = 'AccessibleDialog';
