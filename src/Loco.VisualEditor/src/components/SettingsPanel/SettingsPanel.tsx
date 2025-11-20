@@ -136,6 +136,63 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
     setActiveTab(tab);
   }, []);
 
+  // Extract all form input handlers to useCallback to preserve referential equality
+  const handleAutoSaveChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEnableAutoSave(e.target.checked);
+  }, []);
+
+  const handleAutoSaveIntervalChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setAutoSaveInterval(Number(e.target.value));
+  }, []);
+
+  const handleValidationPanelChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setShowValidationPanel(e.target.checked);
+  }, []);
+
+  const handleApiBaseUrlChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setApiBaseUrl(e.target.value);
+  }, []);
+
+  const handleApiKeyChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setApiKey(e.target.value);
+  }, []);
+
+  const handleShowSecretsChange = useCallback(() => {
+    setShowSecrets(!showSecrets);
+  }, [showSecrets]);
+
+  const handleNewEnvKeyChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewEnvKey(e.target.value);
+  }, []);
+
+  const handleNewEnvValueChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewEnvValue(e.target.value);
+  }, []);
+
+  const handleThemeChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setTheme(e.target.value as typeof theme);
+  }, []);
+
+  const handleGridSizeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setGridSize(Number(e.target.value));
+  }, []);
+
+  const handleShowMinimapChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setShowMinimap(e.target.checked);
+  }, []);
+
+  const handleEnableNotificationsChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEnableNotifications(e.target.checked);
+  }, []);
+
+  const handleNotifyOnSuccessChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setNotifyOnSuccess(e.target.checked);
+  }, []);
+
+  const handleNotifyOnErrorChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setNotifyOnError(e.target.checked);
+  }, []);
+
   if (!isOpen) return null;
 
   return (
@@ -201,7 +258,7 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
                       <FormToggle
                         id="enable-auto-save"
                         checked={enableAutoSave}
-                        onChange={(e) => setEnableAutoSave(e.target.checked)}
+                        onChange={handleAutoSaveChange}
                         size="md"
                         labelPosition="left"
                       />
@@ -214,7 +271,7 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
                         type="number"
                         label="Auto-save Interval (seconds)"
                         value={autoSaveInterval}
-                        onChange={(e) => setAutoSaveInterval(Number(e.target.value))}
+                        onChange={handleAutoSaveIntervalChange}
                         min={10}
                         max={300}
                         helpText="Interval between automatic saves (10-300 seconds)"
@@ -232,7 +289,7 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
                       <FormToggle
                         id="show-validation-panel"
                         checked={showValidationPanel}
-                        onChange={(e) => setShowValidationPanel(e.target.checked)}
+                        onChange={handleValidationPanelChange}
                         size="md"
                         labelPosition="left"
                       />
@@ -255,7 +312,7 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
                       type="url"
                       label="API Base URL"
                       value={apiBaseUrl}
-                      onChange={(e) => setApiBaseUrl(e.target.value)}
+                      onChange={handleApiBaseUrlChange}
                       placeholder="http://localhost:5000"
                       helpText="Base URL for the Loco API server"
                     />
@@ -266,12 +323,12 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
                       type={showSecrets ? 'text' : 'password'}
                       label="API Key (Optional)"
                       value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
+                      onChange={handleApiKeyChange}
                       placeholder="Enter your API key"
                       helpText="API key for authenticated requests"
                       suffix={
                         <button
-                          onClick={() => setShowSecrets(!showSecrets)}
+                          onClick={handleShowSecretsChange}
                           className="hover:bg-gray-100 rounded p-1"
                           tabIndex={-1}
                         >
@@ -313,7 +370,7 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
                         id="env-key"
                         type="text"
                         value={newEnvKey}
-                        onChange={(e) => setNewEnvKey(e.target.value)}
+                        onChange={handleNewEnvKeyChange}
                         placeholder="KEY"
                         description="Environment variable name"
                         className="flex-1"
@@ -322,7 +379,7 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
                         id="env-value"
                         type="text"
                         value={newEnvValue}
-                        onChange={(e) => setNewEnvValue(e.target.value)}
+                        onChange={handleNewEnvValueChange}
                         placeholder="value"
                         description="Environment variable value"
                         className="flex-1"
@@ -379,7 +436,7 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
                       id="theme"
                       label="Theme"
                       value={theme}
-                      onChange={(e) => setTheme(e.target.value as typeof theme)}
+                      onChange={handleThemeChange}
                       options={THEME_OPTIONS}
                       showEmpty={false}
                     />
@@ -395,7 +452,7 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
                         max="30"
                         step="5"
                         value={gridSize}
-                        onChange={(e) => setGridSize(Number(e.target.value))}
+                        onChange={handleGridSizeChange}
                         className="w-full"
                       />
                     </div>
@@ -411,7 +468,7 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
                       <FormToggle
                         id="show-minimap"
                         checked={showMinimap}
-                        onChange={(e) => setShowMinimap(e.target.checked)}
+                        onChange={handleShowMinimapChange}
                         size="md"
                         labelPosition="left"
                       />
@@ -439,7 +496,7 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
                       <FormToggle
                         id="enable-notifications"
                         checked={enableNotifications}
-                        onChange={(e) => setEnableNotifications(e.target.checked)}
+                        onChange={handleEnableNotificationsChange}
                         size="md"
                         labelPosition="left"
                       />
@@ -458,7 +515,7 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
                           <FormToggle
                             id="notify-on-success"
                             checked={notifyOnSuccess}
-                            onChange={(e) => setNotifyOnSuccess(e.target.checked)}
+                            onChange={handleNotifyOnSuccessChange}
                             size="md"
                             labelPosition="left"
                           />
@@ -475,7 +532,7 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
                           <FormToggle
                             id="notify-on-error"
                             checked={notifyOnError}
-                            onChange={(e) => setNotifyOnError(e.target.checked)}
+                            onChange={handleNotifyOnErrorChange}
                             size="md"
                             labelPosition="left"
                           />
