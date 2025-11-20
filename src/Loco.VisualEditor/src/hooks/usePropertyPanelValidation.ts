@@ -1,4 +1,10 @@
 import { useState } from 'react';
+import {
+  validateLabel as validateLabelFn,
+  validateCondition as validateConditionFn,
+  validateCode as validateCodeFn,
+  validateNodeField,
+} from '@/utils/nodeValidation';
 
 export interface ValidationError {
   label?: string;
@@ -11,43 +17,30 @@ export interface ValidationError {
 /**
  * Custom hook for managing property panel field validation
  * Handles: label, condition, code validation and error state
+ *
+ * Uses consolidated validation functions from nodeValidation.ts
  */
 export function usePropertyPanelValidation() {
   const [errors, setErrors] = useState<ValidationError>({});
 
   const validateLabel = (label: string): string | undefined => {
-    if (!label.trim()) {
-      return 'Node label is required';
-    }
-    if (label.length > 100) {
-      return 'Label must be less than 100 characters';
-    }
-    return undefined;
+    const error = validateLabelFn(label);
+    return error ?? undefined;
   };
 
   const validateCondition = (condition: string): string | undefined => {
-    if (!condition.trim()) {
-      return 'Condition expression is required';
-    }
-    return undefined;
+    const error = validateConditionFn(condition);
+    return error ?? undefined;
   };
 
   const validateCode = (code: string): string | undefined => {
-    if (!code.trim()) {
-      return 'Transform code is required';
-    }
-    return undefined;
+    const error = validateCodeFn(code);
+    return error ?? undefined;
   };
 
   const validateField = (fieldName: string, value: string | number): string | undefined => {
-    if (fieldName === 'label') {
-      return validateLabel(String(value));
-    } else if (fieldName === 'condition') {
-      return validateCondition(String(value));
-    } else if (fieldName === 'code') {
-      return validateCode(String(value));
-    }
-    return undefined;
+    const error = validateNodeField(fieldName, value);
+    return error ?? undefined;
   };
 
   const clearErrors = () => {

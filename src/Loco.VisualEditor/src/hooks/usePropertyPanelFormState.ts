@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
+import {
+  validateLabel as validateLabelFn,
+  validateCondition as validateConditionFn,
+  validateCode as validateCodeFn,
+} from '@/utils/nodeValidation';
 
 export interface NodeConfig {
   condition?: string;
@@ -52,28 +57,20 @@ export function usePropertyPanelFormState(selectedNodeId: string | null) {
   }, [selectedNode]);
 
   // Validation functions
+  // Using consolidated validation from nodeValidation.ts
   const validateLabel = useCallback((label: string): string | undefined => {
-    if (!label.trim()) {
-      return 'Node label is required';
-    }
-    if (label.length > 100) {
-      return 'Label must be less than 100 characters';
-    }
-    return undefined;
+    const error = validateLabelFn(label);
+    return error ?? undefined;
   }, []);
 
   const validateCondition = useCallback((condition: string): string | undefined => {
-    if (!condition.trim()) {
-      return 'Condition expression is required';
-    }
-    return undefined;
+    const error = validateConditionFn(condition);
+    return error ?? undefined;
   }, []);
 
   const validateCode = useCallback((code: string): string | undefined => {
-    if (!code.trim()) {
-      return 'Transform code is required';
-    }
-    return undefined;
+    const error = validateCodeFn(code);
+    return error ?? undefined;
   }, []);
 
   const handleLabelChange = useCallback(

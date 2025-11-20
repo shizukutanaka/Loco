@@ -1,33 +1,17 @@
+// Re-export node validation functions from consolidated source
+export {
+  validateLabel,
+  validateCondition,
+  validateCode,
+  validateNodeField,
+} from './nodeValidation';
+
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const URL_REGEX = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
 
 export function validateEmail(email: string): string | null {
   if (!email) return 'Email is required';
   if (!EMAIL_REGEX.test(email)) return 'Invalid email format';
-  return null;
-}
-
-export function validateLabel(label: string, maxLength: number = 100): string | null {
-  if (!label) return 'Label is required';
-  if (label.length > maxLength) return `Label must be ${maxLength} characters or less`;
-  return null;
-}
-
-export function validateCondition(condition: string): string | null {
-  if (!condition) return 'Condition is required';
-  if (condition.trim().length === 0) return 'Condition cannot be empty';
-  // Basic validation - ensure it contains valid JavaScript-like syntax
-  try {
-    new Function(`return ${condition}`);
-    return null;
-  } catch (_error) {
-    return 'Invalid condition expression';
-  }
-}
-
-export function validateCode(code: string): string | null {
-  if (!code) return 'Code is required';
-  if (code.trim().length === 0) return 'Code cannot be empty';
   return null;
 }
 
