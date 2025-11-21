@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 
 export interface CollaborationUser {
   id: string;
@@ -130,19 +130,17 @@ export function useCollaborationSession(
 
   const updatePresence = useCallback(
     (position?: { x: number; y: number }) => {
-      if (currentUser) {
-        setCurrentUser((prev) =>
-          prev
-            ? {
-                ...prev,
-                cursorPosition: position,
-                lastActive: new Date().toISOString(),
-              }
-            : null
-        );
-      }
+      setCurrentUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              cursorPosition: position,
+              lastActive: new Date().toISOString(),
+            }
+          : null
+      );
     },
-    [currentUser]
+    []
   );
 
   const generateShareLink = useCallback((baseUrl: string): string => {
@@ -150,20 +148,38 @@ export function useCollaborationSession(
     return `${baseUrl}?workflow=${workflowId}&user=${currentUser.id}`;
   }, [workflowId, currentUser]);
 
-  return {
-    isConnected,
-    isConnecting,
-    currentUser,
-    connectedUsers,
-    isWorkflowLocked,
-    lockedByUser,
-    shareLink,
-    connect,
-    disconnect,
-    lockWorkflow,
-    unlockWorkflow,
-    inviteUser,
-    updatePresence,
-    generateShareLink,
-  };
+  return useMemo(
+    () => ({
+      isConnected,
+      isConnecting,
+      currentUser,
+      connectedUsers,
+      isWorkflowLocked,
+      lockedByUser,
+      shareLink,
+      connect,
+      disconnect,
+      lockWorkflow,
+      unlockWorkflow,
+      inviteUser,
+      updatePresence,
+      generateShareLink,
+    }),
+    [
+      isConnected,
+      isConnecting,
+      currentUser,
+      connectedUsers,
+      isWorkflowLocked,
+      lockedByUser,
+      shareLink,
+      connect,
+      disconnect,
+      lockWorkflow,
+      unlockWorkflow,
+      inviteUser,
+      updatePresence,
+      generateShareLink,
+    ]
+  );
 }
