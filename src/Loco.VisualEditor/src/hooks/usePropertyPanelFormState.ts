@@ -79,21 +79,16 @@ export function usePropertyPanelFormState(selectedNodeId: string | null) {
       const error = validateLabel(label);
       setErrors((prev) => ({ ...prev, label: error }));
 
-      // Only update if valid
-      if (!error && selectedNode) {
-        updateNode(selectedNode.id, { label });
+      // Only update if valid - use selectedNodeId instead of object reference
+      if (!error && selectedNodeId) {
+        updateNode(selectedNodeId, { label });
       }
     },
-    [selectedNode, validateLabel, updateNode]
+    [selectedNodeId, validateLabel, updateNode]
   );
 
   const handleConfigChange = useCallback(
     (key: string, value: ConfigValue) => {
-      setLocalData((prev) => ({
-        ...prev,
-        config: { ...prev.config, [key]: value },
-      }));
-
       // Validate based on field type
       let error: string | undefined;
       if (key === 'condition') {
@@ -102,15 +97,26 @@ export function usePropertyPanelFormState(selectedNodeId: string | null) {
         error = validateCode(String(value || ''));
       }
 
-      setErrors((prev) => ({ ...prev, [key]: error }));
+      // Use functional setState to access current state without stale closures
+      setLocalData((prev) => {
+        const updated = {
+          ...prev,
+          config: { ...prev.config, [key]: value },
+        };
 
-      // Only update if valid
-      if (!error && selectedNode) {
-        const newConfig = { ...localData.config, [key]: value };
-        updateNode(selectedNode.id, { config: newConfig });
-      }
+        // Only update store if valid - use selectedNodeId (string) instead of object reference
+        if (!error && selectedNodeId) {
+          updateNode(selectedNodeId, { config: updated.config });
+        }
+
+        return updated;
+      });
+
+      setErrors((prev) => ({ ...prev, [key]: error }));
     },
-    [selectedNode, localData.config, validateCondition, validateCode, updateNode]
+    // Only depend on stable values: selectedNodeId, validateCondition, validateCode, updateNode
+    // Removed: selectedNode (object reference), localData.config (stale/unused)
+    [selectedNodeId, validateCondition, validateCode, updateNode]
   );
 
   return {
