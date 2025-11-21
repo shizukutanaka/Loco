@@ -54,68 +54,31 @@ export function useExecutionLogs(options: UseExecutionLogsOptions = {}): UseExec
     setLogs([]);
   }, []);
 
-  const filterByLevelMemo = useCallback(
-    (level: LogLevel): LogEntry[] => {
-      return filterLogsByLevel(logs, level);
-    },
-    [logs]
+  // Compute counts and filters based on current logs
+  const { errorCount, warningCount } = useMemo(() => {
+    return {
+      errorCount: filterLogsByLevel(logs, 'error').length,
+      warningCount: filterLogsByLevel(logs, 'warn').length,
+    };
+  }, [logs]);
+
+  // Memoize return object to prevent unnecessary recreation
+  return useMemo(
+    () => ({
+      logs,
+      addLog,
+      addLogs,
+      clearLogs,
+      filterByLevel: (level: LogLevel) => filterLogsByLevel(logs, level),
+      filterByNode: (nodeId: string) => filterLogsByNode(logs, nodeId),
+      filterBySearch: (query: string) => searchLogs(logs, query),
+      groupByLevel: () => groupLogsByLevel(logs),
+      getStats: () => getLogStats(logs),
+      getErrorCount: () => errorCount,
+      getWarningCount: () => warningCount,
+      hasErrors: () => errorCount > 0,
+      hasWarnings: () => warningCount > 0,
+    }),
+    [logs, addLog, addLogs, clearLogs, errorCount, warningCount]
   );
-
-  const filterByNodeMemo = useCallback(
-    (nodeId: string): LogEntry[] => {
-      return filterLogsByNode(logs, nodeId);
-    },
-    [logs]
-  );
-
-  const filterBySearchMemo = useCallback(
-    (query: string): LogEntry[] => {
-      return searchLogs(logs, query);
-    },
-    [logs]
-  );
-
-  const groupByLevelMemo = useCallback((): Record<LogLevel, LogEntry[]> => {
-    return groupLogsByLevel(logs);
-  }, [logs]);
-
-  const getStatsMemo = useCallback((): Record<LogLevel, number> => {
-    return getLogStats(logs);
-  }, [logs]);
-
-  const getErrorCount = useCallback((): number => {
-    return filterLogsByLevel(logs, 'error').length;
-  }, [logs]);
-
-  const getWarningCount = useCallback((): number => {
-    return filterLogsByLevel(logs, 'warn').length;
-  }, [logs]);
-
-  const hasErrors = useCallback((): boolean => {
-    return getErrorCount() > 0;
-  }, [getErrorCount]);
-
-  const hasWarnings = useCallback((): boolean => {
-    return getWarningCount() > 0;
-  }, [getWarningCount]);
-
-  // Memoize counts for efficient access
-  const errorCount = useMemo(() => getErrorCount(), [getErrorCount]);
-  const warningCount = useMemo(() => getWarningCount(), [getWarningCount]);
-
-  return {
-    logs,
-    addLog,
-    addLogs,
-    clearLogs,
-    filterByLevel: filterByLevelMemo,
-    filterByNode: filterByNodeMemo,
-    filterBySearch: filterBySearchMemo,
-    groupByLevel: groupByLevelMemo,
-    getStats: getStatsMemo,
-    getErrorCount: () => errorCount,
-    getWarningCount: () => warningCount,
-    hasErrors,
-    hasWarnings,
-  };
 }
