@@ -110,11 +110,11 @@ function CollaborationOverlayComponent() {
 
   // Highlight selected nodes for each user
   useEffect(() => {
-    userSelections.forEach((nodeIds, userId) => {
+    Object.entries(userSelections).forEach(([userId, nodeIds]) => {
       const user = collaborators.find((u) => u.id === userId);
       if (!user) return;
 
-      nodeIds.forEach((nodeId) => {
+      nodeIds.forEach((nodeId: string) => {
         const nodeElement = document.querySelector(`[data-id="${nodeId}"]`);
         if (nodeElement) {
           (nodeElement as HTMLElement).style.outline = `2px solid ${user.color}`;
@@ -142,7 +142,7 @@ function CollaborationOverlayComponent() {
         className="absolute inset-0 pointer-events-none z-40"
       >
         {/* Render user cursors */}
-        {Array.from(userCursors.entries()).map(([userId, position]) => {
+        {Object.entries(userCursors).map(([userId, position]) => {
           const user = collaborators.find((u) => u.id === userId);
           if (!user) return null;
 

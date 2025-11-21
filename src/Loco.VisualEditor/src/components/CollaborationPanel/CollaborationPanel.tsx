@@ -524,7 +524,7 @@ function CollaborationPanelComponent({
 
                   {/* Other Users */}
                   {collaborators.map((user) => {
-                    const hasActiveCursor = userCursors.has(user.id);
+                    const hasActiveCursor = user.id in userCursors;
                     return (
                       <div key={user.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">
                         <div

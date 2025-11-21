@@ -30,8 +30,8 @@ export interface CollaborationState {
   collaborators: CollaborationUser[];
 
   // Collaboration features
-  userCursors: Map<string, { x: number; y: number }>;
-  userSelections: Map<string, string[]>;
+  userCursors: Record<string, { x: number; y: number }>;
+  userSelections: Record<string, string[]>;
   isWorkflowLocked: boolean;
   lockedByUser: string | null;
 
@@ -74,8 +74,8 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
   room: null,
   currentUser: null,
   collaborators: [],
-  userCursors: new Map(),
-  userSelections: new Map(),
+  userCursors: {},
+  userSelections: {},
   isWorkflowLocked: false,
   lockedByUser: null,
 
@@ -116,8 +116,8 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
       room: null,
       currentUser: null,
       collaborators: [],
-      userCursors: new Map(),
-      userSelections: new Map(),
+      userCursors: {},
+      userSelections: {},
       isWorkflowLocked: false,
       lockedByUser: null,
     });
@@ -143,8 +143,8 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
     set({
       room: null,
       collaborators: [],
-      userCursors: new Map(),
-      userSelections: new Map(),
+      userCursors: {},
+      userSelections: {},
     });
   },
 
@@ -234,32 +234,40 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
         const leftUser = event.data.user as CollaborationUser;
         if (leftUser) {
           const { userCursors, userSelections } = state;
-          userCursors.delete(leftUser.id);
-          userSelections.delete(leftUser.id);
+          const newCursors = { ...userCursors };
+          const newSelections = { ...userSelections };
+          delete newCursors[leftUser.id];
+          delete newSelections[leftUser.id];
 
           set({
             collaborators: state.collaborators.filter((u) => u.id !== leftUser.id),
-            userCursors: new Map(userCursors),
-            userSelections: new Map(userSelections),
+            userCursors: newCursors,
+            userSelections: newSelections,
           });
         }
         break;
 
       case 'user:cursor-moved':
         // Update user cursor position
-        const { userCursors } = state;
-        userCursors.set(event.userId, {
-          x: event.data.x,
-          y: event.data.y,
+        set({
+          userCursors: {
+            ...state.userCursors,
+            [event.userId]: {
+              x: event.data.x,
+              y: event.data.y,
+            },
+          },
         });
-        set({ userCursors: new Map(userCursors) });
         break;
 
       case 'user:selection-changed':
         // Update user selection
-        const { userSelections } = state;
-        userSelections.set(event.userId, event.data.nodeIds);
-        set({ userSelections: new Map(userSelections) });
+        set({
+          userSelections: {
+            ...state.userSelections,
+            [event.userId]: event.data.nodeIds,
+          },
+        });
         break;
 
       case 'workflow:locked':
