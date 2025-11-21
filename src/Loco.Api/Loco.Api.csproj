@@ -7,6 +7,14 @@
     <InvariantGlobalization>false</InvariantGlobalization>
     <LangVersion>latest</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- Performance Optimizations for .NET 8 -->
+    <!-- Dynamic Profile Guided Optimization for improved JIT compilation -->
+    <TieredPGO>true</TieredPGO>
+    <!-- Composite Ready-to-Run images for faster startup -->
+    <ReadyToRunComposite>true</ReadyToRunComposite>
+    <!-- Enable Ready-to-Run compilation for deployment -->
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
   <ItemGroup>

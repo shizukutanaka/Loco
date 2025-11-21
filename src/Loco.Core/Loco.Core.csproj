@@ -20,6 +20,12 @@
     <FileVersion>0.2.0</FileVersion>
     <PackageVersion>0.2.0-alpha</PackageVersion>
     <InformationalVersion>0.2.0-alpha</InformationalVersion>
+
+    <!-- Performance Optimizations for .NET 8 -->
+    <!-- Dynamic Profile Guided Optimization for improved JIT compilation -->
+    <TieredPGO>true</TieredPGO>
+    <!-- Enable Ready-to-Run compilation for deployment -->
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
   <ItemGroup>
@@ -49,7 +55,6 @@
   <!-- NOTE: All excluded code has been removed from the repository -->
   <!-- Dead code cleanup completed - see git history for details -->
   <!-- Target: Production-ready codebase without unused/incomplete features -->
-
 
 
 
