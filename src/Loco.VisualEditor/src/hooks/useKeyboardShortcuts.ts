@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
 
 interface KeyboardShortcutsOptions {
@@ -14,6 +14,39 @@ interface KeyboardShortcutsOptions {
 
 export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
   const { selectedNodeId, deleteNode, undo, redo, canUndo, canRedo } = useWorkflowStore();
+
+  // Store store values in refs to avoid listener re-registration
+  const selectedNodeIdRef = useRef<string | null>(selectedNodeId);
+  const deleteNodeRef = useRef(deleteNode);
+  const undoRef = useRef(undo);
+  const redoRef = useRef(redo);
+  const canUndoRef = useRef(canUndo);
+  const canRedoRef = useRef(canRedo);
+
+  // Update refs with current values without recreating effect
+  useEffect(() => {
+    selectedNodeIdRef.current = selectedNodeId;
+  }, [selectedNodeId]);
+
+  useEffect(() => {
+    deleteNodeRef.current = deleteNode;
+  }, [deleteNode]);
+
+  useEffect(() => {
+    undoRef.current = undo;
+  }, [undo]);
+
+  useEffect(() => {
+    redoRef.current = redo;
+  }, [redo]);
+
+  useEffect(() => {
+    canUndoRef.current = canUndo;
+  }, [canUndo]);
+
+  useEffect(() => {
+    canRedoRef.current = canRedo;
+  }, [canRedo]);
 
   // Destructure callbacks to use in dependency array
   // This prevents the effect from re-running when the options object changes,
@@ -55,7 +88,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
       // Ctrl/Cmd + Z: Undo
       if (ctrlKey && event.key === 'z' && !event.shiftKey) {
         event.preventDefault();
-        if (canUndo && undo()) {
+        if (canUndoRef.current && undoRef.current()) {
           onUndo?.();
         }
       }
@@ -63,18 +96,18 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
       // Ctrl/Cmd + Shift + Z or Ctrl/Cmd + Y: Redo
       if ((ctrlKey && event.shiftKey && event.key === 'z') || (ctrlKey && event.key === 'y')) {
         event.preventDefault();
-        if (canRedo && redo()) {
+        if (canRedoRef.current && redoRef.current()) {
           onRedo?.();
         }
       }
 
       // Delete or Backspace: Delete selected node
-      if ((event.key === 'Delete' || event.key === 'Backspace') && selectedNodeId) {
+      if ((event.key === 'Delete' || event.key === 'Backspace') && selectedNodeIdRef.current) {
         event.preventDefault();
         if (onDelete) {
           onDelete();
         } else {
-          deleteNode(selectedNodeId);
+          deleteNodeRef.current(selectedNodeIdRef.current);
         }
       }
 
@@ -102,12 +135,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [
-    selectedNodeId,
-    deleteNode,
-    undo,
-    redo,
-    canUndo,
-    canRedo,
+    // Only include callback options - store values are accessed via refs
     onSave,
     onExport,
     onNew,
