@@ -54,12 +54,16 @@ export function useEnvironmentVariables(
         isSecret,
       };
 
-      setVariables((prev) => [...prev, newVariable]);
+      // Use functional setState to avoid stale closure - onUpdate gets called with actual new state
+      setVariables((prev) => {
+        const updated = [...prev, newVariable];
+        onUpdate?.(updated);
+        return updated;
+      });
       setErrors({});
-      onUpdate?.([...variables, newVariable]);
       return true;
     },
-    [variables, onUpdate]
+    [onUpdate]
   );
 
   const updateVariable = useCallback(
@@ -86,23 +90,29 @@ export function useEnvironmentVariables(
         return false;
       }
 
-      setVariables((prev) =>
-        prev.map((v) => (v.key === key ? { ...v, ...updates } : v))
-      );
+      // Use functional setState to avoid stale closure - onUpdate gets called with actual new state
+      setVariables((prev) => {
+        const updated = prev.map((v) => (v.key === key ? { ...v, ...updates } : v));
+        onUpdate?.(updated);
+        return updated;
+      });
       setErrors({});
-      onUpdate?.(variables);
       return true;
     },
-    [variables, onUpdate]
+    [onUpdate, variables]
   );
 
   const removeVariable = useCallback(
     (key: string) => {
-      setVariables((prev) => prev.filter((v) => v.key !== key));
+      // Use functional setState to avoid stale closure - onUpdate gets called with actual new state
+      setVariables((prev) => {
+        const updated = prev.filter((v) => v.key !== key);
+        onUpdate?.(updated);
+        return updated;
+      });
       setErrors({});
-      onUpdate?.(variables.filter((v) => v.key !== key));
     },
-    [variables, onUpdate]
+    [onUpdate]
   );
 
   const getVariable = useCallback(
