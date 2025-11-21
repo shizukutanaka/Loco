@@ -147,7 +147,10 @@ export function useCanvasQuickActions({
           break;
       }
     },
-    [nodes, contextMenuNodeId, contextMenuPosition, addNode, deleteNode, updateNode, onSelectNode, reactFlowInstance, toast, isConnected, sendNodeAdded, sendNodeDeleted, sendNodeUpdated]
+    // Only include dependencies that actually change: nodes, contextMenuNodeId, contextMenuPosition, onSelectNode, isConnected
+    // Store methods (addNode, deleteNode, updateNode, sendNodeAdded, etc.) are stable in Zustand and don't need to be included
+    // reactFlowInstance and toast are also stable context/hook values
+    [nodes, contextMenuNodeId, contextMenuPosition, onSelectNode, isConnected]
   );
 
   return { handleQuickAction };
