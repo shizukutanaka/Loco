@@ -69,6 +69,15 @@ export function useFocusTrap(
     });
   }, [containerRef]);
 
+  // Create a Map for O(1) element-to-index lookups instead of O(n) indexOf() calls
+  const elementIndexMap = useMemo(() => {
+    const map = new Map<HTMLElement, number>();
+    focusableElements.forEach((element, index) => {
+      map.set(element, index);
+    });
+    return map;
+  }, [focusableElements]);
+
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       // Close on Escape
@@ -83,7 +92,7 @@ export function useFocusTrap(
         if (focusableElements.length === 0) return;
 
         const currentElement = document.activeElement as HTMLElement;
-        const currentIndex = focusableElements.indexOf(currentElement);
+        const currentIndex = elementIndexMap.get(currentElement) ?? -1;
 
         if (event.shiftKey) {
           // Shift+Tab: move to previous element
@@ -98,7 +107,7 @@ export function useFocusTrap(
         }
       }
     },
-    [focusableElements, onEscape]
+    [focusableElements, elementIndexMap, onEscape]
   );
 
   useEffect(() => {
