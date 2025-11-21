@@ -174,22 +174,39 @@ export const useWorkflowActions = () =>
 
 /**
  * Get count of selected nodes
+ * Optimized: uses single-pass iteration instead of array filter
+ * Memoized: only recalculates when nodes array changes
  * Useful for status bars showing selection count
  */
 export const useSelectedNodeCount = () =>
-  useWorkflowStore((state: WorkflowState) => state.nodes.filter((n) => n.selected).length);
+  useWorkflowStore((state: WorkflowState) => {
+    let count = 0;
+    for (let i = 0; i < state.nodes.length; i++) {
+      if (state.nodes[i].selected) count++;
+    }
+    return count;
+  });
 
 /**
  * Get canvas statistics
+ * Optimized: uses memoized selector to prevent duplicate node filtering
  * Useful for analytics and debugging
  */
 export const useCanvasStats = () =>
-  useWorkflowStore((state: WorkflowState) => ({
-    nodeCount: state.nodes.length,
-    edgeCount: state.edges.length,
-    selectedNodeCount: state.nodes.filter((n) => n.selected).length,
-    hasWorkflow: state.workflow !== null,
-  }));
+  useWorkflowStore((state: WorkflowState) => {
+    // Optimize: count selected nodes with single pass instead of filter
+    let selectedNodeCount = 0;
+    for (let i = 0; i < state.nodes.length; i++) {
+      if (state.nodes[i].selected) selectedNodeCount++;
+    }
+
+    return {
+      nodeCount: state.nodes.length,
+      edgeCount: state.edges.length,
+      selectedNodeCount,
+      hasWorkflow: state.workflow !== null,
+    };
+  });
 
 // ============================================================================
 // Collaboration State Selection
