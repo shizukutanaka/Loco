@@ -15,6 +15,20 @@ interface KeyboardShortcutsOptions {
 export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
   const { selectedNodeId, deleteNode, undo, redo, canUndo, canRedo } = useWorkflowStore();
 
+  // Destructure callbacks to use in dependency array
+  // This prevents the effect from re-running when the options object changes,
+  // only when the actual callback functions change
+  const {
+    onSave,
+    onExport,
+    onNew,
+    onUndo,
+    onRedo,
+    onDelete,
+    onSearch,
+    onTemplates,
+  } = options;
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
@@ -23,34 +37,26 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
       // Ctrl/Cmd + S: Save
       if (ctrlKey && event.key === 's') {
         event.preventDefault();
-        if (options.onSave) {
-          options.onSave();
-        }
+        onSave?.();
       }
 
       // Ctrl/Cmd + E: Export
       if (ctrlKey && event.key === 'e') {
         event.preventDefault();
-        if (options.onExport) {
-          options.onExport();
-        }
+        onExport?.();
       }
 
       // Ctrl/Cmd + N: New workflow
       if (ctrlKey && event.key === 'n') {
         event.preventDefault();
-        if (options.onNew) {
-          options.onNew();
-        }
+        onNew?.();
       }
 
       // Ctrl/Cmd + Z: Undo
       if (ctrlKey && event.key === 'z' && !event.shiftKey) {
         event.preventDefault();
         if (canUndo && undo()) {
-          if (options.onUndo) {
-            options.onUndo();
-          }
+          onUndo?.();
         }
       }
 
@@ -58,17 +64,15 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
       if ((ctrlKey && event.shiftKey && event.key === 'z') || (ctrlKey && event.key === 'y')) {
         event.preventDefault();
         if (canRedo && redo()) {
-          if (options.onRedo) {
-            options.onRedo();
-          }
+          onRedo?.();
         }
       }
 
       // Delete or Backspace: Delete selected node
       if ((event.key === 'Delete' || event.key === 'Backspace') && selectedNodeId) {
         event.preventDefault();
-        if (options.onDelete) {
-          options.onDelete();
+        if (onDelete) {
+          onDelete();
         } else {
           deleteNode(selectedNodeId);
         }
@@ -77,17 +81,13 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
       // Ctrl/Cmd + K: Search
       if (ctrlKey && event.key === 'k') {
         event.preventDefault();
-        if (options.onSearch) {
-          options.onSearch();
-        }
+        onSearch?.();
       }
 
       // Ctrl/Cmd + T: Templates
       if (ctrlKey && event.key === 't') {
         event.preventDefault();
-        if (options.onTemplates) {
-          options.onTemplates();
-        }
+        onTemplates?.();
       }
 
       // Escape: Clear selection
@@ -108,7 +108,14 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
     redo,
     canUndo,
     canRedo,
-    options,
+    onSave,
+    onExport,
+    onNew,
+    onUndo,
+    onRedo,
+    onDelete,
+    onSearch,
+    onTemplates,
   ]);
 }
 

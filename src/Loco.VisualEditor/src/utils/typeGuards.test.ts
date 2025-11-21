@@ -17,12 +17,12 @@ describe('Type Guards and Discriminators', () => {
   describe('API Response Guards', () => {
     describe('isApiSuccess', () => {
       it('should identify successful response', () => {
-        const response = { success: true, data: { id: 1, name: 'Test' } };
+        const response = { success: true, data: { id: 1, name: 'Test' } } as any;
         expect(isApiSuccess(response)).toBe(true);
       });
 
       it('should reject failed response', () => {
-        const response = { success: false, error: { message: 'Failed' } };
+        const response = { success: false, error: { message: 'Failed' } } as any;
         expect(isApiSuccess(response)).toBe(false);
       });
 
@@ -34,12 +34,12 @@ describe('Type Guards and Discriminators', () => {
 
     describe('isApiError', () => {
       it('should identify error response', () => {
-        const response = { success: false, error: { message: 'Error occurred' } };
+        const response = { success: false, error: { message: 'Error occurred' } } as any;
         expect(isApiError(response)).toBe(true);
       });
 
       it('should reject successful response', () => {
-        const response = { success: true, data: { id: 1 } };
+        const response = { success: true, data: { id: 1 } } as any;
         expect(isApiError(response)).toBe(false);
       });
 
@@ -47,19 +47,19 @@ describe('Type Guards and Discriminators', () => {
         const response = {
           success: false,
           error: { code: 'VALIDATION_ERROR', message: 'Invalid input' },
-        };
+        } as any;
         expect(isApiError(response)).toBe(true);
       });
     });
 
     describe('getApiData', () => {
       it('should extract data from successful response', () => {
-        const response = { success: true, data: { id: 1, value: 'test' } };
+        const response = { success: true, data: { id: 1, value: 'test' } } as any;
         expect(getApiData(response)).toEqual({ id: 1, value: 'test' });
       });
 
       it('should return null for failed response', () => {
-        const response = { success: false, error: { message: 'Failed' } };
+        const response = { success: false, error: { message: 'Failed' } } as any;
         expect(getApiData(response)).toBeNull();
       });
 
@@ -74,7 +74,7 @@ describe('Type Guards and Discriminators', () => {
         const response = {
           success: false,
           error: { message: 'Server error' },
-        };
+        } as any;
         expect(getApiError(response)).toBe('Server error');
       });
 
