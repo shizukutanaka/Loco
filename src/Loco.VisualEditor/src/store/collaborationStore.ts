@@ -18,7 +18,7 @@ import {
 // Types
 // ============================================================================
 
-interface CollaborationState {
+export interface CollaborationState {
   // Connection state
   isConnected: boolean;
   isConnecting: boolean;

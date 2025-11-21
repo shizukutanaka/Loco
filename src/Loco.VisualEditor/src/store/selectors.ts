@@ -1,13 +1,14 @@
 /**
  * Zustand Store Selectors
  *
- * Optimized selectors for workflowStore using Zustand best practices.
+ * Optimized selectors for workflowStore and collaborationStore using Zustand best practices.
  * Defines selectors outside components for better performance and reusability.
  *
  * Reference: https://docs.pmnd.rs/zustand/guides/typescript#slicing-the-store-into-smaller-stores
  */
 
 import { useWorkflowStore } from './workflowStore';
+import { useCollaborationStore } from './collaborationStore';
 import type { WorkflowState } from './workflowStore';
 
 // ============================================================================
@@ -189,3 +190,125 @@ export const useCanvasStats = () =>
     selectedNodeCount: state.nodes.filter((n) => n.selected).length,
     hasWorkflow: state.workflow !== null,
   }));
+
+// ============================================================================
+// Collaboration State Selection
+// ============================================================================
+
+/**
+ * Select connection state
+ * For displaying connection status indicator
+ */
+export const useCollaborationConnection = () =>
+  useCollaborationStore((state) => ({
+    isConnected: state.isConnected,
+    isConnecting: state.isConnecting,
+    connectionError: state.connectionError,
+  }));
+
+/**
+ * Select only connection status
+ * For minimal re-render optimization
+ */
+export const useIsConnected = () =>
+  useCollaborationStore((state) => state.isConnected);
+
+/**
+ * Select only connecting status
+ * For loading states
+ */
+export const useIsConnecting = () =>
+  useCollaborationStore((state) => state.isConnecting);
+
+/**
+ * Select room and current user
+ * For collaboration session info
+ */
+export const useCollaborationSession = () =>
+  useCollaborationStore((state) => ({
+    room: state.room,
+    currentUser: state.currentUser,
+    isConnected: state.isConnected,
+  }));
+
+/**
+ * Select current user only
+ * For user-specific operations
+ */
+export const useCurrentUser = () =>
+  useCollaborationStore((state) => state.currentUser);
+
+/**
+ * Select collaborators list
+ * For displaying active users
+ */
+export const useCollaborators = () =>
+  useCollaborationStore((state) => state.collaborators);
+
+/**
+ * Get collaborator count
+ * Useful for status indicators
+ */
+export const useCollaboratorCount = () =>
+  useCollaborationStore((state) => state.collaborators.length);
+
+/**
+ * Select user cursors
+ * For real-time cursor visualization
+ */
+export const useUserCursors = () =>
+  useCollaborationStore((state) => state.userCursors);
+
+/**
+ * Select user selections
+ * For showing which nodes other users have selected
+ */
+export const useUserSelections = () =>
+  useCollaborationStore((state) => state.userSelections);
+
+/**
+ * Select workflow lock state
+ * For preventing concurrent edits
+ */
+export const useWorkflowLockState = () =>
+  useCollaborationStore((state) => ({
+    isWorkflowLocked: state.isWorkflowLocked,
+    lockedByUser: state.lockedByUser,
+  }));
+
+/**
+ * Select only lock status
+ * For minimal re-render optimization
+ */
+export const useIsWorkflowLocked = () =>
+  useCollaborationStore((state) => state.isWorkflowLocked);
+
+/**
+ * Select locked by user
+ * For displaying lock owner info
+ */
+export const useLockedByUser = () =>
+  useCollaborationStore((state) => state.lockedByUser);
+
+/**
+ * Select all collaboration actions
+ * Use when component needs multiple collaboration operations
+ */
+export const useCollaborationActions = () =>
+  useCollaborationStore((state) => ({
+    connect: state.connect,
+    disconnect: state.disconnect,
+    joinWorkflow: state.joinWorkflow,
+    leaveWorkflow: state.leaveWorkflow,
+    updateCursor: state.updateCursor,
+    updateSelection: state.updateSelection,
+    lockWorkflow: state.lockWorkflow,
+    unlockWorkflow: state.unlockWorkflow,
+  }));
+
+/**
+ * Select collaboration event handler
+ * For internal event processing
+ */
+export const useCollaborationEventHandler = () =>
+  useCollaborationStore((state) => state.handleCollaborationEvent);
