@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, memo } from 'react';
 import { integrations } from '@/data/integrations';
 import { IntegrationCategory, Integration } from '@/types/workflow';
 import { Search, ChevronDown, ChevronRight } from 'lucide-react';
@@ -13,7 +13,7 @@ const categories: { id: IntegrationCategory; label: string }[] = [
   { id: 'transform', label: 'Transform' },
 ];
 
-export function NodePalette() {
+function NodePaletteComponent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(['web', 'communication', 'database'])
@@ -193,3 +193,6 @@ export function NodePalette() {
     </div>
   );
 }
+
+export const NodePalette = memo(NodePaletteComponent);
+NodePalette.displayName = 'NodePalette';
