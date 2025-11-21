@@ -50,6 +50,8 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
+    <!-- Dapper for optimized read operations (Phase 2) -->
+    <PackageReference Include="Dapper" />
   </ItemGroup>
 
   <!-- NOTE: All excluded code has been removed from the repository -->

@@ -5,6 +5,8 @@ using Loco.Core.Health;
 using Loco.Core.Interfaces;
 using Loco.Core.Storage;
 using Loco.Api.Services;
+using Loco.Core.DataAccess;
+using Loco.Core.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
@@ -225,6 +227,20 @@ builder.Services.AddSwaggerGen(c =>
     c.OperationFilter<AddResponseHeadersFilter>();
 });
 
+// Add Data Access Services (Phase 2 - EF Core + Dapper Hybrid)
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? "Data Source=loco.db";
+
+builder.Services.AddDbContext<Loco.Core.DataAccess.LocoDbContext>(options =>
+    options.UseSqlite(connectionString));
+
+// Register IDbConnection for Dapper (SQLite)
+builder.Services.AddScoped<System.Data.IDbConnection>(sp =>
+    new Microsoft.Data.Sqlite.SqliteConnection(connectionString));
+
+// Register hybrid repositories
+builder.Services.AddScoped<IWorkflowRepository, Loco.Core.DataAccess.HybridWorkflowRepository>();
+builder.Services.AddScoped<IExecutionHistoryRepository, Loco.Core.DataAccess.HybridExecutionHistoryRepository>();
 // Add Core Services
 builder.Services.AddScoped<IAutomationEngine, WorkflowExecutionEngine>();
 builder.Services.AddScoped<IRuleStore, JsonFileRuleStore>();
