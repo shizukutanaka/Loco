@@ -39,23 +39,25 @@ export function useWorkflowListData({ isOpen, sortBy }: UseWorkflowListDataOptio
         const response = await listWorkflows({ sortBy, sortOrder: 'desc' });
 
         if (response.success && response.data) {
-          const items: WorkflowListItem[] = response.data.workflows.map((w) => ({
-            id: w.id,
-            name: w.name,
-            description: w.description,
-            nodeCount: w.nodes.length,
-            edgeCount: w.edges.length,
-            createdAt: w.createdAt,
-            updatedAt: w.updatedAt,
-            tags: w.metadata?.tags,
-          }));
-          setWorkflows(items);
-
-          // Extract all unique tags
+          // Extract tags during workflow transformation for single-pass optimization
           const tagsSet = new Set<string>();
-          items.forEach((item) => {
-            item.tags?.forEach((tag) => tagsSet.add(tag));
+          const items: WorkflowListItem[] = response.data.workflows.map((w) => {
+            const tags = w.metadata?.tags;
+            tags?.forEach((tag) => tagsSet.add(tag));
+
+            return {
+              id: w.id,
+              name: w.name,
+              description: w.description,
+              nodeCount: w.nodes.length,
+              edgeCount: w.edges.length,
+              createdAt: w.createdAt,
+              updatedAt: w.updatedAt,
+              tags,
+            };
           });
+
+          setWorkflows(items);
           setAllTags(Array.from(tagsSet).sort());
         }
       } catch (error) {
