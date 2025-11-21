@@ -40,11 +40,13 @@ export function useEnvironmentVariables(
       const isDuplicate = isDuplicateEnvKey(normalizedKey, variables.map((v) => v.key));
 
       if (keyError || valueError || isDuplicate) {
-        setErrors({
-          [`${normalizedKey}-key`]: keyError,
-          [`${normalizedKey}-value`]: valueError,
+        // Use functional setState to merge new errors with existing errors
+        setErrors((prev) => ({
+          ...prev,
+          [`${normalizedKey}-key`]: keyError || null,
+          [`${normalizedKey}-value`]: valueError || null,
           [`${normalizedKey}-duplicate`]: isDuplicate ? 'Duplicate key' : null,
-        });
+        }));
         return false;
       }
 
@@ -60,7 +62,14 @@ export function useEnvironmentVariables(
         onUpdate?.(updated);
         return updated;
       });
-      setErrors({});
+      // Clear only errors related to this key
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[`${normalizedKey}-key`];
+        delete newErrors[`${normalizedKey}-value`];
+        delete newErrors[`${normalizedKey}-duplicate`];
+        return newErrors;
+      });
       return true;
     },
     [onUpdate]
@@ -75,7 +84,11 @@ export function useEnvironmentVariables(
       const newValue = updates.value || variable.value;
 
       if (newKey !== key && isDuplicateEnvKey(newKey, variables.map((v) => v.key), key)) {
-        setErrors({ [`${newKey}-duplicate`]: 'Duplicate key' });
+        // Use functional setState to merge errors with existing state
+        setErrors((prev) => ({
+          ...prev,
+          [`${newKey}-duplicate`]: 'Duplicate key',
+        }));
         return false;
       }
 
@@ -83,10 +96,12 @@ export function useEnvironmentVariables(
       const valueError = validateEnvValue(newValue);
 
       if (keyError || valueError) {
-        setErrors({
-          [`${newKey}-key`]: keyError,
-          [`${newKey}-value`]: valueError,
-        });
+        // Use functional setState to merge errors with existing state
+        setErrors((prev) => ({
+          ...prev,
+          [`${newKey}-key`]: keyError || null,
+          [`${newKey}-value`]: valueError || null,
+        }));
         return false;
       }
 
@@ -96,7 +111,20 @@ export function useEnvironmentVariables(
         onUpdate?.(updated);
         return updated;
       });
-      setErrors({});
+      // Clear only errors related to this key
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[`${newKey}-key`];
+        delete newErrors[`${newKey}-value`];
+        delete newErrors[`${newKey}-duplicate`];
+        // Also clear old key errors if key was changed
+        if (newKey !== key) {
+          delete newErrors[`${key}-key`];
+          delete newErrors[`${key}-value`];
+          delete newErrors[`${key}-duplicate`];
+        }
+        return newErrors;
+      });
       return true;
     },
     [onUpdate, variables]
@@ -110,7 +138,14 @@ export function useEnvironmentVariables(
         onUpdate?.(updated);
         return updated;
       });
-      setErrors({});
+      // Clear only errors related to this key
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[`${key}-key`];
+        delete newErrors[`${key}-value`];
+        delete newErrors[`${key}-duplicate`];
+        return newErrors;
+      });
     },
     [onUpdate]
   );
