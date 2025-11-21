@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { Node } from 'reactflow';
 import { useReactFlow } from 'reactflow';
 import { useWorkflowStore } from '@/store/workflowStore';
@@ -30,9 +30,17 @@ export function useCanvasQuickActions({
   const { isConnected, sendNodeAdded, sendNodeDeleted, sendNodeUpdated } = useCollaborationStore();
   const toast = useToast();
 
+  // Store nodes in ref to avoid callback recreation when nodes change
+  const nodesRef = useRef<Node[]>(nodes);
+
+  // Update ref with current nodes without recreating the callback
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+
   const handleQuickAction = useCallback(
     (action: ActionType) => {
-      const selectedNode = nodes.find((n) => n.id === contextMenuNodeId);
+      const selectedNode = nodesRef.current.find((n) => n.id === contextMenuNodeId);
 
       switch (action) {
         case 'duplicate':
@@ -147,10 +155,11 @@ export function useCanvasQuickActions({
           break;
       }
     },
-    // Only include dependencies that actually change: nodes, contextMenuNodeId, contextMenuPosition, onSelectNode, isConnected
+    // Only include dependencies that actually change: contextMenuNodeId, contextMenuPosition, onSelectNode, isConnected
+    // Removed: nodes - now using ref to avoid callback recreation when nodes change
     // Store methods (addNode, deleteNode, updateNode, sendNodeAdded, etc.) are stable in Zustand and don't need to be included
     // reactFlowInstance and toast are also stable context/hook values
-    [nodes, contextMenuNodeId, contextMenuPosition, onSelectNode, isConnected]
+    [contextMenuNodeId, contextMenuPosition, onSelectNode, isConnected]
   );
 
   return { handleQuickAction };
