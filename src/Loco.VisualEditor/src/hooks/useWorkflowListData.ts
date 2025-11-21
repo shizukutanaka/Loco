@@ -58,7 +58,16 @@ export function useWorkflowListData({ isOpen, sortBy }: UseWorkflowListDataOptio
           });
 
           setWorkflows(items);
-          setAllTags(Array.from(tagsSet).sort());
+
+          // Only convert Set to Array and sort if tags have actually changed
+          const newTags = Array.from(tagsSet).sort();
+          setAllTags((prevTags) => {
+            // Compare sorted arrays to avoid unnecessary re-renders
+            const tagsChanged =
+              newTags.length !== prevTags.length ||
+              newTags.some((tag, index) => tag !== prevTags[index]);
+            return tagsChanged ? newTags : prevTags;
+          });
         }
       } catch (error) {
         console.error('Failed to fetch workflows:', error);
