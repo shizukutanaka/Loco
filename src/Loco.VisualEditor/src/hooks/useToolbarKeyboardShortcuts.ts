@@ -22,6 +22,22 @@ interface KeyboardShortcutHandlers {
 export function useToolbarKeyboardShortcuts(handlers: KeyboardShortcutHandlers) {
   const { undo, redo, canUndo, canRedo } = useWorkflowStore();
 
+  // Destructure handlers to use individual functions in dependency array instead of the entire object
+  // This prevents effect recreation when handlers object is recreated but individual functions are memoized
+  const {
+    onNew,
+    onSave,
+    onImport,
+    onExport,
+    onOpenWorkflowList,
+    onOpenTemplateGallery,
+    onOpenWorkflowTester,
+    onOpenSettings,
+    onOpenCollaboration,
+    onOpenKeyboardShortcuts,
+    onRun,
+  } = handlers;
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if typing in input/textarea
@@ -141,5 +157,21 @@ export function useToolbarKeyboardShortcuts(handlers: KeyboardShortcutHandlers) 
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [canUndo, canRedo, undo, redo, handlers]);
+  }, [
+    canUndo,
+    canRedo,
+    undo,
+    redo,
+    onNew,
+    onSave,
+    onImport,
+    onExport,
+    onOpenWorkflowList,
+    onOpenTemplateGallery,
+    onOpenWorkflowTester,
+    onOpenSettings,
+    onOpenCollaboration,
+    onOpenKeyboardShortcuts,
+    onRun,
+  ]);
 }

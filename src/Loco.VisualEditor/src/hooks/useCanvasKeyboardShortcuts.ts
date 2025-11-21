@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface UseCanvasKeyboardShortcutsOptions {
   selectedNodeIds: string[];
@@ -17,6 +17,31 @@ export function useCanvasKeyboardShortcuts({
   onDuplicateNode,
   onClearSelection,
 }: UseCanvasKeyboardShortcutsOptions) {
+  // Store selectedNodeIds in a ref to avoid re-registering the listener when selection changes
+  const selectedNodeIdsRef = useRef<string[]>(selectedNodeIds);
+  const onDeleteNodesRef = useRef(onDeleteNodes);
+  const onDuplicateNodeRef = useRef(onDuplicateNode);
+  const onClearSelectionRef = useRef(onClearSelection);
+
+  // Update refs with current values without recreating the effect
+  useEffect(() => {
+    selectedNodeIdsRef.current = selectedNodeIds;
+  }, [selectedNodeIds]);
+
+  useEffect(() => {
+    onDeleteNodesRef.current = onDeleteNodes;
+  }, [onDeleteNodes]);
+
+  useEffect(() => {
+    onDuplicateNodeRef.current = onDuplicateNode;
+  }, [onDuplicateNode]);
+
+  useEffect(() => {
+    onClearSelectionRef.current = onClearSelection;
+  }, [onClearSelection]);
+
+  // Event listener effect - stable with no dependencies
+  // Uses refs to access current values without listener recreation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if typing in input/textarea
@@ -28,21 +53,21 @@ export function useCanvasKeyboardShortcuts({
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const ctrlKey = isMac ? e.metaKey : e.ctrlKey;
 
-      // Delete or Backspace key
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNodeIds.length > 0) {
+      // Delete or Backspace key - use ref to access current selectedNodeIds
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNodeIdsRef.current.length > 0) {
         e.preventDefault();
-        onDeleteNodes(selectedNodeIds);
-        onClearSelection();
+        onDeleteNodesRef.current(selectedNodeIdsRef.current);
+        onClearSelectionRef.current();
       }
 
-      // Duplicate with Ctrl+D
-      if (ctrlKey && e.key === 'd' && selectedNodeIds.length > 0) {
+      // Duplicate with Ctrl+D - use ref to access current selectedNodeIds
+      if (ctrlKey && e.key === 'd' && selectedNodeIdsRef.current.length > 0) {
         e.preventDefault();
-        onDuplicateNode();
+        onDuplicateNodeRef.current();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNodeIds, onDeleteNodes, onDuplicateNode, onClearSelection]);
+  }, []); // Empty dependency array - listener registered once, uses refs for current values
 }
