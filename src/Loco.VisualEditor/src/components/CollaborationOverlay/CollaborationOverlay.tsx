@@ -8,7 +8,7 @@
  * - Lock status
  */
 
-import { useEffect, useRef, memo, useCallback } from 'react';
+import { useEffect, useRef, memo, useCallback, useMemo } from 'react';
 import { useReactFlow } from 'reactflow';
 import { useCollaborationStore } from '@/store/collaborationStore';
 import { MousePointer2, Lock, Users } from 'lucide-react';
@@ -62,6 +62,7 @@ UserCursor.displayName = 'UserCursor';
 function CollaborationOverlayComponent() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const lastUpdateTimeRef = useRef(0);
+  const highlightedNodesRef = useRef<Map<string, { nodeId: string; color: string }>>(new Map());
   const reactFlowInstance = useReactFlow();
   const {
     isConnected,
@@ -73,6 +74,12 @@ function CollaborationOverlayComponent() {
     lockedByUser,
     updateCursor,
   } = useCollaborationStore();
+
+  // Create collaborator map for O(1) lookups instead of O(n)
+  const collaboratorMap = useMemo(
+    () => new Map(collaborators.map((u) => [u.id, u])),
+    [collaborators]
+  );
 
   // Memoize mouse move handler to preserve referential equality
   const handleMouseMove = useCallback(
@@ -108,29 +115,60 @@ function CollaborationOverlayComponent() {
     };
   }, [isConnected, handleMouseMove]);
 
-  // Highlight selected nodes for each user
+  // Highlight selected nodes for each user - optimized with tracking to minimize DOM queries
   useEffect(() => {
+    const newHighlighted = new Map<string, { nodeId: string; color: string }>();
+
+    // Track which nodes are now highlighted and their colors
     Object.entries(userSelections).forEach(([userId, nodeIds]) => {
-      const user = collaborators.find((u) => u.id === userId);
+      const user = collaboratorMap.get(userId);
       if (!user) return;
 
       nodeIds.forEach((nodeId: string) => {
-        const nodeElement = document.querySelector(`[data-id="${nodeId}"]`);
-        if (nodeElement) {
-          (nodeElement as HTMLElement).style.outline = `2px solid ${user.color}`;
-          (nodeElement as HTMLElement).style.outlineOffset = '2px';
-        }
+        newHighlighted.set(nodeId, { nodeId, color: user.color });
       });
     });
 
-    // Cleanup function to remove highlights
+    // Get previous highlighting
+    const previousHighlighted = highlightedNodesRef.current;
+
+    // Apply highlights only to newly highlighted nodes
+    newHighlighted.forEach((highlight, nodeId) => {
+      if (!previousHighlighted.has(nodeId)) {
+        const nodeElement = document.querySelector(`[data-id="${nodeId}"]`);
+        if (nodeElement) {
+          (nodeElement as HTMLElement).style.outline = `2px solid ${highlight.color}`;
+          (nodeElement as HTMLElement).style.outlineOffset = '2px';
+        }
+      }
+    });
+
+    // Remove highlights from nodes that are no longer highlighted
+    previousHighlighted.forEach(({ nodeId }, key) => {
+      if (!newHighlighted.has(key)) {
+        const nodeElement = document.querySelector(`[data-id="${nodeId}"]`);
+        if (nodeElement) {
+          (nodeElement as HTMLElement).style.outline = '';
+          (nodeElement as HTMLElement).style.outlineOffset = '';
+        }
+      }
+    });
+
+    // Update the ref with current highlighting
+    highlightedNodesRef.current = newHighlighted;
+
+    // Cleanup: remove all highlights when component unmounts
     return () => {
-      document.querySelectorAll('[data-id]').forEach((element) => {
-        (element as HTMLElement).style.outline = '';
-        (element as HTMLElement).style.outlineOffset = '';
+      highlightedNodesRef.current.forEach(({ nodeId }) => {
+        const nodeElement = document.querySelector(`[data-id="${nodeId}"]`);
+        if (nodeElement) {
+          (nodeElement as HTMLElement).style.outline = '';
+          (nodeElement as HTMLElement).style.outlineOffset = '';
+        }
       });
+      highlightedNodesRef.current.clear();
     };
-  }, [userSelections, collaborators]);
+  }, [userSelections, collaboratorMap]);
 
   if (!isConnected) return null;
 
@@ -141,9 +179,9 @@ function CollaborationOverlayComponent() {
         ref={canvasRef}
         className="absolute inset-0 pointer-events-none z-40"
       >
-        {/* Render user cursors */}
+        {/* Render user cursors - using Map for O(1) lookups */}
         {Object.entries(userCursors).map(([userId, position]) => {
-          const user = collaborators.find((u) => u.id === userId);
+          const user = collaboratorMap.get(userId);
           if (!user) return null;
 
           return (
@@ -202,7 +240,7 @@ function CollaborationOverlayComponent() {
             <span className="text-sm text-yellow-700">
               {lockedByUser === currentUser?.id
                 ? 'You have locked this workflow'
-                : `Locked by ${collaborators.find((u) => u.id === lockedByUser)?.name || 'another user'}`}
+                : `Locked by ${collaboratorMap.get(lockedByUser!)?.name || 'another user'}`}
             </span>
           </div>
         </div>
