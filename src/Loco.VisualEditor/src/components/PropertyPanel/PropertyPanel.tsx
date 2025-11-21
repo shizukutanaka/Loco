@@ -1,5 +1,5 @@
-import { memo, useMemo, useCallback } from 'react';
-import { useWorkflowStore } from '@/store/workflowStore';
+import { memo, useCallback, useMemo } from 'react';
+import { useSelectedNode, useSelectedNodeId } from '@/store/selectors';
 import { getIntegrationById } from '@/data/integrations';
 import { X, Trash2 } from 'lucide-react';
 import { FormInput, FormTextarea, FormSelect } from '@/components/Form';
@@ -13,18 +13,15 @@ import {
 // ============================================================================
 
 function PropertyPanelComponent() {
-  const { nodes, selectedNodeId } = useWorkflowStore();
+  // Use granular selectors to only subscribe to selected node/ID, not entire nodes array
+  // This prevents re-renders when unselected nodes change
+  const selectedNode = useSelectedNode();
+  const selectedNodeId = useSelectedNodeId();
 
   // Use custom hooks
   const { localData, errors, handleLabelChange, handleConfigChange } =
     usePropertyPanelFormState(selectedNodeId);
   const { handleDelete, handleClose } = usePropertyPanelActions(selectedNodeId);
-
-  // Memoize selected node lookup to preserve referential equality
-  const memoizedSelectedNode = useMemo(
-    () => nodes.find((n) => n.id === selectedNodeId),
-    [nodes, selectedNodeId]
-  );
 
   // Memoize event handler for action selection to prevent FormSelect re-renders
   const handleActionChange = useCallback(
@@ -38,7 +35,7 @@ function PropertyPanelComponent() {
     [handleLabelChange]
   );
 
-  if (!memoizedSelectedNode) {
+  if (!selectedNode) {
     return (
       <div className="w-96 bg-white border-l border-gray-200 p-6 flex items-center justify-center text-gray-500">
         <div className="text-center">
@@ -49,10 +46,10 @@ function PropertyPanelComponent() {
     );
   }
 
-  // Update integration memoization after guard to ensure memoizedSelectedNode exists
+  // Update integration memoization after guard to ensure selectedNode exists
   const memoizedIntegration = useMemo(
-    () => getIntegrationById(memoizedSelectedNode.data.integration),
-    [memoizedSelectedNode.data.integration]
+    () => getIntegrationById(selectedNode.data.integration),
+    [selectedNode.data.integration]
   );
 
   // Use memoizedIntegration instead of integration
@@ -94,18 +91,18 @@ function PropertyPanelComponent() {
         <div className="mb-4">
           <span
             className={`inline-block px-3 py-1 rounded-full text-xs font-semibold uppercase ${
-              memoizedSelectedNode.type === 'trigger'
+              selectedNode.type === 'trigger'
                 ? 'bg-green-100 text-green-700'
-                : memoizedSelectedNode.type === 'action'
+                : selectedNode.type === 'action'
                 ? 'bg-blue-100 text-blue-700'
-                : memoizedSelectedNode.type === 'condition'
+                : selectedNode.type === 'condition'
                 ? 'bg-yellow-100 text-yellow-700'
-                : memoizedSelectedNode.type === 'transform'
+                : selectedNode.type === 'transform'
                 ? 'bg-purple-100 text-purple-700'
                 : 'bg-orange-100 text-orange-700'
             }`}
           >
-            {memoizedSelectedNode.type}
+            {selectedNode.type}
           </span>
         </div>
 
@@ -139,7 +136,7 @@ function PropertyPanelComponent() {
         <div className="space-y-4">
           <h3 className="text-sm font-semibold text-gray-700">Configuration</h3>
 
-          {memoizedSelectedNode.type === 'condition' && (
+          {selectedNode.type === 'condition' && (
             <FormTextarea
               id="condition-expression"
               label="Condition Expression"
@@ -153,7 +150,7 @@ function PropertyPanelComponent() {
             />
           )}
 
-          {memoizedSelectedNode.type === 'transform' && (
+          {selectedNode.type === 'transform' && (
             <FormTextarea
               id="transform-code"
               label="Transform Code (C#)"
@@ -250,11 +247,11 @@ function PropertyPanelComponent() {
         <div className="mt-6 pt-4 border-t border-gray-200">
           <div className="text-xs text-gray-500">
             <div className="mb-1">
-              <span className="font-medium">Node ID:</span> {memoizedSelectedNode.id}
+              <span className="font-medium">Node ID:</span> {selectedNode.id}
             </div>
             <div>
-              <span className="font-medium">Position:</span> ({Math.round(memoizedSelectedNode.position.x)},{' '}
-              {Math.round(memoizedSelectedNode.position.y)})
+              <span className="font-medium">Position:</span> ({Math.round(selectedNode.position.x)},{' '}
+              {Math.round(selectedNode.position.y)})
             </div>
           </div>
         </div>
