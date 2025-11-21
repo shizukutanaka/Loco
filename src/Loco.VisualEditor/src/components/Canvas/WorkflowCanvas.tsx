@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, memo } from 'react';
+import { useCallback, useRef, useState, memo, useEffect } from 'react';
 import ReactFlow, {
   Background,
   MiniMap,
@@ -72,6 +72,19 @@ function WorkflowCanvasComponent() {
   } = useWorkflowStore();
 
   const { isConnected, updateSelection } = useCollaborationStore();
+
+  // Store collaboration state in refs to avoid callback recreation when these values change
+  const isConnectedRef = useRef(isConnected);
+  const updateSelectionRef = useRef(updateSelection);
+
+  // Update refs with current values without recreating the callback
+  useEffect(() => {
+    isConnectedRef.current = isConnected;
+  }, [isConnected]);
+
+  useEffect(() => {
+    updateSelectionRef.current = updateSelection;
+  }, [updateSelection]);
 
   // Setup canvas control event listeners (zoom in/out, fit view, etc)
   useCanvasZoomControls();
@@ -197,12 +210,12 @@ function WorkflowCanvasComponent() {
         setSelectedNodeId(null);
       }
 
-      // Send selection to collaboration service
-      if (isConnected) {
-        updateSelection(selectedNodeIds);
+      // Send selection to collaboration service using refs
+      if (isConnectedRef.current) {
+        updateSelectionRef.current(selectedNodeIds);
       }
     },
-    [setSelectedNodeId, isConnected, updateSelection]
+    [setSelectedNodeId]  // Only include setSelectedNodeId - collaboration state accessed via refs
   );
 
 
