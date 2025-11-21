@@ -113,34 +113,6 @@ function WorkflowListComponent({ isOpen, onClose }: WorkflowListProps) {
     [setSortBy]
   );
 
-  // Memoize workflow card action handlers to preserve referential equality
-  const handleWorkflowEdit = useCallback(
-    (workflowId: string) => {
-      handleEdit(workflowId);
-    },
-    [handleEdit]
-  );
-
-  const handleWorkflowRun = useCallback(
-    (workflowId: string, workflowName: string) => {
-      handleRun(workflowId, workflowName);
-    },
-    [handleRun]
-  );
-
-  const handleWorkflowDuplicate = useCallback(
-    (workflowId: string) => {
-      handleDuplicate(workflowId);
-    },
-    [handleDuplicate]
-  );
-
-  const handleWorkflowDelete = useCallback(
-    (workflowId: string) => {
-      handleDelete(workflowId);
-    },
-    [handleDelete]
-  );
 
   if (!isOpen) return null;
 
@@ -322,7 +294,7 @@ function WorkflowListComponent({ isOpen, onClose }: WorkflowListProps) {
                   {/* Actions */}
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleWorkflowEdit(workflow.id)}
+                      onClick={() => handleEdit(workflow.id)}
                       className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-loco-primary text-white rounded text-xs hover:bg-blue-700 transition-colors"
                       title="Edit"
                     >
@@ -330,7 +302,7 @@ function WorkflowListComponent({ isOpen, onClose }: WorkflowListProps) {
                       Edit
                     </button>
                     <button
-                      onClick={() => handleWorkflowRun(workflow.id, workflow.name)}
+                      onClick={() => handleRun(workflow.id, workflow.name)}
                       className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
                       aria-label={`Run workflow ${workflow.name}`}
                       title="Run"
@@ -338,7 +310,7 @@ function WorkflowListComponent({ isOpen, onClose }: WorkflowListProps) {
                       <Play className="w-4 h-4" aria-hidden="true" />
                     </button>
                     <button
-                      onClick={() => handleWorkflowDuplicate(workflow.id)}
+                      onClick={() => handleDuplicate(workflow.id)}
                       className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
                       aria-label={`Duplicate workflow ${workflow.name}`}
                       title="Duplicate"
@@ -346,7 +318,7 @@ function WorkflowListComponent({ isOpen, onClose }: WorkflowListProps) {
                       <Copy className="w-4 h-4" aria-hidden="true" />
                     </button>
                     <button
-                      onClick={() => handleWorkflowDelete(workflow.id)}
+                      onClick={() => handleDelete(workflow.id)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
                       aria-label={`Delete workflow ${workflow.name}`}
                       title="Delete"
