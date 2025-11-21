@@ -66,19 +66,25 @@ export function useListFiltering<T>({
   }, []);
 
   const filteredItems = useMemo(() => {
-    let result = items;
+    // Combine all filters into a single pass instead of multiple filter() calls
+    // This reduces array iterations from O(n*m) to O(n) where m is number of filters
+    return items.filter((item) => {
+      // Check search predicate if provided
+      if (searchQuery && searchPredicate) {
+        if (!searchPredicate(item, searchQuery)) {
+          return false;
+        }
+      }
 
-    // Apply search filter
-    if (searchQuery && searchPredicate) {
-      result = result.filter((item) => searchPredicate(item, searchQuery));
-    }
+      // Check all custom filter predicates
+      for (const [key, predicate] of Object.entries(filterPredicates)) {
+        if (!predicate(item, filters[key])) {
+          return false;
+        }
+      }
 
-    // Apply custom filter predicates
-    Object.entries(filterPredicates).forEach(([_key, predicate]) => {
-      result = result.filter((item) => predicate(item, filters[_key]));
+      return true;
     });
-
-    return result;
   }, [items, searchQuery, searchPredicate, filters, filterPredicates]);
 
   const getFilteredCount = useCallback(() => {
