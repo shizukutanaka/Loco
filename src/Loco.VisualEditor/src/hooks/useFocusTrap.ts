@@ -173,22 +173,18 @@ export function useFocusElement(
 export function useFocusableElements(
   containerRef: React.RefObject<HTMLElement>
 ): HTMLElement[] {
-  const [focusableElements, setFocusableElements] = React.useState<HTMLElement[]>([]);
+  // Use useMemo instead of useState + useEffect to avoid unnecessary state updates
+  // Memoized computation is more efficient for derived data that doesn't trigger re-renders
+  return useMemo((): HTMLElement[] => {
+    if (!containerRef.current) return [];
 
-  React.useEffect(() => {
-    if (!containerRef.current) return;
-
-    const elements = Array.from(
+    return Array.from(
       containerRef.current.querySelectorAll(FOCUSABLE_SELECTOR)
     ).filter((element): element is HTMLElement => {
       const htmlElement = element as HTMLElement;
       return htmlElement.offsetParent !== null;
     });
-
-    setFocusableElements(elements);
   }, [containerRef]);
-
-  return focusableElements;
 }
 
 // Import React for hooks

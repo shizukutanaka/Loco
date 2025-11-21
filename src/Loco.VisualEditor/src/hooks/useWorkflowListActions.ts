@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   listWorkflows,
   deleteWorkflow,
@@ -35,6 +35,14 @@ export function useWorkflowListActions({
   const { setCurrentExecution, addToHistory } = useExecutionStore();
   const toast = useToast();
 
+  // Store workflows in ref to avoid recreating callbacks when workflows changes
+  const workflowsRef = useRef<WorkflowListItem[]>(workflows);
+
+  // Update ref with current workflows without recreating callbacks
+  useEffect(() => {
+    workflowsRef.current = workflows;
+  }, [workflows]);
+
   // Create new workflow
   const handleNew = useCallback(() => {
     newWorkflow();
@@ -50,7 +58,9 @@ export function useWorkflowListActions({
       try {
         const response = await deleteWorkflow(workflowId);
         if (response.success) {
-          onUpdateWorkflows(workflows.filter((w) => w.id !== workflowId));
+          // Use ref to access current workflows without callback recreation
+          // Filter out deleted workflow using ref instead of dependency
+          onUpdateWorkflows(workflowsRef.current.filter((w) => w.id !== workflowId));
           toast.success('Workflow deleted successfully');
         } else {
           toast.error(`Failed to delete workflow: ${response.error?.message}`);
@@ -60,7 +70,7 @@ export function useWorkflowListActions({
         toast.error('An error occurred while deleting the workflow');
       }
     },
-    [workflows, onUpdateWorkflows, toast]
+    [onUpdateWorkflows, toast]  // Removed: workflows - using ref instead
   );
 
   // Load workflow for editing
