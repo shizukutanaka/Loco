@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { debounce } from '@/utils/debounceThrottle';
 import { WorkflowListItem } from './useWorkflowListData';
 
@@ -12,7 +12,6 @@ export function useWorkflowListFilters(workflows: WorkflowListItem[]) {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed' | 'failed' | 'running'>('all');
   const [filterTag, setFilterTag] = useState<string>('all');
-  const [filteredWorkflows, setFilteredWorkflows] = useState<WorkflowListItem[]>([]);
 
   // Debounce search query to avoid excessive filtering
   const debouncedSearchRef = useRef(
@@ -29,8 +28,8 @@ export function useWorkflowListFilters(workflows: WorkflowListItem[]) {
     };
   }, [searchQuery]);
 
-  // Filter workflows based on search, status, and tag
-  useEffect(() => {
+  // Filter workflows based on search, status, and tag - memoized for performance
+  const filteredWorkflows = useMemo(() => {
     let filtered = [...workflows];
 
     // Search filter - using debounced query to avoid excessive filtering
@@ -53,7 +52,7 @@ export function useWorkflowListFilters(workflows: WorkflowListItem[]) {
       filtered = filtered.filter((w) => w.tags?.includes(filterTag));
     }
 
-    setFilteredWorkflows(filtered);
+    return filtered;
   }, [workflows, debouncedSearchQuery, filterStatus, filterTag]);
 
   return {
