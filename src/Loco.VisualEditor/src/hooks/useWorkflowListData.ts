@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { listWorkflows } from '@/api/workflows';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -29,14 +29,16 @@ export function useWorkflowListData({ isOpen, sortBy }: UseWorkflowListDataOptio
   const [allTags, setAllTags] = useState<string[]>([]);
   const toast = useToast();
 
-  // Fetch workflows when modal opens or sort changes
+  // Fetch workflows only when modal opens (not on every sort change)
+  // Apply sorting client-side using useMemo to avoid unnecessary API calls
   useEffect(() => {
     if (!isOpen) return;
 
     const fetchWorkflows = async () => {
       setIsLoading(true);
       try {
-        const response = await listWorkflows({ sortBy, sortOrder: 'desc' });
+        // Don't pass sortBy to API - fetch all workflows once and sort client-side
+        const response = await listWorkflows({ sortBy: 'updated', sortOrder: 'desc' });
 
         if (response.success && response.data) {
           // Extract tags during workflow transformation for single-pass optimization
@@ -78,14 +80,35 @@ export function useWorkflowListData({ isOpen, sortBy }: UseWorkflowListDataOptio
     };
 
     fetchWorkflows();
-  }, [isOpen, sortBy, toast]);
+  }, [isOpen, toast]);
+
+  // Sort workflows client-side based on sortBy parameter
+  // Uses memoization to avoid re-sorting on every render
+  const sortedWorkflows = useMemo(() => {
+    const sorted = [...workflows];
+
+    switch (sortBy) {
+      case 'name':
+        sorted.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'created':
+        sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        break;
+      case 'updated':
+      default:
+        sorted.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        break;
+    }
+
+    return sorted;
+  }, [workflows, sortBy]);
 
   const updateWorkflows = (items: WorkflowListItem[]) => {
     setWorkflows(items);
   };
 
   return {
-    workflows,
+    workflows: sortedWorkflows,
     isLoading,
     allTags,
     updateWorkflows,
