@@ -14,6 +14,11 @@ import 'reactflow/dist/style.css';
 
 import { useWorkflowStore } from '@/store/workflowStore';
 import {
+  useNodes,
+  useEdges,
+  useNodeActions,
+} from '@/store/selectors';
+import {
   TriggerNode,
   ActionNode,
   ConditionNode,
@@ -60,16 +65,17 @@ function WorkflowCanvasComponent() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [showMinimap, setShowMinimap] = useState(true);
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
-  const {
-    nodes,
-    edges,
-    onNodesChange,
-    onEdgesChange,
-    onConnect,
-    addNode,
-    setSelectedNodeId,
-    deleteNode,
-  } = useWorkflowStore();
+  // Use granular selectors for state to minimize re-renders
+  // Only subscribe to nodes and edges, not entire store
+  const nodes = useNodes();
+  const edges = useEdges();
+
+  // Get node actions (addNode, deleteNode, setSelectedNodeId)
+  const { addNode, deleteNode, setSelectedNodeId } = useNodeActions();
+
+  // Get canvas event handlers from store
+  // (onNodesChange, onEdgesChange, onConnect are callback handlers, not included in granular selectors)
+  const { onNodesChange, onEdgesChange, onConnect } = useWorkflowStore();
 
   const { isConnected, updateSelection } = useCollaborationStore();
 
