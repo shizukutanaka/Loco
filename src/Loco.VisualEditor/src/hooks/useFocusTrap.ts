@@ -11,7 +11,7 @@
  * 4. When closed, focus returns to the trigger element
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 
 /**
  * List of selectors for focusable elements
@@ -56,7 +56,9 @@ export function useFocusTrap(
   const { isActive, onEscape, initialFocusRef, restoreFocusRef } = options;
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
-  const getFocusableElements = useCallback((): HTMLElement[] => {
+  // Cache focusable elements array - recompute only when container changes
+  // Avoids DOM queries on every Tab keypress
+  const focusableElements = useMemo((): HTMLElement[] => {
     if (!containerRef.current) return [];
 
     return Array.from(
@@ -78,7 +80,6 @@ export function useFocusTrap(
 
       // Trap Tab/Shift+Tab within focusable elements
       if (event.key === 'Tab') {
-        const focusableElements = getFocusableElements();
         if (focusableElements.length === 0) return;
 
         const currentElement = document.activeElement as HTMLElement;
@@ -97,7 +98,7 @@ export function useFocusTrap(
         }
       }
     },
-    [getFocusableElements, onEscape]
+    [focusableElements, onEscape]
   );
 
   useEffect(() => {
@@ -110,7 +111,6 @@ export function useFocusTrap(
     if (initialFocusRef?.current) {
       initialFocusRef.current.focus();
     } else {
-      const focusableElements = getFocusableElements();
       focusableElements[0]?.focus();
     }
 
@@ -137,7 +137,7 @@ export function useFocusTrap(
         }, 0);
       }
     };
-  }, [isActive, containerRef, getFocusableElements, handleKeyDown, initialFocusRef, restoreFocusRef]);
+  }, [isActive, containerRef, focusableElements, handleKeyDown, initialFocusRef, restoreFocusRef]);
 }
 
 /**
