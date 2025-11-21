@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 export interface CollaborationUser {
   id: string;
@@ -148,38 +148,23 @@ export function useCollaborationSession(
     return `${baseUrl}?workflow=${workflowId}&user=${currentUser.id}`;
   }, [workflowId, currentUser]);
 
-  return useMemo(
-    () => ({
-      isConnected,
-      isConnecting,
-      currentUser,
-      connectedUsers,
-      isWorkflowLocked,
-      lockedByUser,
-      shareLink,
-      connect,
-      disconnect,
-      lockWorkflow,
-      unlockWorkflow,
-      inviteUser,
-      updatePresence,
-      generateShareLink,
-    }),
-    [
-      isConnected,
-      isConnecting,
-      currentUser,
-      connectedUsers,
-      isWorkflowLocked,
-      lockedByUser,
-      shareLink,
-      connect,
-      disconnect,
-      lockWorkflow,
-      unlockWorkflow,
-      inviteUser,
-      updatePresence,
-      generateShareLink,
-    ]
-  );
+  // Return object directly - consumers should use granular selectors for memoization benefits
+  // This hook intentionally returns a new object on every render to avoid stale closures
+  // while granular subscriptions via selectors prevent unnecessary component re-renders
+  return {
+    isConnected,
+    isConnecting,
+    currentUser,
+    connectedUsers,
+    isWorkflowLocked,
+    lockedByUser,
+    shareLink,
+    connect,
+    disconnect,
+    lockWorkflow,
+    unlockWorkflow,
+    inviteUser,
+    updatePresence,
+    generateShareLink,
+  };
 }
