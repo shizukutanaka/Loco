@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package loco.workflow;
+
+service WorkflowEngine {
+  rpc ExecuteWorkflow (ExecuteRequest) returns (ExecuteResponse);
+  rpc GetExecutionStatus (StatusRequest) returns (StatusResponse);
+  rpc StreamExecutionLogs (LogRequest) returns (stream LogEntry);
+}
+
+message ExecuteRequest {
+  string workflow_id = 1;
+  bytes input = 2;
+  map<string, string> variables = 3;
+}
+
+message ExecuteResponse {
+  string execution_id = 1;
+  bytes output = 2;
+  string status = 3;
+  int32 exit_code = 4;
+  string error_message = 5;
+}
+
+message StatusRequest {
+  string execution_id = 1;
+}
+
+message StatusResponse {
+  string execution_id = 1;
+  string status = 2;
+  float progress = 3;
+  string current_step = 4;
+  int64 started_at = 5;
+  int64 updated_at = 6;
+}
+
+message LogRequest {
+  string execution_id = 1;
+  int32 skip = 2;
+  int32 limit = 3;
+}
+
+message LogEntry {
+  string timestamp = 1;
+  string level = 2;
+  string message = 3;
+  map<string, string> context = 4;
+}

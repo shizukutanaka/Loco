@@ -4,6 +4,7 @@ using Loco.Core.Execution;
 using Loco.Core.Health;
 using Loco.Core.Interfaces;
 using Loco.Core.Storage;
+using Loco.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
@@ -11,6 +12,7 @@ using Microsoft.OpenApi.Models;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using System.Diagnostics;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,11 +26,20 @@ builder.Services.AddLogging(logging =>
     logging.AddFilter("System", LogLevel.Information);
 });
 
-// Add OpenTelemetry Tracing
+// Add gRPC support (Phase 1B)
+builder.Services.AddGrpc();
+
+// Create ActivitySource for manual instrumentation
+var activitySource = new ActivitySource("Loco.Workflow");
+builder.Services.AddSingleton(activitySource);
+
+// Add OpenTelemetry Tracing with gRPC and manual instrumentation (Phase 1B)
 builder.Services.AddOpenTelemetry()
     .WithTracing(tracing => tracing
+        .AddSource("Loco.Workflow")
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
+        .AddGrpcClientInstrumentation()
         .AddOtlpExporter(options =>
         {
             options.Endpoint = new Uri(builder.Configuration.GetValue<string>("OpenTelemetry:OtlpEndpoint") ?? "http://localhost:4317");
@@ -266,6 +277,9 @@ app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 
 // Structured Logging Middleware
 app.UseMiddleware<StructuredLoggingMiddleware>();
+
+// Map gRPC Services (Phase 1B)
+app.MapGrpcService<WorkflowEngineGrpcService>();
 
 // Map Controllers
 app.MapControllers();
