@@ -37,16 +37,20 @@ function ValidationPanelComponent() {
 
   if (!validationReport) return null;
 
-  // Memoize filtered issues to prevent recalculation on every render
-  const errors = useMemo(
-    () => validationReport.issues.filter((i) => i.severity === 'error'),
-    [validationReport]
-  );
-
-  const warnings = useMemo(
-    () => validationReport.issues.filter((i) => i.severity === 'warning'),
-    [validationReport]
-  );
+  // Memoize filtered issues with single-pass filtering instead of two separate filters
+  // Single pass through issues array to categorize errors and warnings (O(n) instead of O(2n))
+  const { errors, warnings } = useMemo(() => {
+    const errors = [];
+    const warnings = [];
+    for (const issue of validationReport.issues) {
+      if (issue.severity === 'error') {
+        errors.push(issue);
+      } else if (issue.severity === 'warning') {
+        warnings.push(issue);
+      }
+    }
+    return { errors, warnings };
+  }, [validationReport]);
 
   const hasIssues = useMemo(
     () => errors.length > 0 || warnings.length > 0,
