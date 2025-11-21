@@ -5,7 +5,7 @@
  * Saves the workflow every 30 seconds and restores it on page load.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { Workflow } from '@/types/workflow';
 
@@ -16,9 +16,20 @@ export function useAutoSave() {
   const { workflow, exportWorkflow } = useWorkflowStore();
   const intervalRef = useRef<number | null>(null);
   const lastSavedRef = useRef<string>('');
+  const exportWorkflowRef = useRef(exportWorkflow);
+  const workflowRef = useRef(workflow);
 
-  // Save workflow to localStorage
-  const saveDraft = (workflowData: Workflow) => {
+  // Update refs to always have current values without causing effect recreation
+  useEffect(() => {
+    exportWorkflowRef.current = exportWorkflow;
+  }, [exportWorkflow]);
+
+  useEffect(() => {
+    workflowRef.current = workflow;
+  }, [workflow]);
+
+  // Save workflow to localStorage - memoized to ensure consistent reference
+  const saveDraft = useCallback((workflowData: Workflow) => {
     try {
       const jsonString = JSON.stringify(workflowData);
 
@@ -35,7 +46,7 @@ export function useAutoSave() {
     } catch (error) {
       console.error('Failed to auto-save workflow:', error);
     }
-  };
+  }, []);
 
   // Load workflow from localStorage
   const loadDraft = (): Workflow | null => {
@@ -68,11 +79,12 @@ export function useAutoSave() {
     }
   };
 
-  // Auto-save interval
+  // Auto-save interval - stable effect that doesn't depend on workflow/exportWorkflow objects
+  // Uses refs to access current values without recreating the interval
   useEffect(() => {
     intervalRef.current = setInterval(() => {
-      if (workflow) {
-        const workflowData = exportWorkflow();
+      if (workflowRef.current) {
+        const workflowData = exportWorkflowRef.current();
         saveDraft(workflowData);
       }
     }, AUTO_SAVE_INTERVAL);
@@ -82,28 +94,28 @@ export function useAutoSave() {
         clearInterval(intervalRef.current);
       }
     };
-  }, [workflow, exportWorkflow]);
+  }, [saveDraft]); // Only depend on saveDraft callback (which is stable)
 
-  // Save on unmount (page close)
+  // Save on unmount (page close) - stable effect that uses refs
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (workflow) {
-        const workflowData = exportWorkflow();
+      if (workflowRef.current) {
+        const workflowData = exportWorkflowRef.current();
         saveDraft(workflowData);
       }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [workflow, exportWorkflow]);
+  }, [saveDraft]); // Only depend on saveDraft callback (which is stable)
 
   return {
     loadDraft,
     clearDraft,
-    saveDraft: () => {
-      if (workflow) {
-        saveDraft(exportWorkflow());
+    saveDraft: useCallback(() => {
+      if (workflowRef.current) {
+        saveDraft(exportWorkflowRef.current());
       }
-    },
+    }, [saveDraft]),
   };
 }
