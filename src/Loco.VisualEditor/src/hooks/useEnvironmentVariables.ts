@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   EnvironmentVariable,
   validateEnvKey,
@@ -32,12 +32,18 @@ export function useEnvironmentVariables(
   const [variables, setVariables] = useState<EnvironmentVariable[]>(initialVariables);
   const [errors, setErrors] = useState<Record<string, string | null>>({});
 
+  // Memoize a Set of variable keys for O(1) duplicate checking instead of O(n) array iteration
+  const variableKeysSet = useMemo(() => {
+    return new Set(variables.map((v) => v.key));
+  }, [variables]);
+
   const addVariable = useCallback(
     (key: string, value: string, isSecret = false): boolean => {
       const normalizedKey = normalizeEnvKey(key);
       const keyError = validateEnvKey(normalizedKey);
       const valueError = validateEnvValue(value);
-      const isDuplicate = isDuplicateEnvKey(normalizedKey, variables.map((v) => v.key));
+      // Use Set-based check for O(1) lookup instead of O(n) array iteration
+      const isDuplicate = variableKeysSet.has(normalizedKey);
 
       if (keyError || valueError || isDuplicate) {
         // Use functional setState to merge new errors with existing errors
@@ -72,7 +78,7 @@ export function useEnvironmentVariables(
       });
       return true;
     },
-    [onUpdate]
+    [onUpdate, variableKeysSet]  // Added variableKeysSet for duplicate checking
   );
 
   const updateVariable = useCallback(
@@ -83,7 +89,8 @@ export function useEnvironmentVariables(
       const newKey = updates.key || key;
       const newValue = updates.value || variable.value;
 
-      if (newKey !== key && isDuplicateEnvKey(newKey, variables.map((v) => v.key), key)) {
+      // Use Set-based check for O(1) lookup, exclude current key from duplicate check
+      if (newKey !== key && variableKeysSet.has(newKey)) {
         // Use functional setState to merge errors with existing state
         setErrors((prev) => ({
           ...prev,
@@ -127,7 +134,7 @@ export function useEnvironmentVariables(
       });
       return true;
     },
-    [onUpdate, variables]
+    [onUpdate, variableKeysSet, variables]  // variableKeysSet for duplicate checking, variables for find()
   );
 
   const removeVariable = useCallback(
@@ -173,18 +180,19 @@ export function useEnvironmentVariables(
 
   const validateAll = useCallback((): Record<string, string | null> => {
     const allErrors: Record<string, string | null> = {};
-    const keys: string[] = [];
+    const seenKeys = new Set<string>();
 
     variables.forEach((env) => {
       const keyError = validateEnvKey(env.key);
       const valueError = validateEnvValue(env.value);
-      const isDuplicate = isDuplicateEnvKey(env.key, keys);
+      // Use Set for O(1) duplicate checking instead of array iteration
+      const isDuplicate = seenKeys.has(env.key);
 
       if (keyError) allErrors[`${env.key}-key`] = keyError;
       if (valueError) allErrors[`${env.key}-value`] = valueError;
       if (isDuplicate) allErrors[`${env.key}-duplicate`] = 'Duplicate key';
 
-      keys.push(env.key);
+      seenKeys.add(env.key);
     });
 
     setErrors(allErrors);
