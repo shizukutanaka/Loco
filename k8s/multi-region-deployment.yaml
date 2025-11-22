@@ -1,0 +1,586 @@
+# Phase 4: Multi-Region Kubernetes Deployment
+# High-availability setup across multiple cloud regions
+# Supports failover, load balancing, and data replication
+
+---
+# Global Configuration - Replicated across all regions
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loco-global-config
+  namespace: loco
+data:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "Information"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger-collector:4317"
+  # Multi-region settings
+  PRIMARY_REGION: "us-east-1"
+  SECONDARY_REGION: "us-west-2"
+  FAILOVER_TIMEOUT_SECONDS: "30"
+  HEALTH_CHECK_INTERVAL_SECONDS: "10"
+
+---
+# Region-Specific Config (East Coast)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loco-region-east
+  namespace: loco
+  labels:
+    region: us-east-1
+data:
+  DATABASE_REPLICA_ENDPOINT: "db-primary.us-east-1.rds.amazonaws.com"
+  REDIS_ENDPOINT: "redis-primary.us-east-1.elasticache.amazonaws.com:6379"
+  REGION_NAME: "US East (N. Virginia)"
+  IS_PRIMARY: "true"
+
+---
+# Region-Specific Config (West Coast)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loco-region-west
+  namespace: loco
+  labels:
+    region: us-west-2
+data:
+  DATABASE_REPLICA_ENDPOINT: "db-replica.us-west-2.rds.amazonaws.com"
+  REDIS_ENDPOINT: "redis-replica.us-west-2.elasticache.amazonaws.com:6379"
+  REGION_NAME: "US West (Oregon)"
+  IS_PRIMARY: "false"
+
+---
+# Primary Region Deployment (East)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loco-api-primary
+  namespace: loco
+  labels:
+    app: loco
+    component: api
+    region: us-east-1
+    region-role: primary
+spec:
+  replicas: 5  # Higher replicas in primary region
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 0
+
+  selector:
+    matchLabels:
+      app: loco
+      component: api
+      region: us-east-1
+
+  template:
+    metadata:
+      labels:
+        app: loco
+        component: api
+        region: us-east-1
+        region-role: primary
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5000"
+        prometheus.io/path: "/metrics"
+
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values: [loco]
+            topologyKey: kubernetes.io/hostname
+
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: node.kubernetes.io/instance-type
+                operator: In
+                values: ["m5.xlarge", "m6i.xlarge"] # Production instance types
+          - weight: 50
+            preference:
+              matchExpressions:
+              - key: topology.kubernetes.io/zone
+                operator: In
+                values:
+                - "us-east-1a"
+                - "us-east-1b"
+                - "us-east-1c"
+
+      serviceAccountName: loco-api
+
+      containers:
+      - name: loco-api
+        image: loco:3.0.0
+        imagePullPolicy: IfNotPresent
+
+        envFrom:
+        - configMapRef:
+            name: loco-global-config
+        - configMapRef:
+            name: loco-region-east
+
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "1000m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 45
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+        ports:
+        - name: http
+          containerPort: 5000
+          protocol: TCP
+
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: logs
+          mountPath: /app/logs
+
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: loco-data-pvc-primary
+      - name: logs
+        emptyDir:
+          sizeLimit: 2Gi
+
+      terminationGracePeriodSeconds: 60
+
+---
+# Secondary Region Deployment (West) - Read-Only Replica
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loco-api-secondary
+  namespace: loco
+  labels:
+    app: loco
+    component: api
+    region: us-west-2
+    region-role: secondary
+spec:
+  replicas: 3  # Fewer replicas in secondary
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  selector:
+    matchLabels:
+      app: loco
+      component: api
+      region: us-west-2
+
+  template:
+    metadata:
+      labels:
+        app: loco
+        component: api
+        region: us-west-2
+        region-role: secondary
+      annotations:
+        prometheus.io/scrape: "true"
+
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: app
+                operator: In
+                values: [loco]
+            topologyKey: kubernetes.io/hostname
+
+      serviceAccountName: loco-api
+
+      containers:
+      - name: loco-api
+        image: loco:3.0.0
+        imagePullPolicy: IfNotPresent
+
+        envFrom:
+        - configMapRef:
+            name: loco-global-config
+        - configMapRef:
+            name: loco-region-west
+
+        env:
+        - name: READONLY_MODE
+          value: "true"  # Secondary region is read-only
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+        ports:
+        - name: http
+          containerPort: 5000
+
+      terminationGracePeriodSeconds: 45
+
+---
+# Primary Region Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: loco-api-primary
+  namespace: loco
+  labels:
+    region: us-east-1
+spec:
+  type: ClusterIP
+  selector:
+    app: loco
+    region: us-east-1
+  ports:
+  - name: http
+    port: 80
+    targetPort: 5000
+    protocol: TCP
+
+---
+# Secondary Region Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: loco-api-secondary
+  namespace: loco
+  labels:
+    region: us-west-2
+spec:
+  type: ClusterIP
+  selector:
+    app: loco
+    region: us-west-2
+  ports:
+  - name: http
+    port: 80
+    targetPort: 5000
+    protocol: TCP
+
+---
+# Global Failover Service (Routes to primary, falls back to secondary)
+apiVersion: v1
+kind: Service
+metadata:
+  name: loco-api-global
+  namespace: loco
+  annotations:
+    # ExternalDNS will create DNS records for multi-region failover
+    external-dns.alpha.kubernetes.io/hostname: "api.loco.global"
+    external-dns.alpha.kubernetes.io/ttl: "60"
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 80
+    targetPort: 5000
+    protocol: TCP
+
+---
+# HPA for Primary Region (5-20 replicas)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: loco-api-primary-hpa
+  namespace: loco
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: loco-api-primary
+
+  minReplicas: 5
+  maxReplicas: 20
+
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60  # Aggressive scaling in primary
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 70
+
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 25
+        periodSeconds: 15
+
+---
+# HPA for Secondary Region (2-10 replicas)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: loco-api-secondary-hpa
+  namespace: loco
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: loco-api-secondary
+
+  minReplicas: 2
+  maxReplicas: 10
+
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# Network Policy - Control cross-region traffic
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: loco-cross-region-policy
+  namespace: loco
+spec:
+  podSelector:
+    matchLabels:
+      app: loco
+  policyTypes:
+  - Ingress
+  - Egress
+
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 5000
+
+  egress:
+  # Allow DNS
+  - to:
+    - namespaceSelector: {}
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow database access
+  - to:
+    - ipBlock:
+        cidr: 10.0.0.0/8  # Internal VPC CIDR
+    ports:
+    - protocol: TCP
+      port: 5432  # PostgreSQL
+    - protocol: TCP
+      port: 6379  # Redis
+
+---
+# PodDisruptionBudget for Primary (keep minimum 3 running)
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: loco-api-primary-pdb
+  namespace: loco
+spec:
+  minAvailable: 3
+  selector:
+    matchLabels:
+      app: loco
+      region: us-east-1
+
+---
+# PodDisruptionBudget for Secondary (keep minimum 2 running)
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: loco-api-secondary-pdb
+  namespace: loco
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: loco
+      region: us-west-2
+
+---
+# Multi-Region PVC for Primary
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: loco-data-pvc-primary
+  namespace: loco
+  labels:
+    region: us-east-1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ebs-primary  # AWS EBS in us-east-1
+  resources:
+    requests:
+      storage: 50Gi
+
+---
+# Multi-Region PVC for Secondary (Read-Only Replica)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: loco-data-pvc-secondary
+  namespace: loco
+  labels:
+    region: us-west-2
+spec:
+  accessModes:
+    - ReadOnlyMany
+  storageClassName: ebs-secondary  # AWS EBS in us-west-2 (replica)
+  resources:
+    requests:
+      storage: 50Gi
+
+---
+# Region Health Check Service Monitor
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: loco-api-multi-region
+  namespace: loco
+spec:
+  selector:
+    matchLabels:
+      app: loco
+      component: api
+  endpoints:
+  - port: http
+    interval: 30s
+    path: /metrics
+    relabelings:
+    - sourceLabels: [__meta_kubernetes_pod_label_region]
+      targetLabel: region
+    - sourceLabels: [__meta_kubernetes_pod_label_region_role]
+      targetLabel: region_role
+
+---
+# Prometheus Alert Rules for Multi-Region
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loco-multi-region-alerts
+  namespace: loco
+data:
+  multi-region-alerts.yaml: |
+    groups:
+    - name: multi-region
+      interval: 30s
+      rules:
+      - alert: PrimaryRegionDown
+        expr: up{region="us-east-1"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          region: us-east-1
+        annotations:
+          summary: "Primary region is down"
+          description: "Primary region (us-east-1) health check failed"
+
+      - alert: SecondaryRegionDown
+        expr: up{region="us-west-2"} == 0
+        for: 1m
+        labels:
+          severity: warning
+          region: us-west-2
+        annotations:
+          summary: "Secondary region is down"
+          description: "Secondary region (us-west-2) health check failed"
+
+      - alert: HighCrossRegionLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{region_role="secondary"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High cross-region latency detected"
+          description: "P95 latency to secondary region is {{ $value }}s"
+
+      - alert: DataReplicationLag
+        expr: loco_replication_lag_seconds > 300
+        for: 5m
+        labels:
+          severity: high
+        annotations:
+          summary: "Database replication lag detected"
+          description: "Replication lag is {{ $value }}s"
+
+---
+# Deployment Strategy Document
+# See PHASE_4_DEPLOYMENT_GUIDE.md for:
+# 1. Prerequisites (AWS accounts, Route53, RDS Multi-AZ)
+# 2. Initial Setup (cluster creation, storage classes)
+# 3. Database Replication (AWS RDS multi-region)
+# 4. Failover Testing
+# 5. Monitoring & Alerting
