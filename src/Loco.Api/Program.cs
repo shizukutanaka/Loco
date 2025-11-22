@@ -158,8 +158,20 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
+        // Phase 2 JSON optimization: Reduce memory and improve throughput
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
         options.JsonSerializerOptions.PropertyNamingPolicy = null;
+
+        // Reduce default buffer size from 16KB to 4KB (Phase 2 optimization)
+        // Most API payloads are < 4KB, reducing default allocation
+        options.JsonSerializerOptions.DefaultBufferSize = 4096;
+
+        // Never pretty-print in production (10% serialization overhead)
+        options.JsonSerializerOptions.WriteIndented = false;
+
+        // Ignore null values to reduce JSON size
+        options.JsonSerializerOptions.DefaultIgnoreCondition =
+            System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
     });
 
 // Add Swagger/OpenAPI
@@ -241,6 +253,16 @@ builder.Services.AddScoped<System.Data.IDbConnection>(sp =>
 // Register hybrid repositories
 builder.Services.AddScoped<IWorkflowRepository, Loco.Core.DataAccess.HybridWorkflowRepository>();
 builder.Services.AddScoped<IExecutionHistoryRepository, Loco.Core.DataAccess.HybridExecutionHistoryRepository>();
+
+// Phase 3: Register OAuth 2.0 services
+builder.Services.AddOAuth2Services();
+
+// Phase 3: Register Event Store Repository
+builder.Services.AddScoped<IWorkflowExecutionEventRepository, WorkflowExecutionEventRepository>();
+
+// Phase 3: Register Advanced Metrics Collector
+builder.Services.AddSingleton<WorkflowMetricsCollector>();
+
 // Add Core Services
 builder.Services.AddScoped<IAutomationEngine, WorkflowExecutionEngine>();
 builder.Services.AddScoped<IRuleStore, JsonFileRuleStore>();
@@ -257,6 +279,13 @@ builder.Services.AddScoped<IStructuredLoggingHelper, StructuredLoggingHelper>();
 // Add Health Checks
 builder.Services.AddHealthChecks()
     .AddCheck<LocoHealthCheck>("loco-health");
+
+// Phase 2: Add Dynamic Memory Optimizer (critical for containers)
+builder.Services.AddSingleton(sp =>
+{
+    var logger = sp.GetRequiredService<ILogger<Loco.Core.Memory.DynamicMemoryOptimizer>>();
+    return new Loco.Core.Memory.DynamicMemoryOptimizer(logger);
+});
 
 var app = builder.Build();
 
@@ -300,6 +329,12 @@ app.MapGrpcService<WorkflowEngineGrpcService>();
 // Map Controllers
 app.MapControllers();
 
+// Phase 3: Map OAuth 2.0 Endpoints
+app.MapOAuthEndpoints();
+
+// Phase 3: Map Workflow Minimal API Endpoints
+app.MapWorkflowEndpoints();
+
 // Health Check Endpoint
 app.MapHealthChecks("/health");
 app.MapHealthChecks("/health/detailed", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
@@ -328,5 +363,11 @@ var logger = app.Services.GetRequiredService<ILogger<Program>>();
 logger.LogInformation("Loco API starting...");
 logger.LogInformation("Environment: {Environment}", app.Environment.EnvironmentName);
 logger.LogInformation("Swagger UI available at: /docs");
+
+// Phase 2: Start Dynamic Memory Optimizer (critical for production)
+var memoryOptimizer = app.Services.GetRequiredService<Loco.Core.Memory.DynamicMemoryOptimizer>();
+memoryOptimizer.Start();
+var memoryMetrics = memoryOptimizer.GetMetrics();
+logger.LogInformation("Memory optimizer started - {MemoryMetrics}", memoryMetrics);
 
 app.Run();

@@ -1,0 +1,398 @@
+# Phase 3: Observability Stack (Prometheus + Grafana)
+# Comprehensive monitoring and visualization for Loco workflows
+
+---
+# Prometheus Service Monitor
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: loco-api
+  namespace: loco
+spec:
+  selector:
+    matchLabels:
+      app: loco
+      component: api
+  endpoints:
+  - port: http
+    interval: 30s
+    path: /metrics
+
+---
+# Prometheus ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: loco
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: 'loco-prod'
+        environment: 'production'
+
+    scrape_configs:
+    - job_name: 'loco-api'
+      static_configs:
+      - targets: ['loco-api:5000']
+      metrics_path: '/metrics'
+      scrape_interval: 10s
+
+    - job_name: 'kubernetes-pods'
+      kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+          - loco
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: 'true'
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: '(.+)'
+
+---
+# Prometheus Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: loco
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: prometheus
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.47.0
+        args:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--storage.tsdb.path=/prometheus'
+          - '--storage.tsdb.retention.time=30d'
+        ports:
+        - containerPort: 9090
+          name: web
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+        - name: data
+          mountPath: /prometheus
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-config
+      - name: data
+        emptyDir: {}
+
+---
+# Prometheus Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: loco
+spec:
+  selector:
+    app: prometheus
+  ports:
+  - name: web
+    port: 9090
+    targetPort: 9090
+  type: ClusterIP
+
+---
+# ServiceAccount for Prometheus
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: loco
+
+---
+# ClusterRole for Prometheus
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - services
+  - endpoints
+  - pods
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch"]
+
+---
+# ClusterRoleBinding for Prometheus
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: loco
+
+---
+# Grafana ConfigMap (Dashboard)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: loco
+data:
+  loco-workflows.json: |
+    {
+      "dashboard": {
+        "title": "Loco Workflow Metrics",
+        "tags": ["loco", "workflows", "monitoring"],
+        "timezone": "UTC",
+        "refresh": "10s",
+        "panels": [
+          {
+            "title": "Active Executions",
+            "targets": [
+              {
+                "expr": "workflow_executions_active"
+              }
+            ],
+            "type": "gauge",
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+          },
+          {
+            "title": "Execution Success Rate",
+            "targets": [
+              {
+                "expr": "rate(workflow_executions_success[5m]) / rate(workflow_executions_started[5m])"
+              }
+            ],
+            "type": "graph",
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+          },
+          {
+            "title": "Execution Duration (ms)",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(workflow_execution_duration_bucket[5m]))"
+              }
+            ],
+            "type": "graph",
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }
+          },
+          {
+            "title": "Top Workflows (by execution count)",
+            "targets": [
+              {
+                "expr": "topk(5, sum by (workflow_id) (rate(workflow_executions_started[5m])))"
+              }
+            ],
+            "type": "table",
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }
+          },
+          {
+            "title": "Failures by Error Type",
+            "targets": [
+              {
+                "expr": "sum by (error_type) (rate(workflow_executions_failure[5m]))"
+              }
+            ],
+            "type": "piechart",
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 }
+          },
+          {
+            "title": "Step Execution Time",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.99, rate(workflow_step_duration_bucket[5m]))"
+              }
+            ],
+            "type": "graph",
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 }
+          }
+        ]
+      }
+    }
+
+---
+# Grafana ConfigMap (Datasource)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: loco
+data:
+  prometheus.yaml: |
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      url: http://prometheus:9090
+      isDefault: true
+      editable: true
+
+---
+# Grafana Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: loco
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:10.2.0
+        ports:
+        - containerPort: 3000
+          name: web
+        env:
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: "admin"
+        - name: GF_INSTALL_PLUGINS
+          value: "grafana-piechart-panel"
+        volumeMounts:
+        - name: datasources
+          mountPath: /etc/grafana/provisioning/datasources
+        - name: dashboards-config
+          mountPath: /etc/grafana/provisioning/dashboards
+        - name: dashboards
+          mountPath: /var/lib/grafana/dashboards
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: datasources
+        configMap:
+          name: grafana-datasources
+      - name: dashboards-config
+        configMap:
+          name: grafana-dashboard-config
+      - name: dashboards
+        configMap:
+          name: grafana-dashboards
+
+---
+# Grafana Dashboard Config
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-config
+  namespace: loco
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+    - name: 'Loco Dashboards'
+      orgId: 1
+      folder: ''
+      type: file
+      disableDeletion: false
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards
+
+---
+# Grafana Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: loco
+spec:
+  selector:
+    app: grafana
+  ports:
+  - name: web
+    port: 3000
+    targetPort: 3000
+  type: ClusterIP
+
+---
+# Alert Rules ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-alert-rules
+  namespace: loco
+data:
+  alert-rules.yml: |
+    groups:
+    - name: loco-alerts
+      interval: 30s
+      rules:
+      - alert: HighExecutionFailureRate
+        expr: |
+          (sum(rate(workflow_executions_failure[5m])) / sum(rate(workflow_executions_started[5m]))) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High workflow execution failure rate ({{ $value | humanizePercentage }})"
+
+      - alert: NoActiveExecutions
+        expr: workflow_executions_active == 0
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "No active workflow executions"
+
+      - alert: HighExecutionLatency
+        expr: |
+          histogram_quantile(0.95, rate(workflow_execution_duration_bucket[5m])) > 10000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High workflow execution latency ({{ $value }}ms)"
+
+      - alert: StepFailureRateHigh
+        expr: |
+          (sum(rate(workflow_steps_failure[5m])) / sum(rate(workflow_steps_executed[5m]))) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High step failure rate ({{ $value | humanizePercentage }})"

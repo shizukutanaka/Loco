@@ -680,31 +680,62 @@ public class GitHubIntegration : IIntegration
 
 /// <summary>
 /// Integration registry - manages all available integrations
+/// Uses FrozenDictionary for optimal read performance (Phase 2 optimization)
 /// </summary>
 public class IntegrationRegistry
 {
-    private readonly Dictionary<string, IIntegration> _integrations = new();
+    private readonly Dictionary<string, IIntegration> _mutableIntegrations = new();
+    private System.Collections.Frozen.FrozenDictionary<string, IIntegration>? _frozenIntegrations;
+    private bool _isFrozen = false;
 
     public void Register(string key, IIntegration integration)
     {
-        _integrations[key] = integration;
+        if (_isFrozen)
+            throw new InvalidOperationException("Cannot register integrations after registry is frozen");
+
+        _mutableIntegrations[key] = integration;
+    }
+
+    /// <summary>
+    /// Freezes the registry for optimal read performance
+    /// Must be called after all registrations are complete
+    /// </summary>
+    public void Freeze()
+    {
+        if (!_isFrozen)
+        {
+            _frozenIntegrations = _mutableIntegrations.ToFrozenDictionary();
+            _isFrozen = true;
+        }
     }
 
     public IIntegration? Get(string key)
     {
-        return _integrations.GetValueOrDefault(key);
+        // Optimized hot path: use frozen dictionary for thread-safe reads without locks
+        if (_isFrozen && _frozenIntegrations != null)
+            return _frozenIntegrations.GetValueOrDefault(key);
+
+        return _mutableIntegrations.GetValueOrDefault(key);
     }
 
     public IEnumerable<string> GetRegisteredIntegrations()
     {
-        return _integrations.Keys;
+        if (_isFrozen && _frozenIntegrations != null)
+            return _frozenIntegrations.Keys;
+
+        return _mutableIntegrations.Keys;
     }
 
     public async Task<Dictionary<string, bool>> TestAllConnectionsAsync(CancellationToken ct = default)
     {
         var results = new Dictionary<string, bool>();
 
-        foreach (var (key, integration) in _integrations)
+        // Use frozen dictionary if available for better performance
+        var integrations = _isFrozen && _frozenIntegrations != null
+            ? _frozenIntegrations
+            : _mutableIntegrations;
+
+        foreach (var (key, integration) in integrations)
         {
             results[key] = await integration.TestConnectionAsync(ct);
         }

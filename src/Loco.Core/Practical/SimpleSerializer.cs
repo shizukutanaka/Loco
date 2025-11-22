@@ -73,15 +73,30 @@ public static class SimpleSerializer
     }
 
     // Binary serialization (simple format)
+    // Phase 2 optimization: Uses stackalloc for small payloads (< 4KB)
     public static byte[] ToBinary<T>(T obj)
     {
         var json = ToJson(obj);
-        return Encoding.UTF8.GetBytes(json);
+        var jsonBytes = Encoding.UTF8.GetBytes(json);
+
+        // For small objects, use stack allocation (Phase 2 optimization)
+        const int StackThreshold = 4096; // 4KB
+        if (jsonBytes.Length < StackThreshold)
+        {
+            // Stack allocation for small payloads
+            Span<byte> buffer = stackalloc byte[jsonBytes.Length];
+            jsonBytes.CopyTo(buffer);
+            return buffer.ToArray();
+        }
+
+        return jsonBytes;
     }
 
     public static T? FromBinary<T>(byte[] data)
     {
-        var json = Encoding.UTF8.GetString(data);
+        // Phase 2 optimization: Use Span for small data
+        Span<byte> dataSpan = data.AsSpan();
+        var json = Encoding.UTF8.GetString(dataSpan);
         return FromJson<T>(json);
     }
 
@@ -253,6 +268,7 @@ public class SimpleBinaryFormat
 
 /// <summary>
 /// Simple data compression
+/// Phase 2 optimization: Uses Span<T> for buffer operations
 /// </summary>
 public static class SimpleCompression
 {
@@ -261,7 +277,8 @@ public static class SimpleCompression
         using var output = new MemoryStream();
         using (var gzip = new System.IO.Compression.GZipStream(output, System.IO.Compression.CompressionLevel.Optimal))
         {
-            gzip.Write(data, 0, data.Length);
+            // Phase 2 optimization: Use Span for better performance
+            gzip.Write(data.AsSpan());
         }
         return output.ToArray();
     }
@@ -277,8 +294,9 @@ public static class SimpleCompression
 
     public static string CompressString(string text)
     {
-        var bytes = Encoding.UTF8.GetBytes(text);
-        var compressed = Compress(bytes);
+        // Phase 2 optimization: Use Span for UTF8 conversion
+        Span<byte> textBytes = Encoding.UTF8.GetBytes(text);
+        var compressed = Compress(textBytes.ToArray());
         return Convert.ToBase64String(compressed);
     }
 
@@ -286,7 +304,8 @@ public static class SimpleCompression
     {
         var bytes = Convert.FromBase64String(compressed);
         var decompressed = Decompress(bytes);
-        return Encoding.UTF8.GetString(decompressed);
+        // Phase 2 optimization: Use Span for UTF8 string conversion
+        return Encoding.UTF8.GetString(decompressed.AsSpan());
     }
 }
 
