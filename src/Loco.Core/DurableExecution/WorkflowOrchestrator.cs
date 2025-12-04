@@ -269,23 +269,13 @@ internal class WorkflowContext : IWorkflowContext
                     attempt,
                     retryPolicy.MaxAttempts);
 
-                // TODO: 実際のアクティビティ実行ロジック (IActivityExecutorなどを注入して実行)
-                // ここではシミュレーションとして、入力に応じたダミー値を返す
-                TResult result = default!;
-                
-                // シミュレーションロジック
-                if (typeof(TResult) == typeof(bool))
+                var activity = StaticActivityRegistry.GetActivity(activityName);
+                if (activity == null)
                 {
-                    result = (TResult)(object)true;
+                    throw new InvalidOperationException($"Activity not found: {activityName}");
                 }
-                else if (typeof(TResult) == typeof(string))
-                {
-                    result = (TResult)(object)$"Result_{Guid.NewGuid()}";
-                }
-                else if (typeof(TResult) == typeof(PaymentResult))
-                {
-                    result = (TResult)(object)new PaymentResult { Success = true, TransactionId = Guid.NewGuid().ToString() };
-                }
+
+                var result = (TResult)(await activity.ExecuteAsync(input, cancellationToken))!;
 
                 // アクティビティ完了イベント記録
                 await _eventStore.AppendEventAsync(

@@ -1,0 +1,18 @@
+  復元対象のプロジェクトを決定しています...
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Loco.Core.csproj : warning NU1603: Loco.Core は OpenTelemetry.Instrumentation.AspNetCore (>= 1.11.0-beta.2) に依存していますが、OpenTelemetry.Instrumentation.AspNetCore 1.11.0-beta.2 が見つかりませんでした。OpenTelemetry.Instrumentation.AspNetCore 1.11.0 の概算の最適な一致が解決されました。
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Loco.Core.csproj : warning NU1603: Loco.Core は OpenTelemetry.Instrumentation.Http (>= 1.11.0-beta.2) に依存していますが、OpenTelemetry.Instrumentation.Http 1.11.0-beta.2 が見つかりませんでした。OpenTelemetry.Instrumentation.Http 1.11.0 の概算の最適な一致が解決されました。
+  復元対象のすべてのプロジェクトは最新です。
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Loco.Core.csproj : warning NU1603: Loco.Core は OpenTelemetry.Instrumentation.AspNetCore (>= 1.11.0-beta.2) に依存していますが、OpenTelemetry.Instrumentation.AspNetCore 1.11.0-beta.2 が見つかりませんでした。OpenTelemetry.Instrumentation.AspNetCore 1.11.0 の概算の最適な一致が解決されました。
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Loco.Core.csproj : warning NU1603: Loco.Core は OpenTelemetry.Instrumentation.Http (>= 1.11.0-beta.2) に依存していますが、OpenTelemetry.Instrumentation.Http 1.11.0-beta.2 が見つかりませんでした。OpenTelemetry.Instrumentation.Http 1.11.0 の概算の最適な一致が解決されました。
+  Loco.Core -> C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\bin\Debug\net8.0\Loco.Core.dll
+
+ビルドに成功しました。
+
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Loco.Core.csproj : warning NU1603: Loco.Core は OpenTelemetry.Instrumentation.AspNetCore (>= 1.11.0-beta.2) に依存していますが、OpenTelemetry.Instrumentation.AspNetCore 1.11.0-beta.2 が見つかりませんでした。OpenTelemetry.Instrumentation.AspNetCore 1.11.0 の概算の最適な一致が解決されました。
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Loco.Core.csproj : warning NU1603: Loco.Core は OpenTelemetry.Instrumentation.Http (>= 1.11.0-beta.2) に依存していますが、OpenTelemetry.Instrumentation.Http 1.11.0-beta.2 が見つかりませんでした。OpenTelemetry.Instrumentation.Http 1.11.0 の概算の最適な一致が解決されました。
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Loco.Core.csproj : warning NU1603: Loco.Core は OpenTelemetry.Instrumentation.AspNetCore (>= 1.11.0-beta.2) に依存していますが、OpenTelemetry.Instrumentation.AspNetCore 1.11.0-beta.2 が見つかりませんでした。OpenTelemetry.Instrumentation.AspNetCore 1.11.0 の概算の最適な一致が解決されました。
+C:\Users\irosa\Desktop\Claude\Loco\src\Loco.Core\Loco.Core.csproj : warning NU1603: Loco.Core は OpenTelemetry.Instrumentation.Http (>= 1.11.0-beta.2) に依存していますが、OpenTelemetry.Instrumentation.Http 1.11.0-beta.2 が見つかりませんでした。OpenTelemetry.Instrumentation.Http 1.11.0 の概算の最適な一致が解決されました。
+    4 個の警告
+    0 エラー
+
+経過時間 00:00:03.94
