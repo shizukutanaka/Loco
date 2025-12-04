@@ -58,7 +58,7 @@ public class WorkflowSchedule
 /// <summary>
 /// Scheduled execution record
 /// </summary>
-public class ScheduledExecution
+public class WorkflowScheduledExecution
 {
     public string ExecutionId { get; set; } = Guid.NewGuid().ToString();
     public string ScheduleId { get; set; } = string.Empty;

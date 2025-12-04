@@ -2,6 +2,7 @@
 // Rob Pike: "Make the zero value useful"
 
 using System.Collections.Concurrent;
+using System.Text;
 
 namespace Loco.Core.Practical;
 

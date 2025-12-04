@@ -294,7 +294,7 @@ namespace Loco.Core.Optimization
                     "Cache database query results for 10 minutes",
                     "Cache transformation results for 30 minutes"
                 },
-                EstimatedSpeedup = _random.Next(1.5m, 4.0m),
+                EstimatedSpeedup = (decimal)((double)_random.Next(15, 40) / 10.0),
                 EstimatedCostReduction = _random.Next(10, 50) // %
             };
 

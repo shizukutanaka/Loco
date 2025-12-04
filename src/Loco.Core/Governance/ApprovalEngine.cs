@@ -563,7 +563,7 @@ public class ApprovalEngine : IApprovalEngine
 
         var avgApprovalTime = requests
             .Where(r => r.ApprovedAt.HasValue)
-            .Select(r => (r.ApprovedAt.Value - r.SubmittedAt ?? r.CreatedAt).TotalHours)
+            .Select(r => (r.ApprovedAt.Value - (r.SubmittedAt ?? r.CreatedAt)).TotalHours)
             .Average();
 
         return new Dictionary<string, object>

@@ -354,7 +354,7 @@ public class CachedStorage : IStorage
     public CachedStorage(IStorage underlying, int maxCacheSize = 100)
     {
         _underlying = underlying;
-        _cache = new SimpleCache<byte[]>(maxCacheSize);
+        _cache = new SimpleCache<byte[]>(TimeSpan.FromMinutes(maxCacheSize));
     }
 
     public async Task<bool> SaveAsync(string key, byte[] data)

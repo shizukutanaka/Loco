@@ -333,7 +333,7 @@ public class RateLimitHelper
         var key = RedisCacheManager.CacheKeys.RateLimit(userId);
 
         var current = await _cache.GetAsync<int>(key, ct);
-        var newCount = (current ?? 0) + 1;
+        var newCount = current + 1;
 
         // Store updated count
         await _cache.SetAsync(key, newCount, window, ct);
@@ -352,8 +352,8 @@ public class RateLimitHelper
             IsAllowed = isAllowed,
             CurrentCount = newCount,
             MaxRequests = maxRequests,
-            WindowSize = window,
-            ResetTime = DateTime.UtcNow.Add(window.Value),
+            WindowSize = window.Value,
+            ResetTime = DateTime.UtcNow.Add(window ?? TimeSpan.FromMinutes(1)),
         };
     }
 

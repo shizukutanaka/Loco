@@ -51,7 +51,7 @@ public interface IEBPFObservabilityEngine
 
     // Security Observability
     Task<List<SecurityEvent>> GetSecurityEventsAsync(SecurityEventQuery query, CancellationToken cancellation = default);
-    Task<NetworkPolicy> SuggestNetworkPolicyAsync(string namespace_, CancellationToken cancellation = default);
+    Task<EBPFNetworkPolicy> SuggestNetworkPolicyAsync(string namespace_, CancellationToken cancellation = default);
     Task<List<AnomalousConnection>> DetectAnomalousConnectionsAsync(string namespace_, CancellationToken cancellation = default);
 }
 
@@ -466,7 +466,7 @@ public class SecurityEvent
 {
     public string Id { get; set; } = string.Empty;
     public SecurityEventType Type { get; set; }
-    public SecuritySeverity Severity { get; set; }
+    public EBPFSecuritySeverity Severity { get; set; }
     public DateTime Timestamp { get; set; }
     public string ProcessName { get; set; } = string.Empty;
     public string PodName { get; set; } = string.Empty;
@@ -486,7 +486,7 @@ public enum SecurityEventType
     PolicyViolation
 }
 
-public enum SecuritySeverity
+public enum EBPFSecuritySeverity
 {
     Info,
     Low,
@@ -500,24 +500,24 @@ public class SecurityEventQuery
     public string? Namespace { get; set; }
     public string? PodName { get; set; }
     public SecurityEventType? Type { get; set; }
-    public SecuritySeverity? MinSeverity { get; set; }
+    public EBPFSecuritySeverity? MinSeverity { get; set; }
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
     public int Limit { get; set; } = 100;
 }
 
-public class NetworkPolicy
+public class EBPFNetworkPolicy
 {
     public string Name { get; set; } = string.Empty;
     public string Namespace { get; set; } = string.Empty;
     public string YamlSpec { get; set; } = string.Empty;
-    public List<PolicyRule> IngressRules { get; set; } = new();
-    public List<PolicyRule> EgressRules { get; set; } = new();
+    public List<EBPFPolicyRule> IngressRules { get; set; } = new();
+    public List<EBPFPolicyRule> EgressRules { get; set; } = new();
     public double ConfidenceScore { get; set; }
     public string Rationale { get; set; } = string.Empty;
 }
 
-public class PolicyRule
+public class EBPFPolicyRule
 {
     public string Description { get; set; } = string.Empty;
     public List<string> FromPods { get; set; } = new();
@@ -1221,7 +1221,7 @@ public class EBPFObservabilityEngine : IEBPFObservabilityEngine
             {
                 Id = Guid.NewGuid().ToString(),
                 Type = SecurityEventType.ProcessExecution,
-                Severity = SecuritySeverity.Medium,
+                Severity = EBPFSecuritySeverity.Medium,
                 Timestamp = DateTime.UtcNow.AddMinutes(-30),
                 ProcessName = "curl",
                 PodName = "api-gateway-7d9f8b6c5d-abc12",
@@ -1238,7 +1238,7 @@ public class EBPFObservabilityEngine : IEBPFObservabilityEngine
             {
                 Id = Guid.NewGuid().ToString(),
                 Type = SecurityEventType.NetworkConnection,
-                Severity = SecuritySeverity.High,
+                Severity = EBPFSecuritySeverity.High,
                 Timestamp = DateTime.UtcNow.AddMinutes(-15),
                 ProcessName = "api-gateway",
                 PodName = "api-gateway-7d9f8b6c5d-abc12",
@@ -1261,20 +1261,20 @@ public class EBPFObservabilityEngine : IEBPFObservabilityEngine
         return Task.FromResult(events);
     }
 
-    public Task<NetworkPolicy> SuggestNetworkPolicyAsync(
+    public Task<EBPFNetworkPolicy> SuggestNetworkPolicyAsync(
         string namespace_,
         CancellationToken cancellation = default)
     {
         // Analyze observed network flows and suggest least-privilege policy
-        var policy = new NetworkPolicy
+        var policy = new EBPFNetworkPolicy
         {
             Name = $"{namespace_}-suggested-policy",
             Namespace = namespace_,
             ConfidenceScore = 0.92,
             Rationale = "Based on 7 days of observed network traffic patterns",
-            IngressRules = new List<PolicyRule>
+            IngressRules = new List<EBPFPolicyRule>
             {
-                new PolicyRule
+                new EBPFPolicyRule
                 {
                     Description = "Allow traffic from api-gateway",
                     FromPods = new List<string> { "app=api-gateway" },
@@ -1282,7 +1282,7 @@ public class EBPFObservabilityEngine : IEBPFObservabilityEngine
                     Protocol = NetworkProtocol.TCP,
                     ObservedConnections = 125000
                 },
-                new PolicyRule
+                new EBPFPolicyRule
                 {
                     Description = "Allow traffic from monitoring",
                     FromPods = new List<string> { "app=prometheus" },
@@ -1291,9 +1291,9 @@ public class EBPFObservabilityEngine : IEBPFObservabilityEngine
                     ObservedConnections = 50000
                 }
             },
-            EgressRules = new List<PolicyRule>
+            EgressRules = new List<EBPFPolicyRule>
             {
-                new PolicyRule
+                new EBPFPolicyRule
                 {
                     Description = "Allow traffic to PostgreSQL",
                     ToPods = new List<string> { "app=postgres" },
@@ -1301,7 +1301,7 @@ public class EBPFObservabilityEngine : IEBPFObservabilityEngine
                     Protocol = NetworkProtocol.TCP,
                     ObservedConnections = 80000
                 },
-                new PolicyRule
+                new EBPFPolicyRule
                 {
                     Description = "Allow traffic to Redis",
                     ToPods = new List<string> { "app=redis" },

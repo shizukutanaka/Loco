@@ -134,7 +134,7 @@ public interface IAnomalyDetectionAutoHealing
 
     Task<List<DetectedAnomaly>> GetAnomaliesAsync(
         string workflowId,
-        bool unresolved Only = false,
+        bool unresolvedOnly = false,
         DateTime? from = null,
         DateTime? to = null,
         CancellationToken ct = default);

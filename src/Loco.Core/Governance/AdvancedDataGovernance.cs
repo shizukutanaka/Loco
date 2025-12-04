@@ -176,7 +176,7 @@ namespace Loco.Core.Governance
                     }
                 },
                 Completeness = _random.Next(85, 100),
-                Accuracy = _random.Next(90, 99.9m),
+                Accuracy = (decimal)(double)_random.Next(90, 99),
                 Freshness = "real-time",
                 GovernanceStatus = "compliant",
                 ImpactedAssets = _random.Next(1, 50),
@@ -245,7 +245,7 @@ namespace Loco.Core.Governance
                     DetectionId = $"pii-{i}",
                     PIIType = piiTypes[_random.Next(piiTypes.Length)],
                     ColumnNames = new List<string> { $"column_{i}" },
-                    ConfidenceScore = _random.Next(75, 99.9m),
+                    ConfidenceScore = (decimal)(double)_random.Next(75, 99),
                     RowsAffected = _random.Next(10, 100000),
                     RiskLevel = "high",
                     RecommendedAction = "mask",

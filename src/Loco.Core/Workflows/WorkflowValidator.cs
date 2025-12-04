@@ -8,18 +8,18 @@ namespace Loco.Core.Workflows
     /// <summary>
     /// Validates workflow definitions for correctness and best practices.
     /// </summary>
-    public class WorkflowValidator
+    public class MainWorkflowValidator
     {
         private readonly ILogger? _logger;
 
-        public WorkflowValidator(ILogger? logger = null)
+        public MainWorkflowValidator(ILogger? logger = null)
         {
             _logger = logger;
         }
 
-        public WorkflowValidationResult Validate(WorkflowDefinition workflow)
+        public MainWorkflowValidationResult Validate(WorkflowDefinition workflow)
         {
-            var result = new WorkflowValidationResult();
+            var result = new MainWorkflowValidationResult();
 
             if (workflow == null)
             {
@@ -64,7 +64,7 @@ namespace Loco.Core.Workflows
             return result;
         }
 
-        private void ValidateSteps(List<WorkflowStep> steps, WorkflowValidationResult result)
+        private void ValidateSteps(List<WorkflowStep> steps, MainWorkflowValidationResult result)
         {
             for (int i = 0; i < steps.Count; i++)
             {
@@ -95,7 +95,7 @@ namespace Loco.Core.Workflows
             }
         }
 
-        private void ValidateStepType(WorkflowStep step, WorkflowValidationResult result, string context)
+        private void ValidateStepType(WorkflowStep step, MainWorkflowValidationResult result, string context)
         {
             var validTypes = new[] { "log", "delay", "file", "process", "command", "http", "api" };
             
@@ -222,7 +222,7 @@ namespace Loco.Core.Workflows
     /// <summary>
     /// Result of workflow validation containing errors and warnings.
     /// </summary>
-    public class WorkflowValidationResult
+    public class MainWorkflowValidationResult
     {
         public List<string> Errors { get; } = new List<string>();
         public List<string> Warnings { get; } = new List<string>();

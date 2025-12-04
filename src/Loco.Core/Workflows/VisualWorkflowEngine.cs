@@ -511,9 +511,9 @@ public class VisualWorkflowBuilder
 /// </summary>
 public class WorkflowValidator
 {
-    public WorkflowValidationResult Validate(VisualWorkflow workflow)
+    public VisualWorkflowValidationResult Validate(VisualWorkflow workflow)
     {
-        var result = new WorkflowValidationResult();
+        var result = new VisualWorkflowValidationResult();
 
         // Check basic requirements
         if (string.IsNullOrEmpty(workflow.Name))
@@ -604,7 +604,7 @@ public class WorkflowValidator
     }
 }
 
-public class WorkflowValidationResult
+public class VisualWorkflowValidationResult
 {
     public List<string> Errors { get; set; } = new();
     public List<string> Warnings { get; set; } = new();

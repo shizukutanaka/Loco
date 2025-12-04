@@ -315,9 +315,9 @@ public class QueryBuilder
 }
 
 /// <summary>
-/// In-memory database (for testing)
+/// Simple in-memory database (for testing)
 /// </summary>
-public class InMemoryDatabase
+public class SimpleInMemoryDatabase
 {
     private readonly ConcurrentDictionary<string, List<Dictionary<string, object?>>> _tables = new();
 
@@ -373,9 +373,9 @@ public class InMemoryDatabase
 }
 
 /// <summary>
-/// Example models
+/// Example database user model
 /// </summary>
-public class User
+public class DatabaseUser
 {
     public int Id { get; set; }
     public string Name { get; set; } = "";
@@ -438,7 +438,7 @@ public class DatabaseExamples
         // var results = await db.QueryAsync<User>(sql, parameters);
 
         // In-memory database
-        var memDb = new InMemoryDatabase();
+        var memDb = new SimpleInMemoryDatabase();
         memDb.CreateTable("users");
         memDb.Insert("users", new Dictionary<string, object?> { ["id"] = 1, ["name"] = "John" });
         var rows = memDb.Select("users");

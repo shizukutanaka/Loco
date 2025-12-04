@@ -114,9 +114,9 @@ public class SimpleTest
         }
     }
 
-    private class TestResult
+    public class TestResult
     {
-        public string Name { get; set; } = "";
+        public string Name { get; set; } = string.Empty;
         public bool Passed { get; set; }
         public string? Error { get; set; }
         public TimeSpan Duration { get; set; }

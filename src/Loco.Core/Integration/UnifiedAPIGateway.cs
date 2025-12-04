@@ -273,7 +273,7 @@ namespace Loco.Core.Integration
                     .GroupBy(r => r.Path)
                     .OrderByDescending(g => g.Count())
                     .Take(5)
-                    .Select(g => new { Path = g.Key, Errors = g.Count() })
+                    .Select(g => (object)new { Path = g.Key, Errors = g.Count() })
                     .ToList()
             };
 

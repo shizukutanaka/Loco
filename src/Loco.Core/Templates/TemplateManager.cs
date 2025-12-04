@@ -52,7 +52,7 @@ public class TemplateManager
     /// Search for templates by keyword
     /// キーワードでテンプレートを検索
     /// </summary>
-    public async Task<WorkflowTemplate[]> SearchTemplatesAsync(
+    public async Task<TemplateManagerWorkflowTemplate[]> SearchTemplatesAsync(
         string query,
         CancellationToken cancellationToken = default)
     {
@@ -78,7 +78,7 @@ public class TemplateManager
     /// Install a template by ID
     /// IDでテンプレートをインストール
     /// </summary>
-    public async Task<WorkflowTemplate> InstallTemplateAsync(
+    public async Task<TemplateManagerWorkflowTemplate> InstallTemplateAsync(
         string templateId,
         CancellationToken cancellationToken = default)
     {
@@ -127,13 +127,13 @@ public class TemplateManager
     /// List installed templates
     /// インストール済みテンプレートを一覧表示
     /// </summary>
-    public async Task<WorkflowTemplate[]> ListInstalledTemplatesAsync(CancellationToken cancellationToken = default)
+    public async Task<TemplateManagerWorkflowTemplate[]> ListInstalledTemplatesAsync(CancellationToken cancellationToken = default)
     {
-        var templates = new List<WorkflowTemplate>();
+        var templates = new List<TemplateManagerWorkflowTemplate>();
 
         if (!Directory.Exists(_templatesDirectory))
         {
-            return Array.Empty<WorkflowTemplate>();
+            return Array.Empty<TemplateManagerWorkflowTemplate>();
         }
 
         var files = Directory.GetFiles(_templatesDirectory, "*.json")
@@ -144,7 +144,7 @@ public class TemplateManager
             try
             {
                 var json = await File.ReadAllTextAsync(file, cancellationToken);
-                var template = JsonSerializer.Deserialize<WorkflowTemplate>(json, _jsonOptions);
+                var template = JsonSerializer.Deserialize<TemplateManagerWorkflowTemplate>(json, _jsonOptions);
 
                 if (template != null)
                 {
@@ -164,12 +164,12 @@ public class TemplateManager
     /// Publish a new template to the local registry
     /// 新しいテンプレートをローカルレジストリに公開
     /// </summary>
-    public async Task<WorkflowTemplate> PublishTemplateAsync(
+    public async Task<TemplateManagerWorkflowTemplate> PublishTemplateAsync(
         WorkflowDefinition workflow,
         TemplateMetadata metadata,
         CancellationToken cancellationToken = default)
     {
-        var template = new WorkflowTemplate
+        var template = new TemplateManagerWorkflowTemplate
         {
             Id = metadata.Id ?? Guid.NewGuid().ToString("N"),
             Name = metadata.Name,
@@ -223,29 +223,27 @@ public class TemplateManager
     /// Get template by ID
     /// IDでテンプレートを取得
     /// </summary>
-    public async Task<WorkflowTemplate?> GetTemplateAsync(
-        string templateId,
-        CancellationToken cancellationToken = default)
+    public async Task<TemplateManagerWorkflowTemplate?> GetTemplateAsync(string templateId, CancellationToken cancellationToken = default)
     {
         var templatePath = Path.Combine(_templatesDirectory, $"{templateId}.json");
 
-        if (!File.Exists(templatePath))
+        if (File.Exists(templatePath))
         {
-            // Try to find in registry
-            var registry = await LoadRegistryAsync(cancellationToken);
-            return registry.Templates.FirstOrDefault(t => t.Id == templateId);
+            try
+            {
+                var json = await File.ReadAllTextAsync(templatePath, cancellationToken);
+                return JsonSerializer.Deserialize<TemplateManagerWorkflowTemplate>(json, _jsonOptions);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to load template {TemplateId}", templateId);
+                return null;
+            }
         }
 
-        try
-        {
-            var json = await File.ReadAllTextAsync(templatePath, cancellationToken);
-            return JsonSerializer.Deserialize<WorkflowTemplate>(json, _jsonOptions);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to load template {TemplateId}", templateId);
-            return null;
-        }
+        // Try to find in registry
+        var registry = await LoadRegistryAsync(cancellationToken);
+        return registry.Templates.FirstOrDefault(t => t.Id == templateId);
     }
 
     /// <summary>
@@ -337,11 +335,11 @@ public class TemplateManager
         return new TemplateRegistry
         {
             Version = "1.0",
-            Templates = new List<WorkflowTemplate>()
+            Templates = new List<TemplateManagerWorkflowTemplate>()
         };
     }
 
-    private async Task UpdateLocalRegistryAsync(WorkflowTemplate template, CancellationToken cancellationToken)
+    private async Task UpdateLocalRegistryAsync(TemplateManagerWorkflowTemplate template, CancellationToken cancellationToken)
     {
         var registry = await LoadLocalRegistryAsync(cancellationToken);
 
@@ -371,7 +369,7 @@ public class TemplateManager
         await File.WriteAllTextAsync(localRegistryFile, json, cancellationToken);
     }
 
-    private double CalculateRelevanceScore(WorkflowTemplate template, string query)
+    private double CalculateRelevanceScore(TemplateManagerWorkflowTemplate template, string query)
     {
         double score = 0;
 
@@ -428,7 +426,7 @@ public class TemplateManager
 public class TemplateRegistry
 {
     public string Version { get; set; } = "1.0";
-    public List<WorkflowTemplate> Templates { get; set; } = new();
+    public List<TemplateManagerWorkflowTemplate> Templates { get; set; } = new();
     public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
 }
 
@@ -436,8 +434,9 @@ public class TemplateRegistry
 /// Workflow template with metadata
 /// メタデータ付きワークフローテンプレート
 /// </summary>
-public class WorkflowTemplate
+public class TemplateManagerWorkflowTemplate
 {
+    public string TenantId { get; set; } = string.Empty;
     public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
@@ -451,6 +450,10 @@ public class WorkflowTemplate
     public DateTime UpdatedAt { get; set; }
     public DateTime? InstalledAt { get; set; }
     public JsonElement? WorkflowDefinition { get; set; }
+    public string Status { get; set; } = "draft";
+    public double Rating { get; set; } = 0.0;
+    public int UsageCount { get; set; } = 0;
+    public DateTimeOffset? PublishedAt { get; set; }
 }
 
 /// <summary>

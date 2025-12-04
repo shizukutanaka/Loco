@@ -1,5 +1,6 @@
 using Hangfire;
 using Microsoft.Extensions.Logging;
+using Loco.Core.Workflows;
 
 namespace Loco.Core.Scheduling;
 
@@ -154,10 +155,10 @@ public class HangfireJobScheduler : IJobScheduler
 /// </summary>
 public class WorkflowJobExecutor
 {
-    private readonly IAutomationEngine _engine;
+    private readonly VisualWorkflowEngine _engine;
     private readonly ILogger<WorkflowJobExecutor> _logger;
 
-    public WorkflowJobExecutor(IAutomationEngine engine, ILogger<WorkflowJobExecutor> logger)
+    public WorkflowJobExecutor(VisualWorkflowEngine engine, ILogger<WorkflowJobExecutor> logger)
     {
         _engine = engine;
         _logger = logger;
@@ -176,11 +177,12 @@ public class WorkflowJobExecutor
             _logger.LogInformation("Starting workflow execution. WorkflowId: {WorkflowId}", workflowId);
 
             // Execute workflow through automation engine
-            var result = await _engine.ExecuteAsync(workflowId, parameters, cancellationToken);
+            var workflow = new VisualWorkflow { Id = workflowId, Name = workflowId };
+            var result = await _engine.ExecuteAsync(workflow, parameters, cancellationToken);
 
             _logger.LogInformation(
                 "Workflow execution completed. WorkflowId: {WorkflowId}, Success: {Success}",
-                workflowId, result.Success);
+                workflowId, result.Status == WorkflowExecutionStatus.Success);
         }
         catch (Exception ex)
         {

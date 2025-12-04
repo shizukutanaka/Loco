@@ -9,16 +9,16 @@ namespace Loco.Core.Templates
 {
     public interface IWorkflowTemplateLibrary
     {
-        Task<WorkflowTemplate> CreateTemplateAsync(string tenantId, string name, CancellationToken ct = default);
-        Task<WorkflowTemplate> GetTemplateAsync(string tenantId, string templateId, CancellationToken ct = default);
-        Task<List<WorkflowTemplate>> SearchTemplatesAsync(string tenantId, string category = null, int limit = 50, CancellationToken ct = default);
+        Task<TemplateManagerWorkflowTemplate> CreateTemplateAsync(string tenantId, string name, CancellationToken ct = default);
+        Task<TemplateManagerWorkflowTemplate> GetTemplateAsync(string tenantId, string templateId, CancellationToken ct = default);
+        Task<List<LibraryWorkflowTemplate>> SearchTemplatesAsync(string tenantId, string category = null, int limit = 50, CancellationToken ct = default);
         Task<bool> PublishTemplateAsync(string tenantId, string templateId, CancellationToken ct = default);
         Task<TemplateLibraryMetrics> GetMetricsAsync(string tenantId, CancellationToken ct = default);
     }
 
     public class WorkflowTemplateLibrary : IWorkflowTemplateLibrary
     {
-        private readonly Dictionary<string, WorkflowTemplate> _templates = new();
+        private readonly Dictionary<string, TemplateManagerWorkflowTemplate> _templates = new();
         private readonly ILogger<WorkflowTemplateLibrary> _logger;
         private readonly Random _random = new(42);
 
@@ -27,7 +27,7 @@ namespace Loco.Core.Templates
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task<WorkflowTemplate> CreateTemplateAsync(string tenantId, string name, CancellationToken ct = default)
+        public async Task<TemplateManagerWorkflowTemplate> CreateTemplateAsync(string tenantId, string name, CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(tenantId))
                 throw new ArgumentException("Tenant ID required");
@@ -35,23 +35,23 @@ namespace Loco.Core.Templates
             _logger.LogInformation("Creating template {Name}", name);
             await Task.Delay(20, ct);
 
-            var template = new WorkflowTemplate
+            var template = new TemplateManagerWorkflowTemplate
             {
-                TemplateId = Guid.NewGuid().ToString("N"),
+                Id = Guid.NewGuid().ToString("N"),
                 TenantId = tenantId,
                 Name = name,
-                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedAt = DateTime.UtcNow,
                 Status = "draft",
                 UsageCount = 0,
                 Rating = 0.0
             };
 
-            var key = $"{tenantId}:{template.TemplateId}";
+            var key = $"{tenantId}:{template.Id}";
             _templates[key] = template;
             return template;
         }
 
-        public async Task<WorkflowTemplate> GetTemplateAsync(string tenantId, string templateId, CancellationToken ct = default)
+        public async Task<TemplateManagerWorkflowTemplate> GetTemplateAsync(string tenantId, string templateId, CancellationToken ct = default)
         {
             _logger.LogInformation("Getting template {TemplateId}", templateId);
             await Task.Delay(10, ct);
@@ -60,14 +60,24 @@ namespace Loco.Core.Templates
             return !_templates.ContainsKey(key) ? throw new InvalidOperationException("Not found") : _templates[key];
         }
 
-        public async Task<List<WorkflowTemplate>> SearchTemplatesAsync(string tenantId, string category = null, int limit = 50, CancellationToken ct = default)
+        public async Task<List<LibraryWorkflowTemplate>> SearchTemplatesAsync(string tenantId, string category = null, int limit = 50, CancellationToken ct = default)
         {
             _logger.LogInformation("Searching templates");
             await Task.Delay(20, ct);
 
             return _templates
                 .Where(kvp => kvp.Key.StartsWith($"{tenantId}:"))
-                .Select(kvp => kvp.Value)
+                .Select(kvp => new LibraryWorkflowTemplate
+                {
+                    TemplateId = kvp.Value.Id,
+                    TenantId = kvp.Value.TenantId,
+                    Name = kvp.Value.Name,
+                    CreatedAt = kvp.Value.CreatedAt,
+                    PublishedAt = kvp.Value.PublishedAt,
+                    Status = kvp.Value.Status,
+                    UsageCount = kvp.Value.UsageCount,
+                    Rating = kvp.Value.Rating
+                })
                 .OrderByDescending(t => t.UsageCount)
                 .Take(limit)
                 .ToList();
@@ -104,7 +114,7 @@ namespace Loco.Core.Templates
         }
     }
 
-    public class WorkflowTemplate
+    public class LibraryWorkflowTemplate
     {
         public string TemplateId { get; set; }
         public string TenantId { get; set; }

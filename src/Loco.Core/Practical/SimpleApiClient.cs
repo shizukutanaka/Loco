@@ -259,19 +259,50 @@ public class SimpleApiClient
 }
 
 /// <summary>
+/// Simple retry policy for API calls
+/// </summary>
+public class SimpleRetryPolicy
+{
+    private readonly int _maxRetries;
+    private readonly int _initialDelayMs;
+
+    public SimpleRetryPolicy(int maxRetries = 3, int initialDelayMs = 100)
+    {
+        _maxRetries = maxRetries;
+        _initialDelayMs = initialDelayMs;
+    }
+
+    public async Task<T?> ExecuteAsync<T>(Func<Task<T>> operation)
+    {
+        for (int attempt = 0; attempt <= _maxRetries; attempt++)
+        {
+            try
+            {
+                return await operation();
+            }
+            catch (Exception ex) when (attempt < _maxRetries)
+            {
+                await Task.Delay(_initialDelayMs * (attempt + 1));
+            }
+        }
+        throw new InvalidOperationException("Max retries exceeded");
+    }
+}
+
+/// <summary>
 /// API client with retry support
 /// </summary>
 public class ResilientApiClient
 {
     private readonly SimpleApiClient _client;
-    private readonly SimpleRetry _retry;
+    private readonly SimpleRetryPolicy _retry;
     private readonly SimpleLogger _logger;
 
     public ResilientApiClient(string baseUrl, int maxRetries = 3, SimpleLogger? logger = null)
     {
         _logger = logger ?? SimpleLoggerFactory.GetLogger(nameof(ResilientApiClient));
         _client = new SimpleApiClient(baseUrl, _logger);
-        _retry = new SimpleRetry(maxRetries, initialDelayMs: 100);
+        _retry = new SimpleRetryPolicy(maxRetries, initialDelayMs: 100);
     }
 
     public void AddHeader(string name, string value) => _client.AddHeader(name, value);

@@ -3,7 +3,6 @@
 // Uncle Bob: "The Dependency Inversion Principle"
 
 using System.Collections.Concurrent;
-using System.Runtime.Caching;
 
 namespace Loco.Core.Practical;
 

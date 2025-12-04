@@ -184,7 +184,7 @@ public class TemplateWithHelpers : SimpleTemplate
         // Apply helpers: {{helper value}}
         foreach (var helper in _helpers)
         {
-            var pattern = $@"\{\{{{helper.Key}\s+(\w+)\}\}}";
+            var pattern = $"\\{{\\{{{helper.Key}\\s+(\\w+)\\}}\\}}";
             result = Regex.Replace(result, pattern, match =>
             {
                 var key = match.Groups[1].Value;
@@ -208,7 +208,7 @@ public class TemplateCache
     public TemplateCache(string basePath, int maxSize = 100)
     {
         _basePath = basePath;
-        _cache = new SimpleCache<SimpleTemplate>(maxSize);
+        _cache = new SimpleCache<SimpleTemplate>(TimeSpan.FromMinutes(maxSize));
     }
 
     public async Task<SimpleTemplate> GetAsync(string name)

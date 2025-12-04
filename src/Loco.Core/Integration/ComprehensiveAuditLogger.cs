@@ -211,11 +211,11 @@ namespace Loco.Core.Integration
                 UniqueUsers = filteredEntries.Select(e => e.UserId).Distinct().Count(),
                 OperationsByType = filteredEntries
                     .GroupBy(e => e.OperationType)
-                    .Select(g => new { Type = g.Key, Count = g.Count() })
+                    .Select(g => (object)new { Type = g.Key, Count = g.Count() })
                     .ToList(),
                 ResourceTypeDistribution = filteredEntries
                     .GroupBy(e => e.ResourceType)
-                    .Select(g => new { Type = g.Key, Count = g.Count() })
+                    .Select(g => (object)new { Type = g.Key, Count = g.Count() })
                     .ToList(),
                 FailedOperations = filteredEntries.Count(e => e.Status != "success"),
                 HighRiskOperations = filteredEntries.Count(e => e.ComplianceLevel == "high-risk"),
@@ -320,12 +320,12 @@ namespace Loco.Core.Integration
                     .GroupBy(e => e.UserId)
                     .OrderByDescending(g => g.Count())
                     .Take(5)
-                    .Select(g => new { UserId = g.Key, Operations = g.Count() })
+                    .Select(g => (object)new { UserId = g.Key, Operations = g.Count() })
                     .ToList(),
                 OperationFrequency = entries
                     .GroupBy(e => e.OperationType)
                     .OrderByDescending(g => g.Count())
-                    .Select(g => new { Type = g.Key, Count = g.Count() })
+                    .Select(g => (object)new { Type = g.Key, Count = g.Count() })
                     .ToList(),
                 FailureRate = entries.Count > 0 ? (entries.Count(e => e.Status != "success") / (double)entries.Count) * 100 : 0,
                 AverageEntriesPerDay = entries.Count / 30.0,
@@ -334,7 +334,7 @@ namespace Loco.Core.Integration
                     .GroupBy(e => e.ResourceType)
                     .OrderByDescending(g => g.Count())
                     .Take(5)
-                    .Select(g => new { Type = g.Key, HighRiskCount = g.Count() })
+                    .Select(g => (object)new { Type = g.Key, HighRiskCount = g.Count() })
                     .ToList(),
                 DataRetentionStatus = "90-day rolling retention active",
                 LastComplianceCheckDate = DateTimeOffset.UtcNow.AddDays(-1)

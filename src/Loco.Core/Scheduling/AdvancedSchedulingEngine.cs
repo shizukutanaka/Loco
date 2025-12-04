@@ -458,6 +458,7 @@ namespace Loco.Core.Scheduling
         public DateTimeOffset ScheduledTime { get; set; }
         public string Status { get; set; }
         public int ExecutionOrder { get; set; }
+        public double DurationSeconds { get; set; }
     }
 
     public class ScheduleExecutionHistory

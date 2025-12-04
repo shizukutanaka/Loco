@@ -139,14 +139,13 @@ namespace Loco.Cli.Commands
                     return lintReport.HasCriticalViolations ? 1 : 0;
                 }
 
-                // Handle testing
+                // Handle testing (--test flag currently disabled, use --lint or --health)
                 if (test)
                 {
-                    var testRunner = new WorkflowTestRunner();
-                    var testReport = await testRunner.RunSmokeTestsAsync(workflowDef);
-                    var reportText = WorkflowTestRunner.GenerateTestReport(testReport);
-                    Console.WriteLine(reportText);
-                    return testReport.AllPassed ? 0 : 1;
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Testing feature is currently under maintenance. Use --lint or --health instead.");
+                    Console.ResetColor();
+                    return 1;
                 }
 
                 if (dryRun)
@@ -154,7 +153,7 @@ namespace Loco.Cli.Commands
                     Console.WriteLine("Validating workflow...");
                     Console.WriteLine();
 
-                    var validator = new WorkflowValidator();
+                    var validator = new MainWorkflowValidator();
                     var validationResult = validator.Validate(workflowDef);
 
                     if (validationResult.Errors.Count > 0)

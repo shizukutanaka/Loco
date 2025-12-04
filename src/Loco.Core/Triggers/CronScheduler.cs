@@ -189,6 +189,7 @@ public class ScheduledExecution
     public DateTime? ExecutedTime { get; set; }
     public bool Executed { get; set; }
     public bool Cancelled { get; set; }
+    public double DurationSeconds { get; set; }
 }
 
 /// <summary>

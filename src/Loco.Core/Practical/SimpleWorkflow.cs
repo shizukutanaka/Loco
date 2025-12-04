@@ -140,7 +140,7 @@ public class SimpleWorkflow
     // Get all steps
     public List<WorkflowStep> GetSteps() => _steps.ToList();
 
-    private class WorkflowStep
+    public class WorkflowStep
     {
         public string Name { get; set; } = "";
         public Func<Dictionary<string, object>, Task<bool>> Action { get; set; } = null!;
@@ -172,7 +172,9 @@ public enum StepStatus
 public class WorkflowStep
 {
     public string Name { get; set; } = "";
-    public StepStatus Status { get; set; }
+    public Func<Dictionary<string, object>, Task<bool>> Action { get; set; } = null!;
+    public int MaxRetries { get; set; } = 0;
+    public StepStatus Status { get; set; } = StepStatus.Pending;
     public DateTime? StartedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
 }

@@ -1,0 +1,25 @@
+{"common": {"yes": "Oui", "no": "Non", "ok": "OK", "cancel": "Annuler", "save": "Enregistrer", "delete": "Supprimer", "edit": "Modifier", "add": "Ajouter", "remove": "Retirer", "search": "Rechercher", "loading": "Chargement...", "error": "Erreur", "warning": "Avertissement", "info": "Information", "success": "Succès", "retry": "Réessayer", "back": "Retour", "next": "Suivant", "previous": "Précédent", "close": "Fermer", "open": "Ouvrir", "view": "Afficher", "download": "Télécharger", "upload": "Téléverser", "export": "Exporter", "import": "Importer", "copy": "Copier", "paste": "Coller", "cut": "Couper", "undo": "Annuler", "redo": "Refaire", "refresh": "Actualiser", "settings": "Paramètres", "help": "Aide", "about": "À propos", "version": "Version", "language": "Langue", "theme": "Thème", "dark": "Sombre", "light": "Clair", "auto": "Automatique"}, "workflow": {"workflow": "Workflow", "workflows": "Workflows", "createWorkflow": "Créer un workflow", "editWorkflow": "Modifier le workflow", "deleteWorkflow": "Supprimer le workflow", "executeWorkflow": "Exécuter le workflow", "workflowName": "Nom du workflow", "workflowDescription": "Description du workflow", "workflowStatus": "Statut du workflow", "workflowRunning": "En cours", "workflowCompleted": "Terminé", "workflowFailed": "Échoué", "workflowCancelled": "Annulé", "workflowPaused": "En pause", "startWorkflow": "Démarrer", "stopWorkflow": "Arrêter", "pauseWorkflow": "Mettre en pause", "resumeWorkflow": "Reprendre", "workflowNodes": "Nœuds", "workflowConnections": "Connexions", "workflowVariables": "Variables", "workflowLogs": "Journaux", "workflowHistory": "Historique", "workflowAnalytics": "Analytique"}, "validation": {"required": "{0} est requis", "invalidFormat": "Le format de {0} est invalide", "minLength": "{0} doit contenir au moins {1} caractères", "maxLength": "{0} ne doit pas dépasser {1} caractères", "emailInvalid": "L\
+adresse
+e-mail
+est
+invalide, passwordMismatch: Les
+mots
+de
+passe
+ne
+correspondent
+pas, fileNotFound: Fichier
+non
+trouvé:
+0
+, 
+accessDenied: Accès
+refusé, networkError: Une
+erreur
+réseau
+s\est produite", "timeoutError": "L\opération
+a
+expiré, unknownError: Une
+erreur
+inconnue
+s\est produite"}, "plurals": {"items": {"one": "1 élément", "other": "{0} éléments"}, "files": {"one": "1 fichier", "other": "{0} fichiers"}, "workflows": {"one": "1 workflow", "other": "{0} workflows"}, "errors": {"one": "1 erreur", "other": "{0} erreurs"}}, "dates": {"shortDate": "dd/MM/yyyy", "longDate": "dddd d MMMM yyyy", "shortTime": "HH:mm", "longTime": "HH:mm:ss", "dateTime": "dd/MM/yyyy HH:mm", "relative": "il y a {0}", "relativeFuture": "dans {0}"}}

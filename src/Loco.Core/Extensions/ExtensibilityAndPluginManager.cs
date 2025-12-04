@@ -238,7 +238,7 @@ namespace Loco.Core.Extensions
                 Category = definition.Category ?? "general",
                 PublishedAt = DateTimeOffset.UtcNow,
                 Status = "published",
-                Price = definition.Price ?? 0,
+                Price = definition.Price,
                 License = definition.License ?? "MIT",
                 SourceUrl = definition.SourceUrl,
                 DocumentationUrl = definition.DocumentationUrl,
@@ -331,6 +331,13 @@ namespace Loco.Core.Extensions
         public List<string> Dependencies { get; set; }
         public Dictionary<string, object> Configuration { get; set; }
         public List<string> Permissions { get; set; }
+        public decimal? Price { get; set; }
+        public string License { get; set; }
+        public string SourceUrl { get; set; }
+        public string DocumentationUrl { get; set; }
+        public string SupportUrl { get; set; }
+        public string Category { get; set; }
+        public List<string> Tags { get; set; }
     }
 
     public class Plugin

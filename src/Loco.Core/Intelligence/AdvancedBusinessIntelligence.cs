@@ -150,7 +150,7 @@ namespace Loco.Core.Intelligence
                 SuccessfulWorkflows = _random.Next(5, 450),
                 FailedWorkflows = _random.Next(0, 50),
                 AverageExecutionTime = _random.Next(1000, 60000),
-                AverageSuccessRate = _random.Next(85, 99.9m),
+                AverageSuccessRate = (decimal)(double)_random.Next(85, 99),
                 TopPerformingWorkflows = new List<string> { "workflow-1", "workflow-2", "workflow-3" },
                 BottleneckAreas = new List<string> { "data-processing", "api-calls", "database-queries" },
                 Insights = GenerateInsights(),
@@ -180,7 +180,7 @@ namespace Loco.Core.Intelligence
                 {
                     MetricId = "kpi-1",
                     Name = "Workflow Success Rate",
-                    CurrentValue = _random.Next(85, 99.9m),
+                    CurrentValue = (decimal)(double)_random.Next(85, 99),
                     TargetValue = 99,
                     Trend = _random.NextDouble() < 0.6 ? "up" : "down",
                     TrendPercentage = _random.Next(-10, 30),

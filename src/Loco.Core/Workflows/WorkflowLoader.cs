@@ -22,7 +22,7 @@ namespace Loco.Core.Workflows
         public WorkflowLoader(ILogger? logger = null, Dictionary<string, string>? variables = null, string? environment = null)
         {
             _logger = logger;
-            _validator = new WorkflowValidator(logger);
+            _validator = new WorkflowValidator();
             _variableResolver = new VariableResolver(variables);
             _environment = environment;
         }
@@ -119,7 +119,15 @@ namespace Loco.Core.Workflows
             try
             {
                 // Validate workflow
-                var validationResult = _validator.Validate(definition);
+                var visualWorkflow = new VisualWorkflow 
+                { 
+                    Id = definition.Id,
+                    Name = definition.Name,
+                    Description = definition.Description,
+                    Nodes = new List<WorkflowNode>(),
+                    Connections = new List<WorkflowConnection>()
+                };
+                var validationResult = _validator.Validate(visualWorkflow);
                 if (!validationResult.IsValid)
                 {
                     _logger?.LogError("Workflow validation failed: {Errors}", string.Join(", ", validationResult.Errors));

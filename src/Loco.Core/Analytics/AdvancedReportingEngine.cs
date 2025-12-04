@@ -187,6 +187,7 @@ public class AdvancedReportingEngine : IAdvancedReportingEngine
     private readonly Dictionary<string, List<InsightRecommendation>> _insights;
     private readonly Dictionary<string, List<ReportSchedule>> _schedules;
     private readonly Dictionary<string, List<KeyFinding>> _keyFindings;
+    private readonly Random _random = new();
 
     private static readonly List<ReportTemplate> DefaultTemplates = new()
     {
@@ -281,7 +282,7 @@ public class AdvancedReportingEngine : IAdvancedReportingEngine
             ReportTitle = $"{templateName} - {DateTime.UtcNow:MMMM yyyy}",
             ReportPeriodStart = startDate,
             ReportPeriodEnd = endDate,
-            PageCount = 15 + (int)(Math.Random() * 20),
+            PageCount = 15 + _random.Next(0, 20),
             Sections = template.IncludedSections,
             Status = "ready",
             AvailableFormats = template.SupportedFormats,
@@ -336,7 +337,7 @@ public class AdvancedReportingEngine : IAdvancedReportingEngine
             ReportId = reportId,
             Format = format,
             FileUrl = $"https://reports.example.com/{reportId}.{format}",
-            FileSizeBytes = 2_500_000 + (int)(Math.Random() * 5_000_000),
+            FileSizeBytes = 2_500_000 + _random.Next(0, 5_000_000),
             ExportStatus = "completed"
         };
 
