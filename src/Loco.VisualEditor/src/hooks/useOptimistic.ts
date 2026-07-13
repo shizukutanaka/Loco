@@ -109,7 +109,7 @@ export function useOptimisticList<T extends Record<string, any>>(
   optimisticItems: T[],
   add: (item: T) => void,
   update: (id: string | number, updates: Partial<T>) => void,
-  delete: (id: string | number) => void,
+  remove: (id: string | number) => void,
   clear: () => void
 ] {
   type Action =

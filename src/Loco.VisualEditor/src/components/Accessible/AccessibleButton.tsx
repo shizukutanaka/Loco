@@ -2,7 +2,7 @@
 // Fully accessible button with keyboard navigation and ARIA support
 
 import React, { ReactNode, MouseEvent, useCallback, useRef } from 'react';
-import { generateId, KeyboardNavigationManager } from '../../utils/a11y';
+import { generateId } from '../../utils/a11y';
 
 interface AccessibleButtonProps {
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void | Promise<void>;

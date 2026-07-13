@@ -3,7 +3,7 @@
 // Expected improvement: 60% per-step rendering reduction, 20% abandonment rate reduction
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { useOptimizedForm, useMultiStepForm } from '../../hooks/useOptimizedForm';
+import { useOptimizedForm } from '../../hooks/useOptimizedForm';
 import { z } from 'zod';
 
 /**

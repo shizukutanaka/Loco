@@ -93,7 +93,7 @@ export class KeyboardNavigationManager {
    * Announce message to screen readers via aria-live region
    */
   static announce(message: string, priority: 'polite' | 'assertive' = 'polite'): void {
-    let liveRegion = document.querySelector(`[aria-live="${priority}"]`);
+    let liveRegion = document.querySelector<HTMLElement>(`[aria-live="${priority}"]`);
 
     if (!liveRegion) {
       liveRegion = document.createElement('div');
@@ -204,7 +204,7 @@ export const AriaHelper = {
   /**
    * Mark field as required with visual and accessibility indicator
    */
-  required(inputElement: HTMLElement): void {
+  required(inputElement: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement): void {
     inputElement.setAttribute('aria-required', 'true');
     inputElement.required = true;
   },
@@ -326,7 +326,7 @@ export function auditAccessibility(element: HTMLElement): string[] {
   });
 
   // Check for form fields without labels
-  element.querySelectorAll('input, textarea, select').forEach((field) => {
+  element.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input, textarea, select').forEach((field) => {
     const id = field.id;
     const label = id ? element.querySelector(`label[for="${id}"]`) : null;
     const ariaLabel = field.hasAttribute('aria-label');

@@ -2,7 +2,7 @@
 // Fully accessible form with proper labels, error messages, and keyboard navigation
 
 import React, { ReactNode, FormEvent, useCallback, useEffect, useRef } from 'react';
-import { generateId, KeyboardNavigationManager, AriaHelper } from '../../utils/a11y';
+import { generateId, KeyboardNavigationManager } from '../../utils/a11y';
 
 interface AccessibleFormProps {
   onSubmit: (formData: FormData) => void | Promise<void>;
