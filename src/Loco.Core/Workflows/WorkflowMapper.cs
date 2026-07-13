@@ -1,12 +1,15 @@
 using System.Text.Json;
-using Loco.Core.Workflows;
 
-namespace Loco.Api.Mapping;
+namespace Loco.Core.Workflows;
 
 /// <summary>
 /// Maps the persisted/editor shape (<see cref="StoredWorkflow"/>, which mirrors the
 /// Visual Editor's Workflow TS interface) into the execution engine's
 /// <see cref="VisualWorkflow"/> at execute/validate time.
+///
+/// Lives in Loco.Core (not Loco.Api, where it was originally written) so both the
+/// API and the CLI (`loco workflow run-visual`) can share one mapping - the CLI
+/// project does not reference Loco.Api.
 ///
 /// CRUD never maps - it stores and returns the editor shape losslessly. Mapping
 /// only happens on the execution boundary, so a field the engine doesn't know
@@ -89,7 +92,7 @@ public static class WorkflowMapper
     /// handlers expect (string/bool/number/list/dictionary), instead of handing
     /// them raw JsonElements that Convert.ToInt32 etc. cannot digest.
     /// </summary>
-    internal static object ToPlainObject(JsonElement element) => element.ValueKind switch
+    public static object ToPlainObject(JsonElement element) => element.ValueKind switch
     {
         JsonValueKind.String => element.GetString() ?? "",
         JsonValueKind.True => true,

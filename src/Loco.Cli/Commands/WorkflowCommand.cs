@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Loco.Core;
 using Loco.Core.Configuration;
+using Loco.Core.Integrations.Core;
 using Loco.Core.Workflows;
 using Microsoft.Extensions.Logging;
 
@@ -55,6 +56,22 @@ namespace Loco.Cli.Commands
             AddOption(parallelOption);
 
             this.SetHandler(ExecuteWorkflowAsync, fileArgument, visualizeOption, dryRunOption, healthOption, lintOption, testOption, parallelOption);
+
+            // `loco workflow run-visual <file>`: executes the Visual Editor's own
+            // workflow JSON shape (StoredWorkflow, saved by "Export" in the editor or
+            // fetched via GET /api/v1/workflows/{id}) on VisualWorkflowEngine with all
+            // 28 connectors registered - previously the CLI's only execution path
+            // (above, SimpleLightEngine) supported exactly one action type ("log"), so
+            // the connector catalog was unreachable from any running binary.
+            var runVisualCommand = new Command(
+                "run-visual",
+                "Execute a Visual Editor workflow JSON file with connectors enabled");
+            var runVisualFileArgument = new Argument<string>(
+                name: "file",
+                description: "Path to a Visual Editor workflow JSON file (StoredWorkflow shape: nodes/edges/metadata)");
+            runVisualCommand.AddArgument(runVisualFileArgument);
+            runVisualCommand.SetHandler(ExecuteVisualWorkflowAsync, runVisualFileArgument);
+            AddCommand(runVisualCommand);
         }
 
         private async Task<int> ExecuteWorkflowAsync(string filePath, string? visualize, bool dryRun, bool health, bool lint, bool test, int maxParallelism)
@@ -266,6 +283,105 @@ namespace Loco.Cli.Commands
                     Console.ResetColor();
                     return 1;
                 }
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error: {ex.Message}");
+                Console.ResetColor();
+                return 1;
+            }
+        }
+
+        private async Task<int> ExecuteVisualWorkflowAsync(string filePath)
+        {
+            try
+            {
+                if (!File.Exists(filePath))
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"Error: Workflow file not found: {filePath}");
+                    Console.ResetColor();
+                    return 1;
+                }
+
+                using var loggerFactory = LoggerFactory.Create(builder =>
+                {
+                    builder.AddConsole();
+                    builder.SetMinimumLevel(LogLevel.Information);
+                });
+                var logger = loggerFactory.CreateLogger<WorkflowCommand>();
+
+                Console.WriteLine($"Loading Visual Editor workflow from: {filePath}");
+                var json = await File.ReadAllTextAsync(filePath);
+                var stored = System.Text.Json.JsonSerializer.Deserialize<StoredWorkflow>(
+                    json,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                if (stored is null || string.IsNullOrWhiteSpace(stored.Name))
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Error: Failed to parse workflow JSON (expected the Visual Editor's Workflow shape: id/name/nodes/edges/metadata)");
+                    Console.ResetColor();
+                    return 1;
+                }
+
+                var visual = WorkflowMapper.ToVisualWorkflow(stored);
+
+                var validation = new WorkflowValidator().Validate(visual);
+                if (!validation.IsValid)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Error: Workflow failed validation:");
+                    foreach (var error in validation.Errors)
+                    {
+                        Console.WriteLine($"  - {error}");
+                    }
+                    Console.ResetColor();
+                    return 1;
+                }
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"✓ Loaded workflow: {visual.Name} ({visual.Nodes.Count} nodes, {visual.Connections.Count} connections)");
+                Console.ResetColor();
+
+                // Discover and register all connectors so the workflow's node handlers
+                // (integration:action) resolve, exactly as ConnectorStartupService does
+                // for the API - this is the first CLI code path that can reach them.
+                using var registry = new ConnectorRegistry();
+                var discovered = registry.AutoDiscover(typeof(ConnectorRegistry).Assembly);
+                Console.WriteLine($"Registered {discovered} connectors");
+
+                var engine = new VisualWorkflowEngine(message => logger.LogDebug("{EngineMessage}", message));
+                using var bridge = new WorkflowConnectorBridge(registry, engine);
+                await bridge.RegisterAllConnectorsAsync();
+
+                Console.WriteLine("Executing workflow...");
+                Console.WriteLine(new string('-', 60));
+
+                var startTime = DateTime.Now;
+                var context = await engine.ExecuteAsync(visual);
+                var duration = DateTime.Now - startTime;
+
+                Console.WriteLine(new string('-', 60));
+                foreach (var line in context.ExecutionLog)
+                {
+                    Console.WriteLine(line);
+                }
+                Console.WriteLine();
+
+                if (context.Status == WorkflowExecutionStatus.Success)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"✓ Workflow completed successfully in {duration.TotalSeconds:F2}s");
+                    Console.ResetColor();
+                    return 0;
+                }
+
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"✗ Workflow {context.Status.ToString().ToLowerInvariant()} after {duration.TotalSeconds:F2}s: {context.Error}");
+                Console.ResetColor();
+                return 1;
             }
             catch (Exception ex)
             {
