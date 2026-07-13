@@ -9,6 +9,7 @@ import ReactFlow, {
   OnConnect,
   OnSelectionChangeParams,
   Node,
+  Edge,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -75,7 +76,7 @@ function WorkflowCanvasComponent() {
 
   // Get canvas event handlers from store
   // (onNodesChange, onEdgesChange, onConnect are callback handlers, not included in granular selectors)
-  const { onNodesChange, onEdgesChange, onConnect } = useWorkflowStore();
+  const { onNodesChange, onEdgesChange, onConnect, setSelectedEdgeId } = useWorkflowStore();
 
   const { isConnected, updateSelection } = useCollaborationStore();
 
@@ -173,6 +174,17 @@ function WorkflowCanvasComponent() {
     [setSelectedNodeId]
   );
 
+  // Selecting an edge surfaces the EdgeConditionPanel, letting a user set
+  // success/error/always routing on that connection - previously there was no
+  // UI path to this at all, even though VisualWorkflowEngine's error/success
+  // branch routing (ShouldFollowConnection) has always supported it.
+  const onEdgeClick = useCallback(
+    (_event: React.MouseEvent, edge: Edge) => {
+      setSelectedEdgeId(edge.id);
+    },
+    [setSelectedEdgeId]
+  );
+
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
       event.preventDefault();
@@ -192,8 +204,9 @@ function WorkflowCanvasComponent() {
 
   const onPaneClick = useCallback(() => {
     setSelectedNodeId(null);
+    setSelectedEdgeId(null);
     setSelectedNodes([]);
-  }, [setSelectedNodeId]);
+  }, [setSelectedNodeId, setSelectedEdgeId]);
 
   // Memoize node color retrieval to prevent recalculation on every render
   const getNodeColor = useCallback(
@@ -255,6 +268,7 @@ function WorkflowCanvasComponent() {
         onDrop={onDrop}
         onDragOver={onDragOver}
         onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
         onNodeContextMenu={onNodeContextMenu}
         onPaneClick={onPaneClick}
         onPaneContextMenu={onPaneContextMenu}

@@ -88,6 +88,22 @@ export const useSelectedNode = () =>
     return state.nodes.find((n) => n.id === state.selectedNodeId) || null;
   });
 
+/**
+ * Select selected edge ID
+ * For components tracking current edge selection (e.g. EdgeConditionPanel)
+ */
+export const useSelectedEdgeId = () =>
+  useWorkflowStore((state: WorkflowState) => state.selectedEdgeId);
+
+/**
+ * Select selected edge object
+ */
+export const useSelectedEdge = () =>
+  useWorkflowStore((state: WorkflowState) => {
+    if (!state.selectedEdgeId) return null;
+    return state.edges.find((e) => e.id === state.selectedEdgeId) || null;
+  });
+
 // ============================================================================
 // History State Selection
 // ============================================================================

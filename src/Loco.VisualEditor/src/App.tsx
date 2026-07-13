@@ -3,6 +3,7 @@ import { Toolbar } from '@/components/Toolbar/Toolbar';
 import { NodePalette } from '@/components/NodePalette/NodePalette';
 import { WorkflowCanvasWrapper } from '@/components/Canvas/WorkflowCanvas';
 import { PropertyPanel } from '@/components/PropertyPanel/PropertyPanel';
+import { EdgeConditionPanel } from '@/components/EdgeConditionPanel/EdgeConditionPanel';
 import { NodeSearch } from '@/components/NodeSearch/NodeSearch';
 import { ToastContainer } from '@/components/Toast/Toast';
 import { ExecutionPanel } from '@/components/ExecutionPanel/ExecutionPanel';
@@ -91,12 +92,13 @@ function App() {
             <WorkflowCanvasWrapper />
           </section>
 
-          {/* Right sidebar: Node properties and configuration */}
+          {/* Right sidebar: Node properties, or connection routing when an edge is selected */}
           <aside
             className="w-96 bg-white border-l border-gray-200 overflow-y-auto"
-            aria-label="Properties panel - Configure selected node properties"
+            aria-label="Properties panel - Configure selected node or connection"
           >
             <PropertyPanel />
+            <EdgeConditionPanel />
           </aside>
         </div>
 

@@ -9,7 +9,7 @@ import {
   applyNodeChanges,
   applyEdgeChanges,
 } from 'reactflow';
-import { Workflow, WorkflowNode, WorkflowEdge, Viewport } from '@/types/workflow';
+import { Workflow, WorkflowNode, WorkflowEdge, EdgeData, Viewport } from '@/types/workflow';
 import { getAutoLayoutedNodes } from '@/utils/autoLayout';
 import { createOptimizedHistorySnapshot } from '@/utils/structuralSharing';
 import { deferHistorySnapshot } from '@/utils/deferHistorySnapshot';
@@ -58,9 +58,12 @@ export interface WorkflowState {
   onEdgesChange: (changes: EdgeChange[]) => void;
   onConnect: (connection: Connection) => void;
   deleteEdge: (edgeId: string) => void;
+  updateEdgeData: (edgeId: string, data: Partial<EdgeData>) => void;
 
   // Selection
+  selectedEdgeId: string | null;
   setSelectedNodeId: (nodeId: string | null) => void;
+  setSelectedEdgeId: (edgeId: string | null) => void;
 
   // Viewport
   setViewport: (viewport: Viewport) => void;
@@ -95,6 +98,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   edges: [],
   viewport: { x: 0, y: 0, zoom: 1 },
   selectedNodeId: null,
+  selectedEdgeId: null,
   history: [],
   historyIndex: -1,
   canUndo: false,
@@ -265,12 +269,33 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   deleteEdge: (edgeId) => {
     set({
       edges: get().edges.filter((edge) => edge.id !== edgeId),
+      selectedEdgeId: get().selectedEdgeId === edgeId ? null : get().selectedEdgeId,
+    });
+    deferHistorySnapshot(() => get().pushToHistory());
+  },
+
+  // Sets an edge's condition ("success" | "error" | a custom expression | undefined
+  // for "always"), matching VisualWorkflowEngine.ShouldFollowConnection's
+  // interpretation (Core/Workflows/VisualWorkflowEngine.cs). Previously there was no
+  // UI path to set this at all - the engine's error/success branch routing was
+  // reachable only by hand-editing exported JSON.
+  updateEdgeData: (edgeId, data) => {
+    set({
+      edges: get().edges.map((edge) =>
+        edge.id === edgeId
+          ? { ...edge, data: { ...(edge.data as EdgeData | undefined), ...data } }
+          : edge
+      ),
     });
     deferHistorySnapshot(() => get().pushToHistory());
   },
 
   setSelectedNodeId: (nodeId) => {
-    set({ selectedNodeId: nodeId });
+    set({ selectedNodeId: nodeId, selectedEdgeId: nodeId ? null : get().selectedEdgeId });
+  },
+
+  setSelectedEdgeId: (edgeId) => {
+    set({ selectedEdgeId: edgeId, selectedNodeId: edgeId ? null : get().selectedNodeId });
   },
 
   setViewport: (viewport) => {
@@ -311,6 +336,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       nodes: [],
       edges: [],
       selectedNodeId: null,
+      selectedEdgeId: null,
     });
   },
 
@@ -320,6 +346,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       nodes: workflowNodesToReactFlowNodes(workflow.nodes),
       edges: workflowEdgesToReactFlowEdges(workflow.edges),
       selectedNodeId: null,
+      selectedEdgeId: null,
       history: [],
       historyIndex: -1,
       canUndo: false,
@@ -347,6 +374,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       nodes: [],
       edges: [],
       selectedNodeId: null,
+      selectedEdgeId: null,
     });
   },
 }));
