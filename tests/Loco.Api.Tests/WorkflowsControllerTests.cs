@@ -1,587 +1,258 @@
-using Xunit;
-using Moq;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Loco.Core.Interfaces;
-using Loco.Core.Models;
-using Loco.Api.Controllers;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using FluentAssertions;
 
-namespace Loco.Api.Tests
+namespace Loco.Api.Tests;
+
+/// <summary>
+/// End-to-end integration tests for the workflow API: CRUD round-trip through
+/// the JSON file store, execution on the real VisualWorkflowEngine (built-in
+/// node handlers only - no external connector credentials needed), polling,
+/// cancellation, and validation. Assertions are made on raw JSON so the
+/// envelope + camelCase contract the frontend depends on is pinned exactly.
+///
+/// The previous tests in this file unit-tested the deleted stub controller
+/// (skip/take, IAutomationEngine mocks) and never compiled (NU1008).
+///
+/// NOTE: authored in an environment where dotnet test could not run (NuGet
+/// egress blocked); execution status is recorded in the commit message.
+/// </summary>
+public class WorkflowApiTests : IClassFixture<LocoApiFactory>
 {
-    /// <summary>
-    /// WorkflowsController 統合テストスイート
-    /// Integration tests for REST API Workflows endpoint
-    /// </summary>
-    public class WorkflowsControllerTests
+    private readonly LocoApiFactory _factory;
+
+    public WorkflowApiTests(LocoApiFactory factory)
     {
-        private readonly Mock<IAutomationEngine> _mockEngine;
-        private readonly Mock<IRuleStore> _mockRuleStore;
-        private readonly Mock<ILogger<WorkflowsController>> _mockLogger;
-        private readonly WorkflowsController _controller;
+        _factory = factory;
+    }
 
-        public WorkflowsControllerTests()
+    private static object VariableWorkflowBody(string name) => new
+    {
+        name,
+        description = "set-then-get variable chain",
+        nodes = new object[]
         {
-            _mockEngine = new Mock<IAutomationEngine>();
-            _mockRuleStore = new Mock<IRuleStore>();
-            _mockLogger = new Mock<ILogger<WorkflowsController>>();
-
-            _controller = new WorkflowsController(
-                _mockEngine.Object,
-                _mockRuleStore.Object,
-                _mockLogger.Object
-            );
-        }
-
-        #region List Workflows Tests
-
-        [Fact]
-        public async Task GetWorkflows_WithValidParams_ReturnsOkWithPaginatedList()
-        {
-            // Arrange
-            var skip = 0;
-            var take = 20;
-
-            // Act
-            var result = await _controller.GetWorkflows(skip, take);
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            Assert.Equal(200, okResult.StatusCode);
-
-            var response = okResult.Value as dynamic;
-            Assert.NotNull(response);
-            Assert.Equal(skip, response.Skip);
-            Assert.Equal(take, response.Take);
-        }
-
-        [Fact]
-        public async Task GetWorkflows_WithLargeTake_ReturnsCappedAt100()
-        {
-            // Arrange
-            var skip = 0;
-            var take = 500; // Request more than max
-
-            // Act
-            var result = await _controller.GetWorkflows(skip, take);
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var response = okResult.Value as dynamic;
-            Assert.Equal(100, response.Take);
-        }
-
-        [Fact]
-        public async Task GetWorkflows_WithNegativeSkip_ReturnsWithZeroSkip()
-        {
-            // Arrange
-            var skip = -10;
-            var take = 20;
-
-            // Act
-            var result = await _controller.GetWorkflows(skip, take);
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var response = okResult.Value as dynamic;
-            Assert.True((int)response.Skip >= 0);
-        }
-
-        #endregion
-
-        #region Get Workflow Tests
-
-        [Fact]
-        public async Task GetWorkflow_WithValidId_ReturnsNotFound()
-        {
-            // Arrange
-            var workflowId = "workflow-1";
-
-            // Act
-            var result = await _controller.GetWorkflow(workflowId);
-
-            // Assert
-            var notFoundResult = Assert.IsType<NotFoundObjectResult>(result.Result);
-            Assert.Equal(404, notFoundResult.StatusCode);
-        }
-
-        [Fact]
-        public async Task GetWorkflow_WithNullOrEmptyId_ReturnsBadRequest()
-        {
-            // Arrange
-            var workflowId = "";
-
-            // Act
-            var result = await _controller.GetWorkflow(workflowId);
-
-            // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            Assert.Equal(400, badRequestResult.StatusCode);
-        }
-
-        [Fact]
-        public async Task GetWorkflow_WithWhitespaceId_ReturnsBadRequest()
-        {
-            // Arrange
-            var workflowId = "   ";
-
-            // Act
-            var result = await _controller.GetWorkflow(workflowId);
-
-            // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            Assert.Equal(400, badRequestResult.StatusCode);
-        }
-
-        #endregion
-
-        #region Create Workflow Tests
-
-        [Fact]
-        public async Task CreateWorkflow_WithValidName_ReturnsCreatedAtAction()
-        {
-            // Arrange
-            var request = new CreateWorkflowRequest
+            new
             {
-                Name = "Test Workflow",
-                Description = "Test Description"
-            };
-
-            // Act
-            var result = await _controller.CreateWorkflow(request);
-
-            // Assert
-            var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
-            Assert.Equal(nameof(WorkflowsController.GetWorkflow), createdResult.ActionName);
-            Assert.Equal(201, createdResult.StatusCode);
-
-            var workflow = createdResult.Value as dynamic;
-            Assert.NotNull(workflow);
-            Assert.Equal(request.Name, workflow.Name);
-            Assert.False(string.IsNullOrEmpty(workflow.Id));
-        }
-
-        [Fact]
-        public async Task CreateWorkflow_WithEmptyName_ReturnsBadRequest()
-        {
-            // Arrange
-            var request = new CreateWorkflowRequest
-            {
-                Name = "",
-                Description = "Test Description"
-            };
-
-            // Act
-            var result = await _controller.CreateWorkflow(request);
-
-            // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            Assert.Equal(400, badRequestResult.StatusCode);
-
-            var error = badRequestResult.Value as dynamic;
-            Assert.NotNull(error);
-            Assert.Equal("VALIDATION_FAILED", error.Code);
-        }
-
-        [Fact]
-        public async Task CreateWorkflow_WithNullName_ReturnsBadRequest()
-        {
-            // Arrange
-            var request = new CreateWorkflowRequest
-            {
-                Name = null,
-                Description = "Test Description"
-            };
-
-            // Act
-            var result = await _controller.CreateWorkflow(request);
-
-            // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            Assert.Equal(400, badRequestResult.StatusCode);
-        }
-
-        [Fact]
-        public async Task CreateWorkflow_WithIdempotencyKey_ReturnsConsistentResults()
-        {
-            // Arrange
-            var request = new CreateWorkflowRequest
-            {
-                Name = "Test Workflow"
-            };
-            var idempotencyKey = Guid.NewGuid().ToString();
-
-            // Act - First request
-            var result1 = await _controller.CreateWorkflow(request, idempotencyKey);
-
-            // Act - Second request with same key
-            var result2 = await _controller.CreateWorkflow(request, idempotencyKey);
-
-            // Assert - Both should create (in real implementation, second would return cached)
-            var createdResult1 = Assert.IsType<CreatedAtActionResult>(result1.Result);
-            var createdResult2 = Assert.IsType<CreatedAtActionResult>(result2.Result);
-
-            var workflow1 = createdResult1.Value as dynamic;
-            var workflow2 = createdResult2.Value as dynamic;
-
-            // In idempotent implementation, IDs should match
-            // For now, just verify both created successfully
-            Assert.NotNull(workflow1.Id);
-            Assert.NotNull(workflow2.Id);
-        }
-
-        #endregion
-
-        #region Update Workflow Tests
-
-        [Fact]
-        public async Task UpdateWorkflow_WithNonexistentId_ReturnsNotFound()
-        {
-            // Arrange
-            var workflowId = "nonexistent";
-            var request = new UpdateWorkflowRequest
-            {
-                Name = "Updated Name"
-            };
-
-            // Act
-            var result = await _controller.UpdateWorkflow(workflowId, request);
-
-            // Assert
-            var notFoundResult = Assert.IsType<NotFoundObjectResult>(result.Result);
-            Assert.Equal(404, notFoundResult.StatusCode);
-        }
-
-        [Fact]
-        public async Task UpdateWorkflow_WithEmptyId_ReturnsBadRequest()
-        {
-            // Arrange
-            var workflowId = "";
-            var request = new UpdateWorkflowRequest
-            {
-                Name = "Updated Name"
-            };
-
-            // Act
-            var result = await _controller.UpdateWorkflow(workflowId, request);
-
-            // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            Assert.Equal(400, badRequestResult.StatusCode);
-        }
-
-        #endregion
-
-        #region Delete Workflow Tests
-
-        [Fact]
-        public async Task DeleteWorkflow_WithValidId_ReturnsNoContent()
-        {
-            // Arrange - Mock successful deletion
-            var workflowId = "workflow-1";
-            _mockRuleStore.Setup(x => x.RuleExistsAsync(workflowId))
-                .ReturnsAsync(true);
-
-            // Act
-            var result = await _controller.DeleteWorkflow(workflowId);
-
-            // Assert
-            Assert.IsType<NotFoundObjectResult>(result); // Currently not implemented
-        }
-
-        [Fact]
-        public async Task DeleteWorkflow_WithNonexistentId_ReturnsNotFound()
-        {
-            // Arrange
-            var workflowId = "nonexistent";
-
-            // Act
-            var result = await _controller.DeleteWorkflow(workflowId);
-
-            // Assert
-            var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
-            Assert.Equal(404, notFoundResult.StatusCode);
-        }
-
-        [Fact]
-        public async Task DeleteWorkflow_WithEmptyId_ReturnsBadRequest()
-        {
-            // Arrange
-            var workflowId = "";
-
-            // Act
-            var result = await _controller.DeleteWorkflow(workflowId);
-
-            // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Equal(400, badRequestResult.StatusCode);
-        }
-
-        #endregion
-
-        #region Execute Workflow Tests
-
-        [Fact]
-        public async Task ExecuteWorkflow_WithValidId_ReturnsAcceptedWithExecutionId()
-        {
-            // Arrange
-            var workflowId = "workflow-1";
-            var request = new ExecuteWorkflowRequest
-            {
-                Parameters = new Dictionary<string, object>
+                id = "n-set",
+                type = "action",
+                position = new { x = 0, y = 0 },
+                data = new
                 {
-                    { "key", "value" }
-                }
-            };
-
-            // Act
-            var result = await _controller.ExecuteWorkflow(workflowId, request);
-
-            // Assert
-            var acceptedResult = Assert.IsType<AcceptedResult>(result.Result);
-            Assert.Equal(202, acceptedResult.StatusCode);
-
-            var executionResult = acceptedResult.Value as dynamic;
-            Assert.NotNull(executionResult);
-            Assert.Equal("Queued", executionResult.Status);
-            Assert.False(string.IsNullOrEmpty(executionResult.ExecutionId));
-        }
-
-        [Fact]
-        public async Task ExecuteWorkflow_WithEmptyId_ReturnsBadRequest()
-        {
-            // Arrange
-            var workflowId = "";
-            var request = new ExecuteWorkflowRequest();
-
-            // Act
-            var result = await _controller.ExecuteWorkflow(workflowId, request);
-
-            // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            Assert.Equal(400, badRequestResult.StatusCode);
-        }
-
-        [Fact]
-        public async Task ExecuteWorkflow_WithNullParameters_UsesEmptyDict()
-        {
-            // Arrange
-            var workflowId = "workflow-1";
-            var request = new ExecuteWorkflowRequest
+                    label = "Set greeting",
+                    integration = "variable",
+                    config = new Dictionary<string, object> { ["action"] = "set", ["name"] = "greeting", ["value"] = "hello" },
+                },
+            },
+            new
             {
-                Parameters = null
-            };
-
-            // Act
-            var result = await _controller.ExecuteWorkflow(workflowId, request);
-
-            // Assert
-            var acceptedResult = Assert.IsType<AcceptedResult>(result.Result);
-            Assert.NotNull(acceptedResult.Value);
-        }
-
-        [Fact]
-        public async Task ExecuteWorkflow_WithComplexParameters_Succeeds()
-        {
-            // Arrange
-            var workflowId = "workflow-1";
-            var request = new ExecuteWorkflowRequest
-            {
-                Parameters = new Dictionary<string, object>
+                id = "n-get",
+                type = "action",
+                position = new { x = 200, y = 0 },
+                data = new
                 {
-                    { "invoice_id", "INV-123" },
-                    { "amount", 1500.50 },
-                    { "items", new[] { "item1", "item2" } },
-                    { "metadata", new { key = "value" } }
-                }
-            };
-
-            // Act
-            var result = await _controller.ExecuteWorkflow(workflowId, request);
-
-            // Assert
-            var acceptedResult = Assert.IsType<AcceptedResult>(result.Result);
-            Assert.Equal(202, acceptedResult.StatusCode);
-        }
-
-        #endregion
-
-        #region Get Execution Status Tests
-
-        [Fact]
-        public async Task GetExecutionStatus_WithValidIds_ReturnsStatus()
+                    label = "Get greeting",
+                    integration = "variable",
+                    config = new Dictionary<string, object> { ["action"] = "get", ["name"] = "greeting" },
+                },
+            },
+        },
+        edges = new object[]
         {
-            // Arrange
-            var workflowId = "workflow-1";
-            var executionId = "execution-1";
+            new { id = "e1", source = "n-set", target = "n-get" },
+        },
+        metadata = new { version = "1.0.0", isPublic = false },
+    };
 
-            // Act
-            var result = await _controller.GetExecutionStatus(workflowId, executionId);
+    [Fact]
+    public async Task Crud_RoundTrip_PreservesEnvelopeAndCamelCase()
+    {
+        var client = await _factory.CreateAuthenticatedClientAsync();
 
-            // Assert
-            var notFoundResult = Assert.IsType<NotFoundObjectResult>(result.Result);
-            Assert.Equal(404, notFoundResult.StatusCode);
-        }
+        // Create
+        var createResponse = await client.PostAsJsonAsync("/api/v1/workflows", VariableWorkflowBody("crud-wf"));
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var createBody = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        createBody.GetProperty("success").GetBoolean().Should().BeTrue();
+        var created = createBody.GetProperty("data");
+        var id = created.GetProperty("id").GetString()!;
+        created.GetProperty("name").GetString().Should().Be("crud-wf");
+        created.GetProperty("createdAt").GetString().Should().NotBeNullOrWhiteSpace();
+        // camelCase contract: nodes[0].data.label must exist with these exact key spellings
+        created.GetProperty("nodes")[0].GetProperty("data").GetProperty("label")
+            .GetString().Should().Be("Set greeting");
 
-        [Fact]
-        public async Task GetExecutionStatus_WithEmptyWorkflowId_ReturnsBadRequest()
+        // Get
+        var getBody = await client.GetFromJsonAsync<JsonElement>($"/api/v1/workflows/{id}");
+        getBody.GetProperty("success").GetBoolean().Should().BeTrue();
+        getBody.GetProperty("data").GetProperty("id").GetString().Should().Be(id);
+
+        // List (envelope: data.workflows/total/page/pageSize)
+        var listBody = await client.GetFromJsonAsync<JsonElement>("/api/v1/workflows?page=1&pageSize=10");
+        listBody.GetProperty("success").GetBoolean().Should().BeTrue();
+        var listData = listBody.GetProperty("data");
+        listData.GetProperty("total").GetInt32().Should().BeGreaterThanOrEqualTo(1);
+        listData.GetProperty("page").GetInt32().Should().Be(1);
+        listData.GetProperty("pageSize").GetInt32().Should().Be(10);
+        listData.GetProperty("workflows").EnumerateArray()
+            .Select(w => w.GetProperty("id").GetString())
+            .Should().Contain(id);
+
+        // Update (partial)
+        var updateResponse = await client.PutAsJsonAsync($"/api/v1/workflows/{id}",
+            new { name = "crud-wf-renamed" });
+        updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var updateBody = await updateResponse.Content.ReadFromJsonAsync<JsonElement>();
+        updateBody.GetProperty("data").GetProperty("name").GetString().Should().Be("crud-wf-renamed");
+        updateBody.GetProperty("data").GetProperty("nodes").GetArrayLength()
+            .Should().Be(2, "partial update must not clear fields that were not supplied");
+
+        // Delete
+        var deleteResponse = await client.DeleteAsync($"/api/v1/workflows/{id}");
+        deleteResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await client.GetAsync($"/api/v1/workflows/{id}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task GetMissingWorkflow_Returns404ErrorEnvelope()
+    {
+        var client = await _factory.CreateAuthenticatedClientAsync();
+
+        var response = await client.GetAsync("/api/v1/workflows/does-not-exist");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        body.GetProperty("success").GetBoolean().Should().BeFalse();
+        body.GetProperty("error").GetProperty("code").GetString().Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task Execute_VariableChain_CompletesAndExposesOutput()
+    {
+        var client = await _factory.CreateAuthenticatedClientAsync();
+
+        var createResponse = await client.PostAsJsonAsync("/api/v1/workflows", VariableWorkflowBody("exec-wf"));
+        var id = (await createResponse.Content.ReadFromJsonAsync<JsonElement>())
+            .GetProperty("data").GetProperty("id").GetString()!;
+
+        var executeResponse = await client.PostAsJsonAsync($"/api/v1/workflows/{id}/execute", new { });
+        executeResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var executionId = (await executeResponse.Content.ReadFromJsonAsync<JsonElement>())
+            .GetProperty("data").GetProperty("executionId").GetString()!;
+
+        // Poll until terminal (variable nodes complete near-instantly; generous timeout).
+        var status = await PollUntilTerminalAsync(client, executionId, TimeSpan.FromSeconds(10));
+
+        status.GetProperty("status").GetString().Should().Be("completed");
+        status.GetProperty("completedAt").GetString().Should().NotBeNullOrWhiteSpace();
+        status.GetProperty("output").GetProperty("n-get").GetString().Should().Be("hello");
+    }
+
+    [Fact]
+    public async Task Cancel_DelayWorkflow_ReportsCancelledNotFailed()
+    {
+        var client = await _factory.CreateAuthenticatedClientAsync();
+
+        var body = new
         {
-            // Arrange
-            var workflowId = "";
-            var executionId = "execution-1";
-
-            // Act
-            var result = await _controller.GetExecutionStatus(workflowId, executionId);
-
-            // Assert
-            // Should validate workflow ID
-        }
-
-        #endregion
-
-        #region Error Handling Tests
-
-        [Fact]
-        public async Task WorkflowOperation_WithException_ThrowsAndLogsError()
-        {
-            // Arrange
-            var workflowId = "workflow-1";
-            _mockEngine.Setup(x => x.ExecuteAsync(It.IsAny<string>()))
-                .ThrowsAsync(new InvalidOperationException("Test error"));
-
-            // Act & Assert - Exception should propagate
-            var request = new ExecuteWorkflowRequest();
-            await Assert.ThrowsAsync<InvalidOperationException>(
-                () => _controller.ExecuteWorkflow(workflowId, request)
-            );
-        }
-
-        [Fact]
-        public async Task GetWorkflows_WithServiceException_ReturnsServerError()
-        {
-            // Arrange
-            _mockRuleStore.Setup(x => x.GetRulesAsync())
-                .ThrowsAsync(new Exception("Database error"));
-
-            // Act & Assert
-            var result = await _controller.GetWorkflows(0, 20);
-            await Assert.ThrowsAsync<Exception>(
-                () => _mockRuleStore.Object.GetRulesAsync()
-            );
-        }
-
-        #endregion
-
-        #region Input Validation Tests
-
-        [Theory]
-        [InlineData(null)]
-        [InlineData("")]
-        [InlineData("   ")]
-        public async Task CreateWorkflow_WithInvalidNames_ReturnsBadRequest(string invalidName)
-        {
-            // Arrange
-            var request = new CreateWorkflowRequest
+            name = "delay-wf",
+            nodes = new object[]
             {
-                Name = invalidName
-            };
+                new
+                {
+                    id = "n-delay",
+                    type = "delay",
+                    position = new { x = 0, y = 0 },
+                    data = new
+                    {
+                        label = "Long delay",
+                        config = new Dictionary<string, object> { ["seconds"] = 30 },
+                    },
+                },
+            },
+            edges = Array.Empty<object>(),
+            metadata = new { version = "1.0.0", isPublic = false },
+        };
+        var createResponse = await client.PostAsJsonAsync("/api/v1/workflows", body);
+        var id = (await createResponse.Content.ReadFromJsonAsync<JsonElement>())
+            .GetProperty("data").GetProperty("id").GetString()!;
 
-            // Act
-            var result = await _controller.CreateWorkflow(request);
+        var executeResponse = await client.PostAsJsonAsync($"/api/v1/workflows/{id}/execute", new { });
+        var executionId = (await executeResponse.Content.ReadFromJsonAsync<JsonElement>())
+            .GetProperty("data").GetProperty("executionId").GetString()!;
 
-            // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            Assert.Equal(400, badRequestResult.StatusCode);
-        }
+        var cancelResponse = await client.PostAsync($"/api/v1/executions/{executionId}/cancel", content: null);
+        cancelResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        [Theory]
-        [InlineData(-1)]
-        [InlineData(-100)]
-        public async Task GetWorkflows_WithNegativeSkip_CoercesToZero(int negativeSkip)
+        var status = await PollUntilTerminalAsync(client, executionId, TimeSpan.FromSeconds(10));
+        status.GetProperty("status").GetString().Should().Be("cancelled",
+            "user-requested cancellation must not be reported as a failure");
+    }
+
+    [Fact]
+    public async Task GetUnknownExecution_Returns404()
+    {
+        var client = await _factory.CreateAuthenticatedClientAsync();
+
+        var response = await client.GetAsync("/api/v1/executions/nope");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Validate_CyclicWorkflow_ReturnsValidFalseWithErrors()
+    {
+        var client = await _factory.CreateAuthenticatedClientAsync();
+
+        var cyclic = new
         {
-            // Arrange
-            var take = 20;
-
-            // Act
-            var result = await _controller.GetWorkflows(negativeSkip, take);
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var response = okResult.Value as dynamic;
-            Assert.True((int)response.Skip >= 0);
-        }
-
-        #endregion
-
-        #region Pagination Tests
-
-        [Theory]
-        [InlineData(0, 20)]
-        [InlineData(20, 20)]
-        [InlineData(100, 50)]
-        [InlineData(1000, 100)]
-        public async Task GetWorkflows_WithVariousPaginationParams_ReturnsCorrectResults(
-            int skip,
-            int take)
-        {
-            // Arrange
-            var expectedTake = Math.Min(take, 100);
-
-            // Act
-            var result = await _controller.GetWorkflows(skip, take);
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var response = okResult.Value as dynamic;
-            Assert.Equal(skip, response.Skip);
-            Assert.Equal(expectedTake, response.Take);
-        }
-
-        #endregion
-
-        #region Concurrency Tests
-
-        [Fact]
-        public async Task MultipleWorkflowOperations_Concurrently_AllSucceed()
-        {
-            // Arrange
-            var tasks = new List<Task<ActionResult<PaginatedResponse<WorkflowDto>>>>();
-            for (int i = 0; i < 10; i++)
+            id = "cyclic-wf",
+            name = "cyclic",
+            nodes = new object[]
             {
-                tasks.Add(_controller.GetWorkflows(0, 20));
+                new { id = "a", type = "action", position = new { x = 0, y = 0 }, data = new { label = "a", config = new Dictionary<string, object>() } },
+                new { id = "b", type = "action", position = new { x = 0, y = 0 }, data = new { label = "b", config = new Dictionary<string, object>() } },
+            },
+            edges = new object[]
+            {
+                new { id = "e1", source = "a", target = "b" },
+                new { id = "e2", source = "b", target = "a" },
+            },
+            metadata = new { version = "1.0.0", isPublic = false },
+            createdAt = "2026-01-01T00:00:00.000Z",
+            updatedAt = "2026-01-01T00:00:00.000Z",
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/workflows/validate", cyclic);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        body.GetProperty("success").GetBoolean().Should().BeTrue();
+        body.GetProperty("data").GetProperty("valid").GetBoolean().Should().BeFalse();
+        body.GetProperty("data").GetProperty("errors").GetArrayLength().Should().BeGreaterThan(0);
+    }
+
+    private static async Task<JsonElement> PollUntilTerminalAsync(
+        HttpClient client, string executionId, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (true)
+        {
+            var body = await client.GetFromJsonAsync<JsonElement>($"/api/v1/executions/{executionId}");
+            var data = body.GetProperty("data");
+            var status = data.GetProperty("status").GetString();
+            if (status is "completed" or "failed" or "cancelled")
+            {
+                return data;
             }
 
-            // Act
-            var results = await Task.WhenAll(tasks);
-
-            // Assert
-            foreach (var result in results)
+            if (DateTime.UtcNow > deadline)
             {
-                Assert.IsType<OkObjectResult>(result.Result);
-            }
-        }
-
-        [Fact]
-        public async Task ExecuteMultipleWorkflows_Concurrently_AllQueued()
-        {
-            // Arrange
-            var tasks = new List<Task>();
-            for (int i = 0; i < 5; i++)
-            {
-                var workflowId = $"workflow-{i}";
-                var request = new ExecuteWorkflowRequest();
-                tasks.Add(_controller.ExecuteWorkflow(workflowId, request));
+                throw new TimeoutException($"Execution {executionId} still '{status}' after {timeout}");
             }
 
-            // Act
-            await Task.WhenAll(tasks);
-
-            // Assert - All should complete without exception
-            Assert.True(tasks.TrueForAll(t => t.IsCompletedSuccessfully));
+            await Task.Delay(100);
         }
-
-        #endregion
     }
 }
