@@ -266,13 +266,68 @@ public class CronScheduler : IDisposable
             var now = DateTime.UtcNow;
 
             if (schedule.StartAfter.HasValue && now < schedule.StartAfter.Value)
-                return expression.GetNextOccurrence(schedule.StartAfter.Value);
+                return NextOccurrenceUtc(schedule, expression, schedule.StartAfter.Value);
 
             if (schedule.EndBefore.HasValue && now >= schedule.EndBefore.Value)
                 return null;
 
-            return expression.GetNextOccurrence(now);
+            return NextOccurrenceUtc(schedule, expression, now);
         }
+    }
+
+    /// <summary>
+    /// Resolves a schedule's IANA/Windows timezone id to a <see cref="TimeZoneInfo"/>,
+    /// falling back to UTC (with a warning) for unknown ids.
+    /// </summary>
+    private TimeZoneInfo ResolveTimeZone(string? timezone)
+    {
+        if (string.IsNullOrWhiteSpace(timezone) ||
+            string.Equals(timezone, "UTC", StringComparison.OrdinalIgnoreCase))
+        {
+            return TimeZoneInfo.Utc;
+        }
+
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(timezone);
+        }
+        catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
+        {
+            _logger?.LogWarning("Unknown timezone '{Timezone}'; falling back to UTC", timezone);
+            return TimeZoneInfo.Utc;
+        }
+    }
+
+    /// <summary>
+    /// Computes the next occurrence AT OR AFTER <paramref name="utcAfter"/> and returns it in
+    /// UTC, honoring the schedule's timezone. The cron fields ("0 9 * * *") are matched against
+    /// wall-clock time in that zone, so a "9am daily" schedule fires at 9am local across DST
+    /// transitions. Previously every schedule was evaluated in UTC, ignoring Timezone entirely.
+    /// </summary>
+    private DateTime NextOccurrenceUtc(CronSchedule schedule, CronExpression expression, DateTime utcAfter)
+    {
+        var tz = ResolveTimeZone(schedule.Timezone);
+        if (tz == TimeZoneInfo.Utc)
+        {
+            return expression.GetNextOccurrence(DateTime.SpecifyKind(utcAfter, DateTimeKind.Utc));
+        }
+
+        var localAfter = TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.SpecifyKind(utcAfter, DateTimeKind.Utc), tz);
+        var localNext = expression.GetNextOccurrence(
+            DateTime.SpecifyKind(localAfter, DateTimeKind.Unspecified));
+        // ConvertTimeToUtc applies the correct offset for that specific date (incl. DST).
+        return TimeZoneInfo.ConvertTimeToUtc(
+            DateTime.SpecifyKind(localNext, DateTimeKind.Unspecified), tz);
+    }
+
+    /// <summary>Current wall-clock time in the schedule's timezone (Kind=Unspecified).</summary>
+    private DateTime LocalNow(CronSchedule schedule)
+    {
+        var tz = ResolveTimeZone(schedule.Timezone);
+        return tz == TimeZoneInfo.Utc
+            ? DateTime.UtcNow
+            : TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
     }
 
     /// <summary>
@@ -296,7 +351,9 @@ public class CronScheduler : IDisposable
                 {
                     try
                     {
-                        next = expression.GetNextOccurrence(next);
+                        // Returns the following occurrence in UTC, honoring the schedule's
+                        // timezone; passing it back in advances to the next one.
+                        next = NextOccurrenceUtc(schedule, expression, next);
 
                         if (next > until)
                             break;
@@ -309,8 +366,6 @@ public class CronScheduler : IDisposable
                             WorkflowId = workflowId,
                             ScheduledTime = next
                         });
-
-                        next = next.AddMinutes(1);
                     }
                     catch
                     {
@@ -347,7 +402,7 @@ public class CronScheduler : IDisposable
                         continue;
                     }
 
-                    // Check time window
+                    // Time-window checks use absolute UTC instants (StartAfter/EndBefore).
                     if (schedule.StartAfter.HasValue && now < schedule.StartAfter.Value)
                         continue;
 
@@ -357,8 +412,9 @@ public class CronScheduler : IDisposable
                         continue;
                     }
 
-                    // Check if should execute
-                    if (expression.Matches(now))
+                    // Cron fields are matched against wall-clock time in the schedule's
+                    // timezone, not UTC - so "0 9 * * *" fires at 9am local (DST-aware).
+                    if (expression.Matches(LocalNow(schedule)))
                     {
                         // Update execution count
                         _schedules[workflowId] = (schedule, expression, executionCount + 1);
