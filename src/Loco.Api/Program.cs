@@ -1,85 +1,46 @@
-using Loco.Core;
-using Loco.Core.Configuration;
-using Loco.Core.Execution;
-using Loco.Core.Health;
-using Loco.Core.Interfaces;
-using Loco.Core.Storage;
-using Loco.Api.Services;
-using Loco.Core.DataAccess;
-using Loco.Core.Data;
+using System.Text.Json;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using OpenTelemetry.Exporter;
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
-using System.Diagnostics;
-using System.Text;
+using Loco.Api.Execution;
+using Loco.Api.Middleware;
+using Loco.Api.Security;
+using Loco.Core.Integrations.Core;
+using Loco.Core.Interfaces;
+using Loco.Core.Storage;
+using Loco.Core.Workflows;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Logging
-builder.Services.AddLogging(logging =>
+// ── One-off utility: hash a password for Auth:Users configuration ──────────
+// Usage: dotnet run --project src/Loco.Api -- hash-password <password>
+if (args.Length >= 2 && args[0] == "hash-password")
 {
-    logging.AddConsole();
-    logging.AddDebug();
-    logging.AddFilter("Microsoft", LogLevel.Information);
-    logging.AddFilter("System", LogLevel.Information);
-});
+    Console.WriteLine(PasswordHasher.Hash(args[1]));
+    return;
+}
 
-// Add gRPC support (Phase 1B)
-builder.Services.AddGrpc();
+// ── Logging ─────────────────────────────────────────────────────────────────
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
 
-// Create ActivitySource for manual instrumentation
-var activitySource = new ActivitySource("Loco.Workflow");
-builder.Services.AddSingleton(activitySource);
+// ── Options / security primitives ───────────────────────────────────────────
+var authOptions = builder.Configuration.GetSection("Auth").Get<AuthOptions>() ?? new AuthOptions();
+builder.Services.AddSingleton(authOptions);
+builder.Services.AddSingleton<JwtSigningKeyProvider>();
 
-// Add OpenTelemetry Tracing with gRPC and manual instrumentation (Phase 1B)
-builder.Services.AddOpenTelemetry()
-    .WithTracing(tracing => tracing
-        .AddSource("Loco.Workflow")
-        .AddAspNetCoreInstrumentation()
-        .AddHttpClientInstrumentation()
-        .AddGrpcClientInstrumentation()
-        .AddOtlpExporter(options =>
-        {
-            options.Endpoint = new Uri(builder.Configuration.GetValue<string>("OpenTelemetry:OtlpEndpoint") ?? "http://localhost:4317");
-            options.Protocol = OtlpExportProtocol.Grpc;
-        })
-        .SetResourceBuilder(ResourceBuilder.CreateDefault()
-            .AddService("loco-api", serviceVersion: "1.0.0")));
-
-// Configure CORS
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy
-            .AllowAnyOrigin()
-            .AllowAnyMethod()
-            .AllowAnyHeader();
-    });
-
-    options.AddPolicy("AllowClients", policy =>
-    {
-        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
-        policy
-            .WithOrigins(allowedOrigins)
-            .AllowAnyMethod()
-            .AllowAnyHeader();
-    });
-});
-
-// Configure Authentication
-var jwtSettings = builder.Configuration.GetSection("Jwt");
-var secretKey = jwtSettings.GetValue<string>("SecretKey") ?? "DefaultSecretKeyChangeInProduction12345";
-var issuer = jwtSettings.GetValue<string>("Issuer") ?? "https://loco.local";
-var audience = jwtSettings.GetValue<string>("Audience") ?? "loco-api";
-
+// ── Authentication: JWT bearer, fail-fast signing key ───────────────────────
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+    .AddJwtBearer();
+
+// Configure JwtBearerOptions through DI so the signing key comes from
+// JwtSigningKeyProvider (whose ctor enforces fail-fast on a missing/weak key
+// outside Development) without building a second service provider.
+builder.Services
+    .AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<JwtSigningKeyProvider>((options, keyProvider) =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -87,212 +48,169 @@ builder.Services
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = issuer,
-            ValidAudience = audience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
-            ClockSkew = TimeSpan.Zero
-        };
-        options.Events = new JwtBearerEvents
-        {
-            OnAuthenticationFailed = context =>
-            {
-                context.Response.StatusCode = 401;
-                context.Response.ContentType = "application/json";
-                return context.Response.WriteAsJsonAsync(new
-                {
-                    code = "AUTH_FAILED",
-                    message = "Authentication failed",
-                    details = context.Exception.Message
-                });
-            }
+            ValidIssuer = authOptions.Issuer,
+            ValidAudience = authOptions.Audience,
+            IssuerSigningKey = keyProvider.Key,
+            ClockSkew = TimeSpan.FromSeconds(30),
         };
     });
 
-// Configure Authorization
+// ── Authorization: scope policies ────────────────────────────────────────────
+// The "scope" claim may be a single space-delimited value (OAuth convention,
+// what AuthenticationController issues) or repeated claims. RequireAssertion
+// handles both; the previous RequireClaim(exact-match) silently rejected
+// space-delimited scopes.
+static bool HasScope(System.Security.Claims.ClaimsPrincipal user, string scope) =>
+    user.FindAll("scope").Any(c =>
+        c.Value == scope ||
+        c.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Contains(scope));
+
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("CanManageWorkflows", policy =>
-        policy.RequireClaim("scope", "workflows:manage"));
-
-    options.AddPolicy("CanViewWorkflows", policy =>
-        policy.RequireClaim("scope", "workflows:read"));
-
-    options.AddPolicy("CanExecuteWorkflows", policy =>
-        policy.RequireClaim("scope", "workflows:execute"));
+    options.AddPolicy("CanViewWorkflows", p => p.RequireAssertion(ctx => HasScope(ctx.User, "workflows:read")));
+    options.AddPolicy("CanManageWorkflows", p => p.RequireAssertion(ctx => HasScope(ctx.User, "workflows:manage")));
+    options.AddPolicy("CanExecuteWorkflows", p => p.RequireAssertion(ctx => HasScope(ctx.User, "workflows:execute")));
 });
 
-// Add Rate Limiting
+// ── Rate limiting (shared framework, no packages) ────────────────────────────
 builder.Services.AddRateLimiter(options =>
 {
-    // Global limiter
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
     {
-        var userId = httpContext.User.FindFirst("sub")?.Value ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
-        return RateLimitPartition.GetFixedWindowLimiter(userId, partition =>
+        var partitionKey = httpContext.User.FindFirst("sub")?.Value
+            ?? httpContext.Connection.RemoteIpAddress?.ToString()
+            ?? "anonymous";
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ =>
             new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 1000,
+                PermitLimit = 300,
                 Window = TimeSpan.FromMinutes(1),
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 0
+                QueueLimit = 0,
             });
     });
 
-    // Policy-specific limiters
-    options.AddFixedWindowLimiter(policyName: "strict", config =>
+    // RFC 9457 ProblemDetails body + Retry-After on rejection, instead of an
+    // empty 503 (the framework default status) that clients can't interpret.
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
     {
-        config.PermitLimit = 10;
-        config.Window = TimeSpan.FromMinutes(1);
-        config.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        config.QueueLimit = 0;
-    });
-
-    options.AddFixedWindowLimiter(policyName: "moderate", config =>
-    {
-        config.PermitLimit = 100;
-        config.Window = TimeSpan.FromMinutes(1);
-    });
+        context.HttpContext.Response.Headers.RetryAfter = "60";
+        context.HttpContext.Response.ContentType = "application/problem+json";
+        await context.HttpContext.Response.WriteAsJsonAsync(new
+        {
+            type = "https://tools.ietf.org/html/rfc6585#section-4",
+            title = "Too Many Requests",
+            status = StatusCodes.Status429TooManyRequests,
+            detail = "Request rate limit exceeded. Retry after 60 seconds.",
+            traceId = context.HttpContext.TraceIdentifier,
+        }, cancellationToken);
+    };
 });
 
-// Add API Services
+// ── CORS: config-driven allowlist (no AllowAll) ──────────────────────────────
+// In development the Vite dev server (port 3000) proxies /api to this app, so
+// requests are same-origin and this list is rarely exercised; it exists for
+// deployments that serve the editor from a different origin.
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[] { "http://localhost:3000" };
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowClients", policy => policy
+        .WithOrigins(allowedOrigins)
+        .AllowAnyMethod()
+        .AllowAnyHeader());
+});
+
+// ── MVC + JSON (camelCase to match the frontend contract) ────────────────────
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        // Phase 2 JSON optimization: Reduce memory and improve throughput
+        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
-        options.JsonSerializerOptions.PropertyNamingPolicy = null;
-
-        // Reduce default buffer size from 16KB to 4KB (Phase 2 optimization)
-        // Most API payloads are < 4KB, reducing default allocation
-        options.JsonSerializerOptions.DefaultBufferSize = 4096;
-
-        // Never pretty-print in production (10% serialization overhead)
-        options.JsonSerializerOptions.WriteIndented = false;
-
-        // Ignore null values to reduce JSON size
         options.JsonSerializerOptions.DefaultIgnoreCondition =
             System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
     });
 
-// Add Swagger/OpenAPI
+// ── Swagger ──────────────────────────────────────────────────────────────────
+builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "Loco Workflow Automation API",
         Version = "v1.0",
-        Description = "Enterprise-grade lightweight workflow automation platform",
-        Contact = new OpenApiContact
-        {
-            Name = "Loco Support",
-            Email = "support@loco.local"
-        },
-        License = new OpenApiLicense
-        {
-            Name = "MIT"
-        }
+        Description = "Lightweight workflow automation platform",
+        License = new OpenApiLicense { Name = "MIT" },
     });
 
-    // JWT Security Scheme
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
         BearerFormat = "JWT",
-        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
-        Name = "Authorization",
-        In = ParameterLocation.Header
+        Description = "JWT from POST /api/v1/authentication/token",
     });
-
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
             new OpenApiSecurityScheme
             {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" },
             },
-            new string[] { }
-        }
+            Array.Empty<string>()
+        },
     });
-
-    // API Key Security Scheme (optional)
-    c.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
-    {
-        Type = SecuritySchemeType.ApiKey,
-        Name = "X-Api-Key",
-        In = ParameterLocation.Header,
-        Description = "API Key for authentication"
-    });
-
-    // XML Comments
-    var xmlFile = Path.Combine(AppContext.BaseDirectory, "Loco.Api.xml");
-    if (File.Exists(xmlFile))
-    {
-        c.IncludeXmlComments(xmlFile);
-    }
-
-    // Custom operation filter for default responses
-    c.OperationFilter<AddResponseHeadersFilter>();
 });
 
-// Add Data Access Services (Phase 2 - EF Core + Dapper Hybrid)
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? "Data Source=loco.db";
-
-builder.Services.AddDbContext<Loco.Core.DataAccess.LocoDbContext>(options =>
-    options.UseSqlite(connectionString));
-
-// Register IDbConnection for Dapper (SQLite)
-builder.Services.AddScoped<System.Data.IDbConnection>(sp =>
-    new Microsoft.Data.Sqlite.SqliteConnection(connectionString));
-
-// Register hybrid repositories
-builder.Services.AddScoped<IWorkflowRepository, Loco.Core.DataAccess.HybridWorkflowRepository>();
-builder.Services.AddScoped<IExecutionHistoryRepository, Loco.Core.DataAccess.HybridExecutionHistoryRepository>();
-
-// Phase 3: Register OAuth 2.0 services
-builder.Services.AddOAuth2Services();
-
-// Phase 3: Register Event Store Repository
-builder.Services.AddScoped<IWorkflowExecutionEventRepository, WorkflowExecutionEventRepository>();
-
-// Phase 3: Register Advanced Metrics Collector
-builder.Services.AddSingleton<WorkflowMetricsCollector>();
-
-// Add Core Services
-builder.Services.AddScoped<IAutomationEngine, WorkflowExecutionEngine>();
-builder.Services.AddScoped<IRuleStore, JsonFileRuleStore>();
-builder.Services.AddScoped<IHealthCheckService, HealthCheckService>();
-builder.Services.AddSingleton<LocoConfig>(sp =>
-{
-    var configPath = builder.Configuration.GetValue<string>("ConfigPath") ?? "loco-config.json";
-    return LocoConfig.LoadFromFile(configPath);
-});
-
-// Add Structured Logging
-builder.Services.AddScoped<IStructuredLoggingHelper, StructuredLoggingHelper>();
-
-// Add Health Checks
+// ── Health checks: liveness (process up) vs readiness (dependencies OK) ─────
+var configuredDataDirectory = builder.Configuration["Storage:DataDirectory"];
+var dataDirectory = string.IsNullOrWhiteSpace(configuredDataDirectory)
+    ? Path.Combine(AppContext.BaseDirectory, "data", "workflows")
+    : configuredDataDirectory;
 builder.Services.AddHealthChecks()
-    .AddCheck<LocoHealthCheck>("loco-health");
+    .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(),
+        tags: new[] { "live" })
+    .AddCheck("workflow-store", () =>
+    {
+        try
+        {
+            Directory.CreateDirectory(dataDirectory);
+            return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy();
+        }
+        catch (Exception ex)
+        {
+            return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Unhealthy(
+                "Workflow store directory is not writable", ex);
+        }
+    }, tags: new[] { "ready" });
 
-// Phase 2: Add Dynamic Memory Optimizer (critical for containers)
-builder.Services.AddSingleton(sp =>
+// ── Application services ─────────────────────────────────────────────────────
+// Engine + connector wiring are singletons: node handlers are registered once
+// at startup (ConnectorStartupService); per-execution state lives in each
+// WorkflowExecutionContext, so a shared engine instance is safe.
+builder.Services.AddSingleton<ConnectorRegistry>(_ => new ConnectorRegistry());
+builder.Services.AddSingleton<VisualWorkflowEngine>(sp =>
 {
-    var logger = sp.GetRequiredService<ILogger<Loco.Core.Memory.DynamicMemoryOptimizer>>();
-    return new Loco.Core.Memory.DynamicMemoryOptimizer(logger);
+    var logger = sp.GetRequiredService<ILogger<VisualWorkflowEngine>>();
+    return new VisualWorkflowEngine(message => logger.LogDebug("{EngineMessage}", message));
 });
+builder.Services.AddSingleton<WorkflowConnectorBridge>(sp => new WorkflowConnectorBridge(
+    sp.GetRequiredService<ConnectorRegistry>(),
+    sp.GetRequiredService<VisualWorkflowEngine>()));
+builder.Services.AddSingleton<IWorkflowStore>(sp => new JsonFileWorkflowStore(
+    dataDirectory,
+    sp.GetRequiredService<ILogger<JsonFileWorkflowStore>>()));
+builder.Services.AddSingleton<ExecutionRegistry>();
+builder.Services.AddHostedService<ConnectorStartupService>();
 
 var app = builder.Build();
 
-// Use OpenTelemetry middleware
-app.UseRouting();
+// ── Pipeline ─────────────────────────────────────────────────────────────────
+// Exception handler outermost so failures anywhere below still produce the
+// frontend's error envelope; logging next so every request gets a correlation id.
+app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
+app.UseMiddleware<StructuredLoggingMiddleware>();
 
-// Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -300,74 +218,27 @@ if (app.Environment.IsDevelopment())
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Loco API v1");
         c.RoutePrefix = "docs";
-        c.DocumentTitle = "Loco Workflow API - Interactive Documentation";
-        c.DefaultModelsExpandDepth(-1);
     });
-    app.UseDeveloperExceptionPage();
 }
 
-// Middleware Pipeline
-app.UseHttpsRedirection();
 app.UseCors("AllowClients");
-
-// Rate Limiting Middleware
 app.UseRateLimiter();
-
-// Authentication & Authorization
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Global Exception Handling Middleware
-app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
-
-// Structured Logging Middleware
-app.UseMiddleware<StructuredLoggingMiddleware>();
-
-// Map gRPC Services (Phase 1B)
-app.MapGrpcService<WorkflowEngineGrpcService>();
-
-// Map Controllers
 app.MapControllers();
 
-// Phase 3: Map OAuth 2.0 Endpoints
-app.MapOAuthEndpoints();
-
-// Phase 3: Map Workflow Minimal API Endpoints
-app.MapWorkflowEndpoints();
-
-// Health Check Endpoint
-app.MapHealthChecks("/health");
-app.MapHealthChecks("/health/detailed", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
-    ResponseWriter = async (context, report) =>
-    {
-        context.Response.ContentType = "application/json";
-        var response = new
-        {
-            status = report.Status.ToString(),
-            timestamp = DateTime.UtcNow,
-            checks = report.Entries.Select(e => new
-            {
-                name = e.Key,
-                status = e.Value.Status.ToString(),
-                description = e.Value.Description,
-                duration = e.Value.Duration
-            })
-        };
-        await context.Response.WriteAsJsonAsync(response);
-    }
+    Predicate = registration => registration.Tags.Contains("live"),
 });
-
-// Startup Information
-var logger = app.Services.GetRequiredService<ILogger<Program>>();
-logger.LogInformation("Loco API starting...");
-logger.LogInformation("Environment: {Environment}", app.Environment.EnvironmentName);
-logger.LogInformation("Swagger UI available at: /docs");
-
-// Phase 2: Start Dynamic Memory Optimizer (critical for production)
-var memoryOptimizer = app.Services.GetRequiredService<Loco.Core.Memory.DynamicMemoryOptimizer>();
-memoryOptimizer.Start();
-var memoryMetrics = memoryOptimizer.GetMetrics();
-logger.LogInformation("Memory optimizer started - {MemoryMetrics}", memoryMetrics);
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = registration => registration.Tags.Contains("ready"),
+});
+app.MapHealthChecks("/health"); // all checks
 
 app.Run();
+
+/// <summary>Exposed for WebApplicationFactory-based integration tests.</summary>
+public partial class Program { }

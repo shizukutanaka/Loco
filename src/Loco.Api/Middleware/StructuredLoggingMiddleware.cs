@@ -24,7 +24,9 @@ public class StructuredLoggingMiddleware
             : traceId;
 
         context.Items["CorrelationId"] = correlationId;
-        context.Response.Headers.Add("X-Correlation-ID", correlationId);
+        // Indexer assignment: Headers.Add throws ArgumentException when the key
+        // already exists (e.g. a retried pipeline or another component set it).
+        context.Response.Headers["X-Correlation-ID"] = correlationId;
 
         using (_logger.BeginScope(new Dictionary<string, object>
         {

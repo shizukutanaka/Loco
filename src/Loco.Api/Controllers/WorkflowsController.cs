@@ -1,13 +1,24 @@
-using Loco.Core.Interfaces;
-using Loco.Core.Models;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
+using Loco.Api.Contracts;
+using Loco.Api.Execution;
+using Loco.Api.Mapping;
+using Loco.Core.Interfaces;
+using Loco.Core.Workflows;
+using VisualValidator = Loco.Core.Workflows.WorkflowValidator;
 
 namespace Loco.Api.Controllers;
 
 /// <summary>
-/// Workflow Management API
+/// Workflow CRUD + execution + validation, implementing exactly the contract the
+/// Visual Editor's api client already speaks (src/Loco.VisualEditor/src/api/):
+/// envelope responses, camelCase, page/pageSize pagination, and the editor's own
+/// Workflow JSON shape stored losslessly.
+///
+/// Every action here previously returned "In a real implementation..." stub data
+/// with no persistence at all; workflows now live in IWorkflowStore and execute
+/// on the connector-enabled VisualWorkflowEngine.
 /// </summary>
 [ApiController]
 [Route("api/v1/[controller]")]
@@ -15,362 +26,232 @@ namespace Loco.Api.Controllers;
 [Produces("application/json")]
 public class WorkflowsController : ControllerBase
 {
-    private readonly IAutomationEngine _engine;
-    private readonly IRuleStore _ruleStore;
+    private readonly IWorkflowStore _store;
+    private readonly VisualWorkflowEngine _engine;
+    private readonly ExecutionRegistry _executions;
     private readonly ILogger<WorkflowsController> _logger;
 
     public WorkflowsController(
-        IAutomationEngine engine,
-        IRuleStore ruleStore,
+        IWorkflowStore store,
+        VisualWorkflowEngine engine,
+        ExecutionRegistry executions,
         ILogger<WorkflowsController> logger)
     {
+        _store = store;
         _engine = engine;
-        _ruleStore = ruleStore;
+        _executions = executions;
         _logger = logger;
     }
 
-    /// <summary>
-    /// Get all workflows
-    /// </summary>
-    /// <param name="skip">Number of records to skip (pagination)</param>
-    /// <param name="take">Number of records to take (max 100)</param>
-    /// <returns>List of workflows</returns>
+    /// <summary>List workflows (page/pageSize, newest-updated first).</summary>
     [HttpGet]
     [Authorize(Policy = "CanViewWorkflows")]
-    [ProducesResponseType(typeof(PaginatedResponse<WorkflowDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [EnableRateLimiting("moderate")]
-    public async Task<ActionResult<PaginatedResponse<WorkflowDto>>> GetWorkflows(
-        [FromQuery] int skip = 0,
-        [FromQuery] int take = 20)
+    public async Task<IActionResult> GetWorkflows(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Getting workflows: skip={Skip}, take={Take}", skip, take);
+        var (items, total) = await _store.GetPageAsync(page, pageSize, cancellationToken);
 
-        if (take > 100)
-            return BadRequest(new { message = "Maximum take value is 100" });
-
-        try
+        return Ok(Envelope.Ok(new
         {
-            // In a real implementation, fetch from database with pagination
-            var workflows = new List<WorkflowDto>();
-
-            return Ok(new PaginatedResponse<WorkflowDto>
-            {
-                Items = workflows,
-                Total = workflows.Count,
-                Skip = skip,
-                Take = take,
-                HasMore = false
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving workflows");
-            throw;
-        }
+            workflows = items,
+            total,
+            page,
+            pageSize,
+        }));
     }
 
-    /// <summary>
-    /// Get a specific workflow by ID
-    /// </summary>
-    /// <param name="id">Workflow identifier</param>
-    /// <returns>Workflow details</returns>
+    /// <summary>Get one workflow by id.</summary>
     [HttpGet("{id}")]
     [Authorize(Policy = "CanViewWorkflows")]
-    [ProducesResponseType(typeof(WorkflowDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [EnableRateLimiting("moderate")]
-    public async Task<ActionResult<WorkflowDto>> GetWorkflow(string id)
+    public async Task<IActionResult> GetWorkflow(string id, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Getting workflow: {WorkflowId}", id);
-
-        if (string.IsNullOrWhiteSpace(id))
-            return BadRequest(new { message = "Workflow ID is required" });
-
-        try
+        var workflow = await _store.GetAsync(id, cancellationToken);
+        if (workflow is null)
         {
-            // In a real implementation, fetch from database
-            return NotFound(new { code = "NOT_FOUND", message = $"Workflow '{id}' not found" });
+            return NotFound(Envelope.Fail("NOT_FOUND", $"Workflow '{id}' was not found"));
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving workflow {WorkflowId}", id);
-            throw;
-        }
+
+        return Ok(Envelope.Ok(workflow));
     }
 
-    /// <summary>
-    /// Create a new workflow
-    /// </summary>
-    /// <param name="request">Workflow creation request</param>
-    /// <returns>Created workflow with ID</returns>
+    /// <summary>Create a workflow. The server assigns the id and timestamps.</summary>
     [HttpPost]
     [Authorize(Policy = "CanManageWorkflows")]
-    [ProducesResponseType(typeof(WorkflowDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [EnableRateLimiting("moderate")]
-    public async Task<ActionResult<WorkflowDto>> CreateWorkflow(
-        [FromBody] CreateWorkflowRequest request,
-        [FromHeader(Name = "X-Idempotency-Key")] string? idempotencyKey = null)
+    public async Task<IActionResult> CreateWorkflow(
+        [FromBody] WorkflowCreateRequest request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Creating workflow: {WorkflowName}", request.Name);
-
-        // Validation
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(new
-            {
-                code = "VALIDATION_FAILED",
-                message = "Validation failed",
-                errors = new { Name = new[] { "Workflow name is required" } }
-            });
-
-        try
         {
-            // In a real implementation, create in database
-            var workflow = new WorkflowDto
-            {
-                Id = Guid.NewGuid().ToString(),
-                Name = request.Name,
-                Description = request.Description,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            _logger.LogInformation("Workflow created: {WorkflowId}", workflow.Id);
-
-            return CreatedAtAction(nameof(GetWorkflow), new { id = workflow.Id }, workflow);
+            return BadRequest(Envelope.Fail("INVALID_ARGUMENT", "Workflow name is required"));
         }
-        catch (Exception ex)
+
+        var now = DateTime.UtcNow.ToString("O");
+        var workflow = new StoredWorkflow
         {
-            _logger.LogError(ex, "Error creating workflow");
-            throw;
-        }
+            Id = Guid.NewGuid().ToString("N"),
+            Name = request.Name,
+            Description = request.Description,
+            Nodes = request.Nodes ?? new List<StoredWorkflowNode>(),
+            Edges = request.Edges ?? new List<StoredWorkflowEdge>(),
+            Metadata = request.Metadata ?? new StoredWorkflowMetadata(),
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+
+        await _store.UpsertAsync(workflow, cancellationToken);
+        _logger.LogInformation("Created workflow {WorkflowId} ({Name})", workflow.Id, workflow.Name);
+
+        return CreatedAtAction(nameof(GetWorkflow), new { id = workflow.Id }, Envelope.Ok(workflow));
     }
 
-    /// <summary>
-    /// Update an existing workflow
-    /// </summary>
-    /// <param name="id">Workflow identifier</param>
-    /// <param name="request">Update request</param>
-    /// <returns>Updated workflow</returns>
+    /// <summary>Update an existing workflow (partial: only supplied fields change).</summary>
     [HttpPut("{id}")]
     [Authorize(Policy = "CanManageWorkflows")]
-    [ProducesResponseType(typeof(WorkflowDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [EnableRateLimiting("moderate")]
-    public async Task<ActionResult<WorkflowDto>> UpdateWorkflow(
-        string id,
-        [FromBody] UpdateWorkflowRequest request)
+    public async Task<IActionResult> UpdateWorkflow(
+        string id, [FromBody] WorkflowUpdateRequest request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Updating workflow: {WorkflowId}", id);
-
-        if (string.IsNullOrWhiteSpace(id))
-            return BadRequest(new { message = "Workflow ID is required" });
-
-        try
+        var existing = await _store.GetAsync(id, cancellationToken);
+        if (existing is null)
         {
-            // In a real implementation, update in database
-            return NotFound(new { code = "NOT_FOUND", message = $"Workflow '{id}' not found" });
+            return NotFound(Envelope.Fail("NOT_FOUND", $"Workflow '{id}' was not found"));
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error updating workflow {WorkflowId}", id);
-            throw;
-        }
+
+        if (request.Name is not null) existing.Name = request.Name;
+        if (request.Description is not null) existing.Description = request.Description;
+        if (request.Nodes is not null) existing.Nodes = request.Nodes;
+        if (request.Edges is not null) existing.Edges = request.Edges;
+        if (request.Metadata is not null) existing.Metadata = request.Metadata;
+        existing.UpdatedAt = DateTime.UtcNow.ToString("O");
+
+        await _store.UpsertAsync(existing, cancellationToken);
+        _logger.LogInformation("Updated workflow {WorkflowId}", id);
+
+        return Ok(Envelope.Ok(existing));
     }
 
-    /// <summary>
-    /// Delete a workflow
-    /// </summary>
-    /// <param name="id">Workflow identifier</param>
-    /// <returns>No content on success</returns>
+    /// <summary>Delete a workflow.</summary>
     [HttpDelete("{id}")]
     [Authorize(Policy = "CanManageWorkflows")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [EnableRateLimiting("moderate")]
-    public async Task<IActionResult> DeleteWorkflow(string id)
+    public async Task<IActionResult> DeleteWorkflow(string id, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Deleting workflow: {WorkflowId}", id);
-
-        if (string.IsNullOrWhiteSpace(id))
-            return BadRequest(new { message = "Workflow ID is required" });
-
-        try
+        var removed = await _store.DeleteAsync(id, cancellationToken);
+        if (!removed)
         {
-            // In a real implementation, delete from database
-            return NotFound(new { code = "NOT_FOUND", message = $"Workflow '{id}' not found" });
+            return NotFound(Envelope.Fail("NOT_FOUND", $"Workflow '{id}' was not found"));
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error deleting workflow {WorkflowId}", id);
-            throw;
-        }
+
+        _logger.LogInformation("Deleted workflow {WorkflowId}", id);
+        return Ok(Envelope.Ok(message: "Workflow deleted"));
     }
 
     /// <summary>
-    /// Execute a workflow
+    /// Start executing a workflow. Returns immediately with a pending/running
+    /// execution the client polls via GET /api/v1/executions/{executionId}.
     /// </summary>
-    /// <param name="id">Workflow identifier</param>
-    /// <param name="request">Execution request with parameters</param>
-    /// <returns>Execution result</returns>
     [HttpPost("{id}/execute")]
     [Authorize(Policy = "CanExecuteWorkflows")]
-    [ProducesResponseType(typeof(ExecutionResultDto), StatusCodes.Status202Accepted)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [EnableRateLimiting("moderate")]
-    public async Task<ActionResult<ExecutionResultDto>> ExecuteWorkflow(
-        string id,
-        [FromBody] ExecuteWorkflowRequest request)
+    public async Task<IActionResult> ExecuteWorkflow(
+        string id, [FromBody] ExecuteRequest? request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Executing workflow: {WorkflowId}", id);
-
-        if (string.IsNullOrWhiteSpace(id))
-            return BadRequest(new { message = "Workflow ID is required" });
-
-        try
+        var stored = await _store.GetAsync(id, cancellationToken);
+        if (stored is null)
         {
-            var executionId = Guid.NewGuid().ToString();
-
-            // In a real implementation, execute workflow asynchronously
-            var result = new ExecutionResultDto
-            {
-                ExecutionId = executionId,
-                WorkflowId = id,
-                Status = "Queued",
-                StartedAt = DateTime.UtcNow,
-                Progress = 0
-            };
-
-            _logger.LogInformation("Workflow queued for execution: {ExecutionId}", executionId);
-
-            return Accepted(new { Location = $"/api/v1/executions/{executionId}" }, result);
+            return NotFound(Envelope.Fail("NOT_FOUND", $"Workflow '{id}' was not found"));
         }
-        catch (Exception ex)
+
+        var visual = WorkflowMapper.ToVisualWorkflow(stored);
+
+        var validation = new VisualValidator().Validate(visual);
+        if (!validation.IsValid)
         {
-            _logger.LogError(ex, "Error executing workflow {WorkflowId}", id);
-            throw;
+            return BadRequest(Envelope.Fail(
+                "INVALID_WORKFLOW",
+                "Workflow failed validation",
+                new Dictionary<string, object> { ["errors"] = validation.Errors }));
         }
+
+        var initialVariables = request?.Input?
+            .ToDictionary(kv => kv.Key, kv => WorkflowMapper.ToPlainObject(kv.Value));
+
+        var executionId = Guid.NewGuid().ToString("N");
+        // The execution outlives this HTTP request - tie its lifetime to the app,
+        // not to the request's cancellation token.
+        var cts = new CancellationTokenSource();
+
+        var context = new WorkflowExecutionContext
+        {
+            ExecutionId = executionId,
+            WorkflowId = stored.Id,
+            Status = WorkflowExecutionStatus.Running,
+        };
+
+        var completion = Task.Run(async () =>
+        {
+            var resultContext = await _engine.ExecuteAsync(visual, initialVariables, cts.Token);
+            // The engine builds its own context; copy the outcome onto the one the
+            // registry exposes so pollers observe the terminal state.
+            context.Status = resultContext.Status;
+            context.Error = resultContext.Error;
+            context.EndTime = resultContext.EndTime;
+            context.NodeResults = resultContext.NodeResults;
+            context.Variables = resultContext.Variables;
+            context.ExecutionLog = resultContext.ExecutionLog;
+        }, CancellationToken.None);
+
+        var entry = new ExecutionRegistry.Entry(
+            executionId, stored.Id, DateTime.UtcNow, context, cts, completion);
+        _executions.Register(entry);
+
+        _logger.LogInformation(
+            "Started execution {ExecutionId} of workflow {WorkflowId}", executionId, id);
+
+        return Accepted(Envelope.Ok(ExecutionResponseFactory.Create(entry)));
     }
 
     /// <summary>
-    /// Get workflow execution status
+    /// Validate a workflow definition without executing it (the editor's
+    /// ValidationPanel calls this; the endpoint previously did not exist).
     /// </summary>
-    /// <param name="id">Workflow identifier</param>
-    /// <param name="executionId">Execution identifier</param>
-    /// <returns>Execution status</returns>
-    [HttpGet("{id}/executions/{executionId}")]
+    [HttpPost("validate")]
     [Authorize(Policy = "CanViewWorkflows")]
-    [ProducesResponseType(typeof(ExecutionStatusDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [EnableRateLimiting("moderate")]
-    public async Task<ActionResult<ExecutionStatusDto>> GetExecutionStatus(
-        string id,
-        string executionId)
+    public IActionResult ValidateWorkflow([FromBody] StoredWorkflow workflow)
     {
-        _logger.LogInformation("Getting execution status: {WorkflowId}/{ExecutionId}", id, executionId);
+        var visual = WorkflowMapper.ToVisualWorkflow(workflow);
+        var result = new VisualValidator().Validate(visual);
 
-        try
+        return Ok(Envelope.Ok(new
         {
-            // In a real implementation, fetch from database
-            return NotFound(new { code = "NOT_FOUND", message = $"Execution '{executionId}' not found" });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving execution status");
-            throw;
-        }
+            valid = result.IsValid,
+            errors = result.Errors,
+        }));
     }
 }
 
-// Request/Response DTOs
-public class CreateWorkflowRequest
+/// <summary>Mirrors the frontend's WorkflowCreateRequest.</summary>
+public class WorkflowCreateRequest
 {
     public string Name { get; set; } = "";
     public string? Description { get; set; }
-    public List<WorkflowStepRequest>? Steps { get; set; }
+    public List<StoredWorkflowNode>? Nodes { get; set; }
+    public List<StoredWorkflowEdge>? Edges { get; set; }
+    public StoredWorkflowMetadata? Metadata { get; set; }
 }
 
-public class UpdateWorkflowRequest
+/// <summary>Mirrors the frontend's WorkflowUpdateRequest (all fields optional).</summary>
+public class WorkflowUpdateRequest
 {
     public string? Name { get; set; }
     public string? Description { get; set; }
-    public List<WorkflowStepRequest>? Steps { get; set; }
+    public List<StoredWorkflowNode>? Nodes { get; set; }
+    public List<StoredWorkflowEdge>? Edges { get; set; }
+    public StoredWorkflowMetadata? Metadata { get; set; }
 }
 
-public class ExecuteWorkflowRequest
+/// <summary>Body of POST {id}/execute: { input?, dryRun? }.</summary>
+public class ExecuteRequest
 {
-    public Dictionary<string, object>? Parameters { get; set; }
-    public bool AsyncExecution { get; set; } = true;
-}
-
-public class WorkflowStepRequest
-{
-    public int Order { get; set; }
-    public string Type { get; set; } = "";
-    public string ActionName { get; set; } = "";
-    public Dictionary<string, object>? Configuration { get; set; }
-}
-
-public class WorkflowDto
-{
-    public string Id { get; set; } = "";
-    public string Name { get; set; } = "";
-    public string? Description { get; set; }
-    public List<WorkflowStepDto>? Steps { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-}
-
-public class WorkflowStepDto
-{
-    public string Id { get; set; } = "";
-    public int Order { get; set; }
-    public string Type { get; set; } = "";
-    public string ActionName { get; set; } = "";
-}
-
-public class ExecutionResultDto
-{
-    public string ExecutionId { get; set; } = "";
-    public string WorkflowId { get; set; } = "";
-    public string Status { get; set; } = "";
-    public DateTime StartedAt { get; set; }
-    public DateTime? CompletedAt { get; set; }
-    public int Progress { get; set; }
-    public object? Result { get; set; }
-}
-
-public class ExecutionStatusDto
-{
-    public string ExecutionId { get; set; } = "";
-    public string WorkflowId { get; set; } = "";
-    public string Status { get; set; } = "";
-    public DateTime StartedAt { get; set; }
-    public DateTime? CompletedAt { get; set; }
-    public int Progress { get; set; }
-    public List<StepExecutionDto>? StepExecutions { get; set; }
-}
-
-public class StepExecutionDto
-{
-    public string StepId { get; set; } = "";
-    public string Status { get; set; } = "";
-    public DateTime? StartedAt { get; set; }
-    public DateTime? CompletedAt { get; set; }
-    public object? Result { get; set; }
-}
-
-public class PaginatedResponse<T>
-{
-    public List<T> Items { get; set; } = new();
-    public int Total { get; set; }
-    public int Skip { get; set; }
-    public int Take { get; set; }
-    public bool HasMore { get; set; }
+    public Dictionary<string, JsonElement>? Input { get; set; }
+    public bool DryRun { get; set; }
 }

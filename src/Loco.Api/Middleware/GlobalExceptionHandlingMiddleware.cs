@@ -34,15 +34,25 @@ public class GlobalExceptionHandlingMiddleware
     {
         context.Response.ContentType = "application/json";
 
-        var response = new ApiErrorResponse
+        // Same envelope shape the frontend's ApiResponse<T> expects on failure:
+        // { success: false, error: { code, message, details? } } - previously this
+        // middleware wrote a flat {code,message,...} object no client code parsed.
+        var isDevelopment = context.RequestServices
+            .GetRequiredService<IHostEnvironment>().IsDevelopment();
+
+        var response = new
         {
-            TraceId = context.TraceIdentifier,
-            Timestamp = DateTime.UtcNow,
-            Code = GetErrorCode(exception),
-            Message = GetErrorMessage(exception),
-            Details = context.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment()
-                ? exception.StackTrace
-                : null
+            success = false,
+            error = new
+            {
+                code = GetErrorCode(exception),
+                message = GetErrorMessage(exception),
+                details = isDevelopment
+                    ? new Dictionary<string, object?> { ["stackTrace"] = exception.StackTrace }
+                    : null,
+            },
+            traceId = context.TraceIdentifier,
+            timestamp = DateTime.UtcNow,
         };
 
         context.Response.StatusCode = GetStatusCode(exception);
