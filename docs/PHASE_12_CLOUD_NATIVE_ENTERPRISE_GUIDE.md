@@ -1,3 +1,11 @@
+> ⚠️ **NOT IMPLEMENTED — ASPIRATIONAL DESIGN DOC.** The features described
+> below (distributed consensus, service mesh, quantum-ready / zero-knowledge
+> crypto, cloud-native platform engineering, etc.) are **not present in this
+> codebase**. Classes and subsystems referenced here do not exist in `src/`.
+> This document is retained for historical/design-discussion purposes only and
+> must not be read as a description of shipped functionality. See the root
+> `README.md` (“Project status”) for what actually works.
+
 # Phase 12: Cloud-Native Enterprise & Modern Operations Guide
 
 ## Overview

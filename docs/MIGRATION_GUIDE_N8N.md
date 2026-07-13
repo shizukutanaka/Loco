@@ -1,3 +1,10 @@
+> ⚠️ **No automated migration tooling exists yet.** There is no importer or
+> converter for Zapier/n8n workflow files in this codebase — Loco is only
+> "inspired by" their models. This document is a **conceptual comparison** to
+> help you rebuild equivalent workflows by hand, not a migration utility. Cost
+> and performance figures elsewhere in this file are illustrative, not
+> benchmarked.
+
 # n8n to Loco Migration Guide
 
 **Version**: 1.0

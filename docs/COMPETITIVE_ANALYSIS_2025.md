@@ -1,3 +1,8 @@
+> ⚠️ **Note on "Loco Cloud" and Loco pricing.** Loco is self-hosted and
+> open-source; there is **no hosted "Loco Cloud" service or paid tier**. Any
+> Loco pricing shown in comparison tables below is hypothetical positioning,
+> not a real offering. Competitor pricing is best-effort and may be outdated.
+
 # Competitive Analysis 2025 - Workflow Automation Market
 
 ## Executive Summary

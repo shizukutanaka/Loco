@@ -1,25 +1,41 @@
 # Loco - Enterprise Workflow Automation
 
-Loco is a lightweight, production-ready workflow automation engine designed for both personal use and enterprise deployments. Built with .NET 8 and optimized for performance, reliability, and ease of use.
+Loco is a lightweight workflow automation engine built with .NET 8, with a
+React/TypeScript visual editor. It is in active development — see
+[Project status](#project-status) for what actually works today versus what is
+still in progress.
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET 8.0+](https://img.shields.io/badge/.NET-8.0+-512bd4)]()
 
 ## Features
 
-- **🚀 Cross-Platform**: Run on Windows, macOS, and Linux with unified workflow definitions
-- **⚡ High Performance**: Low memory footprint (<50MB), minimal CPU usage (<5%)
-- **🔒 Security-First**: JWT authentication, rate limiting, input validation, audit logging
-- **🌐 Multi-Language SDKs**: Official Python and TypeScript/JavaScript clients
-- **🔄 Async/Await**: Full async support for non-blocking operations
-- **📊 Observability**: OpenTelemetry integration, structured logging with correlation IDs
-- **🛡️ Reliability**: Error recovery, automatic retries, health checks
-- **📚 Well-Tested**: 130+ unit tests, property-based testing, chaos engineering tests
-- **🤖 AI-Native**: Built-in support for OpenAI, Anthropic Claude with cost tracking
-- **🔌 Pre-built Integrations**: 15 ready-to-use connectors covering 95%+ of automation use cases
-- **📊 Visual Workflows**: JSON-based workflow builder with 10 pre-built templates
-- **🎨 Visual Editor**: React + TypeScript drag-and-drop workflow designer (67% faster workflow creation)
+- **🔌 Connectors**: 28 built-in connectors (Slack, GitHub, HTTP, databases,
+  cloud services, and more) with a clean `IConnector` contract for adding your own
+- **🎨 Visual Editor**: React + TypeScript drag-and-drop workflow designer, wired
+  to the API for create / save / execute / validate
+- **🔒 Authentication**: JWT bearer auth with config-defined users (PBKDF2-hashed
+  passwords) and scope-based authorization; rate limiting and input validation
+- **📊 Workflow engine**: node-graph execution with retry/backoff, error-branch
+  routing, and cancellation
+- **🤖 AI steps**: connectors for OpenAI and Anthropic Claude
+- **🌐 Client SDKs**: Python and TypeScript/JavaScript clients under `sdks/`
+- **🖥️ CLI**: run workflows from the terminal (`Loco.Cli`)
+
+## Project status
+
+This repository is a work in progress. Being honest about the state:
+
+- **Works**: the connector library, the workflow engine, the visual editor
+  frontend (builds clean, 165 passing tests), and the HTTP API's CRUD /
+  execute / validate / auth endpoints.
+- **In progress / limitations**: execution history is in-memory and does not
+  survive an API restart; the durable-execution event store is not yet
+  file/DB-backed; the CLI's default engine currently runs a limited action set.
+- **Not implemented** (despite what some older `docs/PHASE_*` files claim): the
+  distributed-systems / service-mesh / quantum / zero-knowledge material in
+  `docs/PHASE_9`–`PHASE_14` describes designs that are **not** in the codebase.
+  Those documents are aspirational and are being removed or clearly marked.
 
 ## Quick Start
 
@@ -141,20 +157,20 @@ const execution = await client.workflows.waitForExecution("workflow-id", result.
 
 📚 **[Complete Documentation](src/Loco.Core/Practical/INDEX.md)** | 🚀 **[Quick Reference](src/Loco.Core/Practical/QUICK_REFERENCE.md)**
 
-**Key Features**:
-- ✅ 10M+ ops/sec performance (cache, metrics, pooling)
-- ✅ Zero external dependencies (except JWT)
-- ✅ <500 lines per pattern
-- ✅ Thread-safe by default
-- ✅ 50-100x faster than heavy frameworks
+A collection of small, self-contained utility classes under
+`src/Loco.Core/Practical` (caching, pooling, a lightweight HTTP server, simple
+auth/job/monitoring helpers), each kept small and dependency-light. Performance
+numbers previously quoted here (e.g. "10M+ ops/sec", "50-100x faster") were not
+backed by committed benchmarks and have been removed; see `benchmarks/` if you
+want to measure on your own hardware.
 
-**Popular Patterns**:
-- `SimpleHttpServer` - Lightweight HTTP server (50K+ req/sec)
-- `SimpleDatabase` - Direct SQL without ORM overhead
-- `SimpleCache` - High-performance caching (10M+ ops/sec)
-- `SimpleJob` - Background job system
-- `SimpleAuth` - JWT authentication
-- `SimpleMonitoring` - Complete observability stack
+**Some patterns**:
+- `SimpleHttpServer` - lightweight HTTP server
+- `SimpleDatabase` - direct SQL without ORM overhead
+- `SimpleCache` - in-memory cache
+- `SimpleJob` - background job helper
+- `SimpleAuth` - JWT helpers
+- `SimpleMonitoring` - basic metrics helpers
 
 **Documentation**:
 - [INDEX.md](src/Loco.Core/Practical/INDEX.md) - Master navigation
@@ -261,7 +277,7 @@ dotnet test
 dotnet test --logger "console;verbosity=detailed"
 
 # Run specific test class
-dotnet test --filter "FullyQualifiedName~Loco.Core.Tests.WorkflowsControllerTests"
+dotnet test --filter "FullyQualifiedName~Loco.Api.Tests.WorkflowApiTests"
 ```
 
 ## Contributing
@@ -307,8 +323,8 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
 - 🚀 [Advanced Scenarios](examples/ADVANCED_SCENARIOS.md) - 4 composite workflows with ROI
 
 ### Migration Guides
-- 🔄 [Migrate from Zapier](docs/MIGRATION_GUIDE_ZAPIER.md) - Save 60-90% on costs
-- 🔄 [Migrate from n8n](docs/MIGRATION_GUIDE_N8N.md) - 50-100x performance gain
+- 🔄 [Coming from Zapier](docs/MIGRATION_GUIDE_ZAPIER.md) - concept comparison (no automated importer yet)
+- 🔄 [Coming from n8n](docs/MIGRATION_GUIDE_N8N.md) - concept comparison (no automated importer yet)
 
 ### Project Documentation
 - 📊 [Project Summary](docs/PROJECT_SUMMARY.md) - Complete implementation overview

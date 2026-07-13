@@ -653,6 +653,55 @@ foreach (var (nodeId, nodeResult) in result.NodeResults)
    // Customize parameters...
    ```
 
+## 🔐 API Authentication Setup
+
+The HTTP API (`Loco.Api`) protects its endpoints with JWT bearer auth. Two
+things must be configured before the API will issue tokens:
+
+**1. A signing key.** Set `Jwt:SecretKey` (>= 32 bytes) via environment
+variable or user secrets — never commit it:
+
+```bash
+export Jwt__SecretKey="a-long-random-string-at-least-32-bytes-long"
+```
+
+Outside Development the API refuses to start without this. In Development a
+random per-run key is generated (tokens then reset on restart).
+
+**2. At least one user.** Users live in the `Auth:Users` configuration array,
+each with a PBKDF2 password hash and a scope list. Generate a hash:
+
+```bash
+dotnet run --project src/Loco.Api -- hash-password "your-password"
+# -> PBKDF2$100000$<salt>$<hash>
+```
+
+Then configure (e.g. in `appsettings.Development.json` or environment):
+
+```json
+{
+  "Auth": {
+    "Users": [
+      {
+        "Username": "admin",
+        "PasswordHash": "PBKDF2$100000$...$...",
+        "Scopes": ["workflows:read", "workflows:manage", "workflows:execute"]
+      }
+    ]
+  }
+}
+```
+
+With no users configured, `POST /api/v1/authentication/token` returns
+`501 AUTH_NOT_CONFIGURED` — it never accepts arbitrary credentials. Exchange
+credentials for a token, then send it as `Authorization: Bearer <token>`:
+
+```bash
+curl -X POST http://localhost:5000/api/v1/authentication/token \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"your-password"}'
+```
+
 ## 📖 Additional Resources
 
 - **[Full Documentation](../README.md)** - Complete feature overview
