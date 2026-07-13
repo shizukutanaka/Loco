@@ -82,6 +82,15 @@ public class WorkflowExecutionContext
     public Dictionary<string, object> Variables { get; set; } = new();
     public string? Error { get; set; }
     public List<string> ExecutionLog { get; set; } = new();
+
+    /// <summary>
+    /// The execution's cancellation token, set by the engine at start. Node handlers
+    /// (whose delegate signature has no CancellationToken parameter) can observe it
+    /// so long-running work like the built-in delay node stops promptly on cancel.
+    /// Serialization-invisible (JsonIgnore) - it is runtime state, not data.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public CancellationToken CancellationToken { get; set; }
 }
 
 public enum WorkflowExecutionStatus
@@ -140,7 +149,8 @@ public class VisualWorkflowEngine
         var context = new WorkflowExecutionContext
         {
             WorkflowId = workflow.Id,
-            Variables = initialVariables ?? new()
+            Variables = initialVariables ?? new(),
+            CancellationToken = ct
         };
 
         Log(context, $"Starting workflow: {workflow.Name} ({workflow.Id})");
@@ -167,6 +177,14 @@ public class VisualWorkflowEngine
             context.Status = WorkflowExecutionStatus.Success;
             Log(context, $"Workflow completed successfully");
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // A caller-requested cancel (e.g. POST /executions/{id}/cancel) is not a
+            // failure - report it as Cancelled so clients can distinguish the two.
+            context.Status = WorkflowExecutionStatus.Cancelled;
+            context.Error = "Execution was cancelled";
+            Log(context, "Workflow cancelled");
+        }
         catch (Exception ex)
         {
             context.Status = WorkflowExecutionStatus.Failed;
@@ -186,6 +204,10 @@ public class VisualWorkflowEngine
     /// </summary>
     private async Task ExecuteNodeAsync(VisualWorkflow workflow, WorkflowNode node, WorkflowExecutionContext context, CancellationToken ct)
     {
+        // Honor cancellation at node boundaries; without this a long chain keeps
+        // running to completion even after the caller cancelled.
+        ct.ThrowIfCancellationRequested();
+
         if (node.Disabled)
         {
             Log(context, $"Skipping disabled node: {node.Name}");
@@ -285,6 +307,11 @@ public class VisualWorkflowEngine
 
                 return await ExecuteNodeHandlerAsync(node, context, ct);
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // A caller-requested cancel is not a transient fault - never retry it.
+                throw;
+            }
             catch (Exception ex)
             {
                 lastException = ex;
@@ -373,11 +400,12 @@ public class VisualWorkflowEngine
             return context.Variables.GetValueOrDefault(name);
         });
 
-        // Delay node - wait for specified time
+        // Delay node - wait for specified time (observes the execution's cancel token
+        // so POST /executions/{id}/cancel interrupts the wait instead of sitting it out)
         RegisterNodeHandler("delay", async (node, context) =>
         {
             var seconds = Convert.ToInt32(node.Parameters.GetValueOrDefault("seconds", 1));
-            await Task.Delay(TimeSpan.FromSeconds(seconds));
+            await Task.Delay(TimeSpan.FromSeconds(seconds), context.CancellationToken);
             return new { delayed = seconds };
         });
 

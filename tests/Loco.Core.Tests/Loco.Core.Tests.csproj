@@ -37,7 +37,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Workflow\**\*.cs" />
+    <!--
+      Windows-only: WindowsPlatformProviderTests exercise WindowsPlatformProvider
+      (the only IPlatformProvider implementation), which cannot run on Linux CI.
+      Everything else under Workflow/ is compiled and run again - the previous
+      blanket Remove of Workflow\** silently excluded ~50 real tests
+      (WorkflowExecutor/Parser/Validator/Schema) while the README kept counting
+      them, leaving the core executor entirely unvalidated.
+      Sync\** stays excluded pending a CloudSyncManager review; the two Security
+      test files reference APIs that no longer exist after the bb7147f cleanup.
+    -->
+    <Compile Remove="Workflow\Providers\**\*.cs" />
     <Compile Remove="Sync\**\*.cs" />
     <Compile Remove="Security\AdvancedSecurityManagerTests.cs" />
     <Compile Remove="Security\PathSecurityTests.cs" />
