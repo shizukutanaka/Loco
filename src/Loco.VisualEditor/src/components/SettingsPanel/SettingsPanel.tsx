@@ -5,7 +5,7 @@
  * Includes API keys, environment variables, and user preferences.
  */
 
-import { useState, useCallback, memo } from 'react';
+import { useState, useCallback, useEffect, memo } from 'react';
 import {
   Settings,
   Key,
@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import { FormInput, FormSelect, FormToggle } from '@/components/Form';
+import { saveSettings, loadSettings } from '@/config/appSettings';
 
 // ============================================================================
 // Types
@@ -94,6 +95,16 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
 
   const toast = useToast();
 
+  // Hydrate form fields from persisted settings when the panel opens, so an
+  // already-saved API key is shown (and preserved on re-save) instead of blank.
+  useEffect(() => {
+    if (!isOpen) return;
+    const settings = loadSettings();
+    if (!settings) return;
+    if (settings.api?.apiKey !== undefined) setApiKey(settings.api.apiKey);
+    if (settings.api?.apiBaseUrl) setApiBaseUrl(settings.api.apiBaseUrl);
+  }, [isOpen]);
+
   // Memoized handlers to prevent unnecessary re-renders
   const handleAddEnvVar = useCallback(() => {
     if (!newEnvKey || !newEnvValue) {
@@ -118,7 +129,6 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
   }, [toast]);
 
   const handleSave = useCallback(() => {
-    // Save to localStorage
     const settings = {
       general: { autoSaveInterval, enableAutoSave, showValidationPanel },
       api: { apiKey, apiBaseUrl },
@@ -127,7 +137,10 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
       environment: envVars,
     };
 
-    localStorage.setItem('loco_settings', JSON.stringify(settings));
+    // Persists to localStorage AND applies the API key to the shared api client,
+    // so requests are actually authenticated (previously the key was saved but
+    // never wired, so every call hit the backend as anonymous -> 401).
+    saveSettings(settings);
     toast.success('Settings saved successfully');
     onClose();
   }, [autoSaveInterval, enableAutoSave, showValidationPanel, apiKey, apiBaseUrl, theme, gridSize, showMinimap, enableNotifications, notifyOnSuccess, notifyOnError, envVars, toast, onClose]);

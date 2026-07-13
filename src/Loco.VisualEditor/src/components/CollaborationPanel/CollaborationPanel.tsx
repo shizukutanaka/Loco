@@ -102,7 +102,9 @@ function CollaborationPanelComponent({
 
   const { nodes } = useWorkflowStore();
 
-  const [serverUrl, setServerUrl] = useState('ws://localhost:3001');
+  const [serverUrl, setServerUrl] = useState(
+    (import.meta.env.VITE_COLLAB_SERVER_URL as string | undefined) || 'ws://localhost:3001'
+  );
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');

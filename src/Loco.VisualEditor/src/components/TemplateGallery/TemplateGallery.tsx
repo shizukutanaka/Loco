@@ -42,7 +42,10 @@ function TemplateGalleryComponent({ isOpen, onClose }: TemplateGalleryProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  // Hooks must run on every render: these were placed after `if (!isOpen)
+  // return null`, so opening/closing the gallery changed the hook count and
+  // crashed React ("rendered more hooks than during the previous render").
+  // They run unconditionally now; the early return is moved below.
 
   // Memoize filtered templates to prevent recalculation on every render
   const filteredTemplates = useMemo(() => {
@@ -74,6 +77,8 @@ function TemplateGalleryComponent({ isOpen, onClose }: TemplateGalleryProps) {
     loadWorkflow(newWorkflow);
     onClose();
   }, [loadWorkflow, onClose]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

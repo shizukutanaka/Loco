@@ -35,14 +35,15 @@ function ValidationPanelComponent() {
     }
   }, [nodes, edges]);
 
-  if (!validationReport) return null;
-
-  // Memoize filtered issues with single-pass filtering instead of two separate filters
-  // Single pass through issues array to categorize errors and warnings (O(n) instead of O(2n))
+  // All hooks must run on every render (Rules of Hooks): they were previously
+  // placed AFTER `if (!validationReport) return null`, so when the report
+  // transitioned from null to non-null React threw "rendered more hooks than
+  // during the previous render" and the panel crashed. Compute over a safe
+  // empty issues list when there is no report yet, and gate rendering below.
   const { errors, warnings } = useMemo(() => {
     const errors = [];
     const warnings = [];
-    for (const issue of validationReport.issues) {
+    for (const issue of validationReport?.issues ?? []) {
       if (issue.severity === 'error') {
         errors.push(issue);
       } else if (issue.severity === 'warning') {
@@ -57,6 +58,8 @@ function ValidationPanelComponent() {
     [errors, warnings]
   );
 
+  const isValid = useMemo(() => errors.length === 0, [errors]);
+
   // Memoize visibility toggle handlers
   const handleShowPanel = useCallback(() => {
     setIsVisible(true);
@@ -65,6 +68,8 @@ function ValidationPanelComponent() {
   const handleHidePanel = useCallback(() => {
     setIsVisible(false);
   }, []);
+
+  if (!validationReport) return null;
 
   if (!isVisible && hasIssues) {
     // Show compact indicator when panel is hidden
@@ -100,9 +105,6 @@ function ValidationPanelComponent() {
   }
 
   if (!isVisible) return null;
-
-  // Memoize validity check to prevent recalculation
-  const isValid = useMemo(() => errors.length === 0, [errors]);
 
   return (
     <div className="fixed bottom-4 right-4 w-96 bg-white border-2 border-gray-200 rounded-lg shadow-xl max-h-96 flex flex-col">

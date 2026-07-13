@@ -35,6 +35,25 @@ function PropertyPanelComponent() {
     [handleLabelChange]
   );
 
+  // These useMemo calls previously sat AFTER the `if (!selectedNode) return`
+  // early return, so the hook count changed when a node was (de)selected,
+  // triggering React's "rendered more hooks than during the previous render"
+  // crash. They now run unconditionally with optional chaining and the render
+  // is gated below.
+  const finalIntegration = useMemo(
+    () => (selectedNode ? getIntegrationById(selectedNode.data.integration) : undefined),
+    [selectedNode]
+  );
+
+  // Memoize action options to prevent unnecessary FormSelect re-renders
+  const actionOptions = useMemo(
+    () => finalIntegration?.actions?.map((action) => ({
+      value: action.id,
+      label: action.name,
+    })) || [],
+    [finalIntegration?.actions]
+  );
+
   if (!selectedNode) {
     return (
       <div className="w-96 bg-white border-l border-gray-200 p-6 flex items-center justify-center text-gray-500">
@@ -45,24 +64,6 @@ function PropertyPanelComponent() {
       </div>
     );
   }
-
-  // Update integration memoization after guard to ensure selectedNode exists
-  const memoizedIntegration = useMemo(
-    () => getIntegrationById(selectedNode.data.integration),
-    [selectedNode.data.integration]
-  );
-
-  // Use memoizedIntegration instead of integration
-  const finalIntegration = memoizedIntegration;
-
-  // Memoize action options to prevent unnecessary FormSelect re-renders
-  const actionOptions = useMemo(
-    () => finalIntegration?.actions?.map((action) => ({
-      value: action.id,
-      label: action.name,
-    })) || [],
-    [finalIntegration?.actions]
-  );
 
   return (
     <div className="w-96 bg-white border-l border-gray-200 flex flex-col h-full">

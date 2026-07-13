@@ -21,7 +21,13 @@ export class LocoApiClient {
   private authConfig: AuthConfig;
   private enableRetry: boolean = true;
 
-  constructor(baseURL: string = '/api/v1', authConfig?: AuthConfig) {
+  // Default base URL is the relative '/api/v1', which the Vite dev proxy (and a
+  // reverse proxy in production) forwards to the API. For a deployment that
+  // serves the editor from a different origin than the API, set VITE_API_BASE_URL.
+  constructor(
+    baseURL: string = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api/v1',
+    authConfig?: AuthConfig
+  ) {
     this.authConfig = authConfig || {};
 
     // Create axios instance with default config
