@@ -186,6 +186,12 @@ public sealed class HttpConnector : ConnectorBase
             AutomaticDecompression = System.Net.DecompressionMethods.All
         };
 
+        // Dispose any previous client before replacing it. InitializeAsync can run more
+        // than once for the same cached connector instance (e.g. ConnectorRegistry.
+        // GetInitializedConnectorAsync on credential rotation); overwriting _httpClient
+        // unconditionally previously leaked the old HttpClient, its handler, and its
+        // socket connections.
+        _httpClient?.Dispose();
         _httpClient = new HttpClient(handler)
         {
             Timeout = TimeSpan.FromSeconds(timeout)

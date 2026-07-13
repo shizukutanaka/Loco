@@ -338,6 +338,11 @@ public sealed class GoogleSheetsConnector : ConnectorBase
 
     public override async Task InitializeAsync(ConnectorConfiguration config, CancellationToken ct = default)
     {
+        // Dispose any previous client before replacing it. InitializeAsync can run more
+        // than once for the same cached connector instance (e.g. ConnectorRegistry.
+        // GetInitializedConnectorAsync on credential rotation); overwriting _httpClient
+        // unconditionally previously leaked the old HttpClient and its socket handler.
+        _httpClient?.Dispose();
         _httpClient = new HttpClient();
 
         var accessToken = config.GetCredentialString("accessToken");

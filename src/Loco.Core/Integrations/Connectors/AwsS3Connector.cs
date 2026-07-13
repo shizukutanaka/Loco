@@ -234,6 +234,11 @@ public sealed class AwsS3Connector : ConnectorBase
         _region = config.GetCredentialString("region")!;
         _endpoint = config.GetSettingString("endpoint") ?? $"https://s3.{_region}.amazonaws.com";
 
+        // Dispose any previous client before replacing it. InitializeAsync can run more
+        // than once for the same cached connector instance (e.g. ConnectorRegistry.
+        // GetInitializedConnectorAsync on credential rotation); overwriting _httpClient
+        // unconditionally previously leaked the old HttpClient and its socket handler.
+        _httpClient?.Dispose();
         _httpClient = new HttpClient
         {
             Timeout = TimeSpan.FromMinutes(5)

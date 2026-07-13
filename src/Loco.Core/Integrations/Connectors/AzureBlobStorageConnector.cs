@@ -196,6 +196,11 @@ public sealed class AzureBlobStorageConnector : ConnectorBase
         _accountKey = config.GetCredentialString("accountKey");
         _baseUrl = $"https://{_accountName}.blob.core.windows.net";
 
+        // Dispose any previous client before replacing it. InitializeAsync can run more
+        // than once for the same cached connector instance (e.g. ConnectorRegistry.
+        // GetInitializedConnectorAsync on credential rotation); overwriting _httpClient
+        // unconditionally previously leaked the old HttpClient and its socket handler.
+        _httpClient?.Dispose();
         _httpClient = new HttpClient
         {
             BaseAddress = new Uri(_baseUrl)
