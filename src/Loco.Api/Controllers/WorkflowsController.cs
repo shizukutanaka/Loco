@@ -171,6 +171,47 @@ public class WorkflowsController : ControllerBase
                 new Dictionary<string, object> { ["errors"] = validation.Errors }));
         }
 
+        if (request?.DryRun == true)
+        {
+            // The ExecuteRequest.DryRun field has existed since this controller was
+            // written, but nothing ever checked it - a caller passing dryRun:true
+            // expecting a safe preview would silently get a REAL execution (every
+            // connector action actually invoked) instead. Short-circuit before ever
+            // touching the engine/ExecutionRegistry/connectors: report the validated
+            // node plan and stop, exactly what "dry run" promises.
+            var dryRunId = Guid.NewGuid().ToString("N");
+            var dryRunAt = DateTime.UtcNow.ToString("O");
+            var plannedNodes = visual.Nodes.Select(n => new
+            {
+                nodeId = n.Id,
+                name = n.Name,
+                integration = n.Integration,
+                action = n.Action,
+            }).ToList();
+
+            _logger.LogInformation(
+                "Dry run for workflow {WorkflowId}: {NodeCount} node(s) planned, no connectors invoked",
+                id, plannedNodes.Count);
+
+            return Ok(Envelope.Ok(new
+            {
+                executionId = dryRunId,
+                status = "completed",
+                startedAt = dryRunAt,
+                completedAt = dryRunAt,
+                output = new { dryRun = true, plannedNodes },
+                logs = new[]
+                {
+                    new
+                    {
+                        timestamp = dryRunAt,
+                        level = "info",
+                        message = $"Dry run: {plannedNodes.Count} node(s) validated; no connector actions were invoked.",
+                    },
+                },
+            }));
+        }
+
         var initialVariables = request?.Input?
             .ToDictionary(kv => kv.Key, kv => WorkflowMapper.ToPlainObject(kv.Value));
 

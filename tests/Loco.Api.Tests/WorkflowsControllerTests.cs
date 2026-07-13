@@ -149,6 +149,41 @@ public class WorkflowApiTests : IClassFixture<LocoApiFactory>
         status.GetProperty("output").GetProperty("n-get").GetString().Should().Be("hello");
     }
 
+    // The ExecuteRequest.DryRun field existed with nothing checking it - a caller
+    // passing dryRun:true expecting a safe preview would silently get a real
+    // execution instead (every connector action actually invoked). This pins the
+    // fix: dry run must never create a pollable execution or touch a connector.
+    [Fact]
+    public async Task Execute_DryRun_ReturnsPlanImmediately_WithoutInvokingConnectorsOrCreatingExecution()
+    {
+        var client = await _factory.CreateAuthenticatedClientAsync();
+
+        var createResponse = await client.PostAsJsonAsync("/api/v1/workflows", VariableWorkflowBody("dry-run-wf"));
+        var id = (await createResponse.Content.ReadFromJsonAsync<JsonElement>())
+            .GetProperty("data").GetProperty("id").GetString()!;
+
+        var executeResponse = await client.PostAsJsonAsync(
+            $"/api/v1/workflows/{id}/execute", new { dryRun = true });
+
+        // Synchronous 200, not the real-execution 202 Accepted.
+        executeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await executeResponse.Content.ReadFromJsonAsync<JsonElement>();
+        body.GetProperty("success").GetBoolean().Should().BeTrue();
+
+        var data = body.GetProperty("data");
+        data.GetProperty("status").GetString().Should().Be("completed");
+        data.GetProperty("completedAt").GetString().Should().NotBeNullOrWhiteSpace();
+        var plannedNodes = data.GetProperty("output").GetProperty("plannedNodes");
+        plannedNodes.GetArrayLength().Should().Be(2);
+        plannedNodes[0].GetProperty("integration").GetString().Should().Be("variable");
+
+        // Must not have registered a real, pollable execution.
+        var executionId = data.GetProperty("executionId").GetString()!;
+        var pollResponse = await client.GetAsync($"/api/v1/executions/{executionId}");
+        pollResponse.StatusCode.Should().Be(HttpStatusCode.NotFound,
+            "a dry run must never create an ExecutionRegistry entry - it never ran anything");
+    }
+
     [Fact]
     public async Task Cancel_DelayWorkflow_ReportsCancelledNotFailed()
     {
