@@ -330,13 +330,7 @@ public sealed class CalendlyConnector : ConnectorBase
             if (!currentUser.Success)
                 return currentUser;
 
-            var userData = currentUser.Data as Dictionary<string, object>;
-            if (userData?.TryGetValue("resource", out var resource) == true)
-            {
-                var resourceDict = resource as Dictionary<string, object>;
-                if (resourceDict?.TryGetValue("uri", out var uri) == true)
-                    userUri = uri?.ToString();
-            }
+            userUri = ExtractResourceUri(currentUser.Data);
         }
 
         if (!string.IsNullOrEmpty(userUri))
@@ -440,13 +434,7 @@ public sealed class CalendlyConnector : ConnectorBase
             if (!currentUser.Success)
                 return currentUser;
 
-            var userData = currentUser.Data as Dictionary<string, object>;
-            if (userData?.TryGetValue("resource", out var resource) == true)
-            {
-                var resourceDict = resource as Dictionary<string, object>;
-                if (resourceDict?.TryGetValue("uri", out var uri) == true)
-                    userUri = uri?.ToString();
-            }
+            userUri = ExtractResourceUri(currentUser.Data);
         }
 
         if (string.IsNullOrEmpty(userUri))
@@ -507,6 +495,28 @@ public sealed class CalendlyConnector : ConnectorBase
     private static string GetUuidFromUri(string uri)
     {
         return uri.Split('/').Last();
+    }
+
+    /// <summary>
+    /// Pulls resource.uri out of a users/me response. ProcessResponseAsync
+    /// deserializes to Dictionary&lt;string, object&gt;, so nested objects are boxed
+    /// JsonElement values - the previous Dictionary cast was always null, which
+    /// silently broke the "auto-detect current user" fallback of getEventTypes
+    /// and getOrganizationMemberships.
+    /// </summary>
+    private static string? ExtractResourceUri(object? data)
+    {
+        if (data is Dictionary<string, object> userData
+            && userData.TryGetValue("resource", out var resource)
+            && resource is JsonElement resourceElement
+            && resourceElement.ValueKind == JsonValueKind.Object
+            && resourceElement.TryGetProperty("uri", out var uriElement)
+            && uriElement.ValueKind == JsonValueKind.String)
+        {
+            return uriElement.GetString();
+        }
+
+        return null;
     }
 
     private async Task<ActionResult> GetAsync(string endpoint, CancellationToken ct)

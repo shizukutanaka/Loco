@@ -314,8 +314,19 @@ public sealed class SlackConnector : ConnectorBase
 
         if (!openResult.Success) return openResult;
 
-        var channelData = openResult.Data as Dictionary<string, object?>;
-        var channel = (channelData?["channel"] as Dictionary<string, object?>)?["id"]?.ToString();
+        // ParseSlackResponse deserializes to Dictionary<string, object?>, so nested
+        // objects are boxed JsonElement values - a cast to Dictionary here is always
+        // null, which made this action fail even when conversations.open succeeded.
+        string? channel = null;
+        if (openResult.Data is Dictionary<string, object?> channelData
+            && channelData.TryGetValue("channel", out var channelObj)
+            && channelObj is JsonElement channelElement
+            && channelElement.ValueKind == JsonValueKind.Object
+            && channelElement.TryGetProperty("id", out var idElement)
+            && idElement.ValueKind == JsonValueKind.String)
+        {
+            channel = idElement.GetString();
+        }
 
         if (string.IsNullOrEmpty(channel))
         {

@@ -359,10 +359,12 @@ public class SecretsCommand : BaseCommand
 
     private string GenerateRandomSecret(int length)
     {
+        // Secret material must come from a CSPRNG - System.Random is a
+        // predictable, seedable PRNG and unsuitable for key generation
         const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-        var random = new Random();
-        return new string(Enumerable.Repeat(chars, length)
-            .Select(s => s[random.Next(s.Length)]).ToArray());
+        return new string(Enumerable.Range(0, length)
+            .Select(_ => chars[System.Security.Cryptography.RandomNumberGenerator.GetInt32(chars.Length)])
+            .ToArray());
     }
 
     private int ShowHelp()

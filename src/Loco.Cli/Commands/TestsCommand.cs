@@ -97,7 +97,7 @@ public class TestsCommand : Command
                 CreateNoWindow = true
             };
 
-            var process = new Process { StartInfo = startInfo };
+            using var process = new Process { StartInfo = startInfo };
             process.OutputDataReceived += (sender, e) =>
             {
                 if (!string.IsNullOrEmpty(e.Data))
@@ -230,7 +230,7 @@ public class TestsCommand : Command
                 CreateNoWindow = true
             };
 
-            var process = new Process { StartInfo = startInfo };
+            using var process = new Process { StartInfo = startInfo };
             process.OutputDataReceived += (sender, e) =>
             {
                 if (!string.IsNullOrEmpty(e.Data))

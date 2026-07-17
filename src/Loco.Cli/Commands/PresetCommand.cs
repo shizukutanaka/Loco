@@ -155,7 +155,6 @@ public class PresetCommand : Command
 
         var watchPath = Environment.CurrentDirectory;
         Console.WriteLine($"Watching directory: {watchPath}");
-        Console.WriteLine("Press Ctrl+C to stop...");
         Console.WriteLine();
 
         var actions = new[]
@@ -173,8 +172,6 @@ public class PresetCommand : Command
         Console.WriteLine("════════════════════════════════════════════════════════");
         Console.ResetColor();
         Console.WriteLine();
-        Console.WriteLine("Running health checks every 30 seconds...");
-        Console.WriteLine("Press Ctrl+C to stop...");
         Console.WriteLine();
 
         var actions = new[]
@@ -210,7 +207,13 @@ public class PresetCommand : Command
         try
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"Executing preset: {name}");
+            Console.WriteLine($"Executing preset: {name} (SIMULATION)");
+            Console.ResetColor();
+            Console.ForegroundColor = ConsoleColor.DarkYellow;
+            Console.WriteLine("⚠ Preset execution is currently a simulation: the actions below are");
+            Console.WriteLine("  described but NOT actually performed (no files are cleaned, nothing");
+            Console.WriteLine("  is monitored or watched). Use 'loco workflow <file>' to run real");
+            Console.WriteLine("  automation.");
             Console.ResetColor();
             Console.WriteLine($"Actions: {actions.Length}");
             Console.WriteLine();
@@ -228,11 +231,12 @@ public class PresetCommand : Command
 
                 try
                 {
-                    // Simulate action execution
+                    // Simulation only - no real action is performed (see the
+                    // banner printed above)
                     await Task.Delay(100);
 
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine(" ✓");
+                    Console.WriteLine(" ✓ (simulated)");
                     Console.ResetColor();
                     successCount++;
                 }
@@ -265,7 +269,7 @@ public class PresetCommand : Command
             if (failureCount == 0)
             {
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"✓ Preset '{name}' completed successfully");
+                Console.WriteLine($"✓ Preset '{name}' simulation completed (no real actions were performed)");
                 Console.ResetColor();
                 return 0;
             }

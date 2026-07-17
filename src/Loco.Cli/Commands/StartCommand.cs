@@ -47,7 +47,14 @@ public class StartCommand : Command
             Console.WriteLine("\nPress Ctrl+C to stop the engine.");
 
             var tcs = new TaskCompletionSource<bool>();
-            Console.CancelKeyPress += (_, _) => tcs.SetResult(true);
+            Console.CancelKeyPress += (_, e) =>
+            {
+                // Without Cancel = true the runtime kills the process as soon as
+                // the handler returns - the graceful StopAsync/Dispose path below
+                // would never actually run
+                e.Cancel = true;
+                tcs.TrySetResult(true);
+            };
             await tcs.Task;
 
             Console.WriteLine("\nShutting down gracefully...");

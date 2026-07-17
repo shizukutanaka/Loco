@@ -12,7 +12,7 @@ namespace Loco.Cli.Commands;
 /// </summary>
 public class UpdateCommand : Command
 {
-    private const string GITHUB_API_URL = "https://api.github.com/repos/anthropics/loco/releases/latest";
+    private const string GITHUB_API_URL = "https://api.github.com/repos/shizukutanaka/Loco/releases/latest";
     private const string CURRENT_VERSION = "1.0.0";
 
     public UpdateCommand() : base("update", "Check for available updates")
@@ -166,7 +166,7 @@ public class UpdateCommand : Command
     {
         Console.WriteLine();
         Console.WriteLine("Please check manually:");
-        Console.WriteLine("  GitHub: https://github.com/anthropics/loco/releases");
+        Console.WriteLine("  GitHub: https://github.com/shizukutanaka/Loco/releases");
         Console.WriteLine();
     }
 
