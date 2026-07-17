@@ -27,11 +27,20 @@ still in progress.
 This repository is a work in progress. Being honest about the state:
 
 - **Works**: the connector library, the workflow engine, the visual editor
-  frontend (builds clean, 165 passing tests), and the HTTP API's CRUD /
+  frontend (builds clean, 196 passing tests), and the HTTP API's CRUD /
   execute / validate / auth endpoints.
 - **In progress / limitations**: execution history is in-memory and does not
   survive an API restart; the durable-execution event store is not yet
   file/DB-backed; the CLI's default engine currently runs a limited action set.
+- **CLI caveats** (found by audit): only `loco workflow`, `loco run`,
+  `loco version`, and `loco help` are wired into `Program.cs` — the other
+  command classes under `src/Loco.Cli/Commands/` (setup, backup, secrets,
+  logs, diag, update, preset, …) exist but are not yet reachable from the
+  executable. `loco preset` execution is an explicit simulation (it prints
+  the planned actions without performing them).
+- **Known dead code**: most classes under `src/Loco.Core/Practical/` (the
+  `Simple*` pattern implementations) have no callers from any compiling
+  entry point and are retained for reference only.
 - **Not implemented** (despite what some older `docs/PHASE_*` files claim): the
   distributed-systems / service-mesh / quantum / zero-knowledge material in
   `docs/PHASE_9`–`PHASE_14` describes designs that are **not** in the codebase.
@@ -44,7 +53,7 @@ This repository is a work in progress. Being honest about the state:
 #### From Source
 
 ```bash
-git clone https://github.com/loco-automation/loco.git
+git clone https://github.com/shizukutanaka/Loco.git
 cd loco
 dotnet build
 dotnet run --project src/Loco.Api
@@ -335,8 +344,8 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
 ## Support
 
 - 📖 [Documentation](#documentation) - Complete guides and references
-- 🐛 [Issue Tracker](https://github.com/loco-automation/loco/issues)
-- 💬 [Discussions](https://github.com/loco-automation/loco/discussions)
+- 🐛 [Issue Tracker](https://github.com/shizukutanaka/Loco/issues)
+- 💬 [Discussions](https://github.com/shizukutanaka/Loco/discussions)
 - 📧 Email: support@loco.io
 
 ## Acknowledgments
