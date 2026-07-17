@@ -220,13 +220,20 @@ function WorkflowCanvasComponent() {
   const onSelectionChange = useCallback(
     (params: OnSelectionChangeParams) => {
       const selectedNodeIds = params.nodes.map((node) => node.id);
+      const selectedEdgeIds = params.edges.map((edge) => edge.id);
       setSelectedNodes(selectedNodeIds);
 
-      // Update single selection for property panel
+      // Update single selection for the property / edge-condition panels.
+      // Edges can be selected without a mouse (React Flow edges are focusable:
+      // Tab to the edge, then Enter/Space) - mirroring that selection into the
+      // store here is what makes the EdgeConditionPanel keyboard-reachable.
       if (selectedNodeIds.length === 1) {
         setSelectedNodeId(selectedNodeIds[0]);
-      } else if (selectedNodeIds.length === 0) {
+      } else if (selectedNodeIds.length === 0 && selectedEdgeIds.length === 1) {
+        setSelectedEdgeId(selectedEdgeIds[0]);
+      } else if (selectedNodeIds.length === 0 && selectedEdgeIds.length === 0) {
         setSelectedNodeId(null);
+        setSelectedEdgeId(null);
       }
 
       // Send selection to collaboration service using refs
@@ -234,7 +241,7 @@ function WorkflowCanvasComponent() {
         updateSelectionRef.current(selectedNodeIds);
       }
     },
-    [setSelectedNodeId]  // Only include setSelectedNodeId - collaboration state accessed via refs
+    [setSelectedNodeId, setSelectedEdgeId]  // Collaboration state accessed via refs
   );
 
 

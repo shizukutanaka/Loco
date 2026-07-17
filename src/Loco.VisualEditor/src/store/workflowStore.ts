@@ -235,12 +235,19 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   },
 
   deleteNode: (nodeId) => {
+    const remainingEdges = get().edges.filter(
+      (edge) => edge.source !== nodeId && edge.target !== nodeId
+    );
+    const selectedEdgeId = get().selectedEdgeId;
     set({
       nodes: get().nodes.filter((node) => node.id !== nodeId),
-      edges: get().edges.filter(
-        (edge) => edge.source !== nodeId && edge.target !== nodeId
-      ),
+      edges: remainingEdges,
       selectedNodeId: get().selectedNodeId === nodeId ? null : get().selectedNodeId,
+      // The cascade above can also remove the currently selected edge
+      selectedEdgeId:
+        selectedEdgeId && !remainingEdges.some((edge) => edge.id === selectedEdgeId)
+          ? null
+          : selectedEdgeId,
     });
     deferHistorySnapshot(() => get().pushToHistory());
   },
@@ -250,8 +257,16 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       (change) => change.type === 'remove' || change.type === 'add'
     );
 
+    const newEdges = applyEdgeChanges(changes, get().edges);
+    const selectedEdgeId = get().selectedEdgeId;
     set({
-      edges: applyEdgeChanges(changes, get().edges),
+      edges: newEdges,
+      // React Flow can remove edges through here (e.g. Delete key), bypassing
+      // deleteEdge - don't leave the selection pointing at a removed edge
+      selectedEdgeId:
+        selectedEdgeId && !newEdges.some((edge) => edge.id === selectedEdgeId)
+          ? null
+          : selectedEdgeId,
     });
 
     if (shouldPushHistory) {

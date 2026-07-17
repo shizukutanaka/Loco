@@ -1,16 +1,20 @@
 /**
  * EdgeConditionPanel
  *
- * Lets a user set a connection's routing condition (always / on success / on
- * error / custom expression) once the connection is selected on the canvas.
+ * Lets a user set a connection's routing condition once the connection is
+ * selected on the canvas (click, or Tab + Enter via keyboard).
  *
- * VisualWorkflowEngine.ShouldFollowConnection (Core/Workflows/VisualWorkflowEngine.cs)
- * has always interpreted WorkflowConnection.Condition as "default"/null/"success"
- * (follow only if the source node succeeded), "error" (follow only if it failed),
- * or anything else (always follow) - but there was no UI path to set this at all,
- * so error-handling branches were reachable only by hand-editing exported JSON.
+ * The engine's semantics (VisualWorkflowEngine.ShouldFollowConnection,
+ * Core/Workflows/VisualWorkflowEngine.cs) are:
+ *   - null / "default" / "success"  -> follow only if the source node succeeded
+ *   - "error"                       -> follow only if the source node failed
+ *   - any other non-empty string    -> always follow (unconditional)
+ * So an *unset* condition is NOT "always" - it is "only on success". The
+ * options below are labeled to match that real behavior, and "always" is
+ * stored as the literal string 'always' (which the engine treats as
+ * unconditional via its "anything else" branch).
  */
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { X, Trash2 } from 'lucide-react';
 import { useSelectedEdge } from '@/store/selectors';
 import { useWorkflowStore } from '@/store/workflowStore';
@@ -18,29 +22,52 @@ import { FormSelect, FormInput } from '@/components/Form';
 import type { SelectOption } from '@/components/Form/FormSelect';
 
 const CONDITION_OPTIONS: SelectOption[] = [
-  { value: '', label: 'Always' },
-  { value: 'success', label: 'Only if the previous step succeeded' },
+  { value: '', label: 'Only if the previous step succeeded (default)' },
   { value: 'error', label: 'Only if the previous step failed' },
+  { value: 'always', label: 'Always, regardless of outcome' },
   { value: 'custom', label: 'Custom expression…' },
 ];
 
-const KNOWN_VALUES = new Set(['', 'success', 'error']);
+/** Values with a dedicated dropdown entry; anything else is a custom expression. */
+const KNOWN_VALUES = new Set(['', 'success', 'default', 'error', 'always']);
 
 function EdgeConditionPanelComponent() {
   const selectedEdge = useSelectedEdge();
   const { updateEdgeData, deleteEdge, setSelectedEdgeId } = useWorkflowStore();
 
+  // "Custom expression…" has to be sticky UI state: right after the user picks
+  // it the stored condition is still empty, which is indistinguishable from the
+  // default - deriving the select value from data alone made the dropdown snap
+  // straight back and the input never appeared.
+  const [customMode, setCustomMode] = useState(false);
+  const selectedEdgeId = selectedEdge?.id;
+  useEffect(() => {
+    setCustomMode(false);
+  }, [selectedEdgeId]);
+
   const condition = selectedEdge?.data?.condition ?? '';
-  const isCustom = condition !== '' && !KNOWN_VALUES.has(condition);
-  const selectValue = isCustom ? 'custom' : condition;
+  const isCustomValue = condition !== '' && !KNOWN_VALUES.has(condition);
+  const isCustom = customMode || isCustomValue;
+  // 'success' and 'default' behave identically to unset - show them as default
+  const selectValue = isCustom
+    ? 'custom'
+    : condition === 'success' || condition === 'default'
+      ? ''
+      : condition;
 
   const handleConditionChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       if (!selectedEdge) return;
       const value = e.target.value;
-      // "Always" is represented by omitting the field entirely (undefined),
-      // matching the engine's own null-check rather than storing an empty string.
-      updateEdgeData(selectedEdge.id, { condition: value === '' ? undefined : value === 'custom' ? '' : value });
+      if (value === 'custom') {
+        // Show the expression input; keep whatever is stored until they type
+        setCustomMode(true);
+        return;
+      }
+      setCustomMode(false);
+      // Default is represented by omitting the field entirely (undefined),
+      // matching the engine's own null-check rather than storing an empty string
+      updateEdgeData(selectedEdge.id, { condition: value === '' ? undefined : value });
     },
     [selectedEdge, updateEdgeData]
   );
@@ -48,7 +75,10 @@ function EdgeConditionPanelComponent() {
   const handleCustomConditionChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       if (!selectedEdge) return;
-      updateEdgeData(selectedEdge.id, { condition: e.target.value });
+      const text = e.target.value;
+      // An empty expression must not be stored as '' - the engine's "anything
+      // else" branch would silently treat it as "always follow"
+      updateEdgeData(selectedEdge.id, { condition: text === '' ? undefined : text });
     },
     [selectedEdge, updateEdgeData]
   );
@@ -106,10 +136,10 @@ function EdgeConditionPanelComponent() {
           <FormInput
             id="edge-condition-custom"
             label="Custom condition expression"
-            value={condition}
+            value={isCustomValue ? condition : ''}
             onChange={handleCustomConditionChange}
             placeholder="e.g. output.status === 200"
-            helpText="Any value other than 'success' or 'error' always follows this connection today; custom expression evaluation is not yet implemented in the engine."
+            helpText="Expression evaluation is not yet implemented in the engine - today any custom value behaves like 'Always'. Leaving this empty falls back to the default (only on success)."
           />
         )}
       </div>

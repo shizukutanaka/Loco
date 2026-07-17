@@ -90,4 +90,62 @@ describe('workflowStore edge selection and condition', () => {
 
     expect(useWorkflowStore.getState().selectedEdgeId).toBe('e1');
   });
+
+  it('deleteNode cascade clears selectedEdgeId when it removes the selected edge', () => {
+    useWorkflowStore.getState().setSelectedEdgeId('e1');
+
+    // e1 connects n1 -> n2; deleting n1 cascade-deletes e1
+    useWorkflowStore.getState().deleteNode('n1');
+
+    const state = useWorkflowStore.getState();
+    expect(state.edges).toHaveLength(0);
+    expect(state.selectedEdgeId).toBeNull();
+  });
+
+  it('deleteNode keeps selectedEdgeId when the selected edge is unaffected', () => {
+    useWorkflowStore.setState({
+      nodes: [
+        { id: 'n1', type: 'action', position: { x: 0, y: 0 }, data: { label: 'A' } },
+        { id: 'n2', type: 'action', position: { x: 0, y: 0 }, data: { label: 'B' } },
+        { id: 'n3', type: 'action', position: { x: 0, y: 0 }, data: { label: 'C' } },
+      ],
+      edges: [
+        { id: 'e1', source: 'n1', target: 'n2', data: {} },
+        { id: 'e2', source: 'n2', target: 'n3', data: {} },
+      ],
+    });
+    useWorkflowStore.getState().setSelectedEdgeId('e2');
+
+    useWorkflowStore.getState().deleteNode('n1');
+
+    const state = useWorkflowStore.getState();
+    expect(state.edges.map((e) => e.id)).toEqual(['e2']);
+    expect(state.selectedEdgeId).toBe('e2');
+  });
+
+  it('onEdgesChange remove clears selectedEdgeId when it removes the selected edge', () => {
+    useWorkflowStore.getState().setSelectedEdgeId('e1');
+
+    // React Flow removes edges through onEdgesChange (e.g. Delete key),
+    // bypassing deleteEdge entirely
+    useWorkflowStore.getState().onEdgesChange([{ type: 'remove', id: 'e1' }]);
+
+    const state = useWorkflowStore.getState();
+    expect(state.edges).toHaveLength(0);
+    expect(state.selectedEdgeId).toBeNull();
+  });
+
+  it('onEdgesChange keeps selectedEdgeId when a different edge is removed', () => {
+    useWorkflowStore.setState({
+      edges: [
+        { id: 'e1', source: 'n1', target: 'n2', data: {} },
+        { id: 'e2', source: 'n2', target: 'n1', data: {} },
+      ],
+    });
+    useWorkflowStore.getState().setSelectedEdgeId('e1');
+
+    useWorkflowStore.getState().onEdgesChange([{ type: 'remove', id: 'e2' }]);
+
+    expect(useWorkflowStore.getState().selectedEdgeId).toBe('e1');
+  });
 });
