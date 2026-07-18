@@ -32,12 +32,12 @@ This repository is a work in progress. Being honest about the state:
 - **In progress / limitations**: execution history is in-memory and does not
   survive an API restart; the durable-execution event store is not yet
   file/DB-backed; the CLI's default engine currently runs a limited action set.
-- **CLI caveats** (found by audit): only `loco workflow`, `loco run`,
-  `loco version`, and `loco help` are wired into `Program.cs` — the other
-  command classes under `src/Loco.Cli/Commands/` (setup, backup, secrets,
-  logs, diag, update, preset, …) exist but are not yet reachable from the
-  executable. `loco preset` execution is an explicit simulation (it prints
-  the planned actions without performing them).
+- **CLI caveats**: the command classes under `src/Loco.Cli/Commands/`
+  (start, rule, ai, files, logs, health, diag, test, update, setup,
+  secrets, backup-config) are now dispatched from `Program.cs` in addition
+  to `workflow`/`run`. `loco preset` execution is an explicit simulation
+  (it prints the planned actions without performing them), and `loco backup`
+  remains an honest "not yet implemented" stub.
 - **Known dead code**: most classes under `src/Loco.Core/Practical/` (the
   `Simple*` pattern implementations) have no callers from any compiling
   entry point and are retained for reference only.
