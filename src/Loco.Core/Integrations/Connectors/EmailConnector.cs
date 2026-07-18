@@ -4,6 +4,7 @@
 using System.Net;
 using System.Net.Mail;
 using System.Text;
+using System.Text.Json;
 using Loco.Core.Integrations.Core;
 using Loco.Core.Practical;
 
@@ -350,8 +351,13 @@ public sealed class EmailConnector : ConnectorBase
 
             var email = recipient["email"]?.ToString();
             var name = recipient.TryGetValue("name", out var n) ? n?.ToString() : null;
+            // recipients arrives as JSON, so each recipient's nested "variables"
+            // object is a boxed JsonElement, not a Dictionary - the old
+            // `v as Dictionary<string, object>` was always null and silently
+            // dropped every recipient's personalization, sending templates with
+            // unresolved {{placeholders}}.
             var variables = recipient.TryGetValue("variables", out var v)
-                ? v as Dictionary<string, object> ?? new()
+                ? ExtractVariables(v)
                 : new Dictionary<string, object>();
 
             // Add recipient info to variables
@@ -463,6 +469,28 @@ public sealed class EmailConnector : ConnectorBase
                 message.Bcc.Add(email);
             }
         }
+    }
+
+    /// <summary>
+    /// Normalizes a recipient's "variables" value into a dictionary. When the
+    /// recipient list is supplied as JSON (the normal path), the value is a
+    /// boxed JsonElement rather than a Dictionary; enumerate its properties so
+    /// per-recipient personalization survives. Falls back to a direct cast for
+    /// in-process callers that pass a real dictionary.
+    /// </summary>
+    private static Dictionary<string, object> ExtractVariables(object? value)
+    {
+        if (value is JsonElement { ValueKind: JsonValueKind.Object } element)
+        {
+            var result = new Dictionary<string, object>();
+            foreach (var prop in element.EnumerateObject())
+            {
+                result[prop.Name] = prop.Value;
+            }
+            return result;
+        }
+
+        return value as Dictionary<string, object> ?? new Dictionary<string, object>();
     }
 
     private static string ReplaceTemplateVariables(string template, Dictionary<string, object> variables)

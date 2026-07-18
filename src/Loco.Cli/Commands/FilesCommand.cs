@@ -263,8 +263,10 @@ public class FilesCommand : Command
 
         try
         {
-            // Patterns for common temporary/cache files
-            var patterns = new[] { "*.tmp", "*.temp", "*.cache", "*.bak", "~*", "*.log" };
+            // Patterns for common temporary/cache files. Deliberately excludes
+            // "*.log": recursively deleting every .log under a directory would
+            // wipe live application/user logs, which are not temp/cache files.
+            var patterns = new[] { "*.tmp", "*.temp", "*.cache", "*.bak", "~*" };
             var filesToClean = new List<string>();
 
             foreach (var pattern in patterns)

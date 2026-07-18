@@ -704,11 +704,26 @@ public sealed class StripeConnector : ConnectorBase
         if (!response.IsSuccessStatusCode)
         {
             var error = await response.Content.ReadAsStringAsync(ct);
-            var errorJson = JsonSerializer.Deserialize<JsonElement>(error);
-            var errorMessage = errorJson.TryGetProperty("error", out var err) && err.TryGetProperty("message", out var msg)
-                ? msg.GetString()
-                : error;
-            return ActionResult.Fail($"Stripe API error: {errorMessage}", "API_ERROR");
+            // A non-2xx body is not guaranteed to be JSON (e.g. an HTML 502 from
+            // an upstream gateway) - parsing it unconditionally threw a
+            // JsonException that masked the real Stripe/HTTP error. Fall back to
+            // the raw body when it is not the expected error envelope.
+            string? errorMessage = error;
+            try
+            {
+                var errorJson = JsonSerializer.Deserialize<JsonElement>(error);
+                if (errorJson.ValueKind == JsonValueKind.Object
+                    && errorJson.TryGetProperty("error", out var err)
+                    && err.TryGetProperty("message", out var msg))
+                {
+                    errorMessage = msg.GetString();
+                }
+            }
+            catch (JsonException)
+            {
+                // Keep the raw body as the message
+            }
+            return ActionResult.Fail($"Stripe API error ({(int)response.StatusCode}): {errorMessage}", "API_ERROR");
         }
 
         var result = await response.Content.ReadAsStringAsync(ct);

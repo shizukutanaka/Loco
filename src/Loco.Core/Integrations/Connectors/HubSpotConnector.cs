@@ -589,7 +589,9 @@ public sealed class HubSpotConnector : ConnectorBase
     {
         var listId = parameters.GetString("listId")!;
         var contactId = parameters.GetString("contactId")!;
-        return await PutAsync($"contacts/v1/lists/{listId}/add", new { vids = new[] { long.Parse(contactId) } }, ct);
+        // HubSpot's Contacts Lists v1 API accepts /add only as POST (same as the
+        // symmetric /remove call below) - PUT returns 405 Method Not Allowed
+        return await PostAsync($"contacts/v1/lists/{listId}/add", new { vids = new[] { long.Parse(contactId) } }, ct);
     }
 
     private async Task<ActionResult> RemoveFromListAsync(ActionParameters parameters, CancellationToken ct)

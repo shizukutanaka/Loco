@@ -430,6 +430,14 @@ public sealed class TwilioConnector : ConnectorBase
         var body = parameters.GetString("body")!;
         var from = parameters.GetString("from") ?? _fromNumber;
 
+        // Fail fast, matching every sibling send method - otherwise a missing
+        // From sent N doomed API calls (each rejected by Twilio) instead of one
+        // clear error, and the `from!` below would have masked the null
+        if (string.IsNullOrEmpty(from))
+        {
+            return ActionResult.Fail("From number is required (set 'from' or configure a default fromNumber)", "MISSING_PARAMETER");
+        }
+
         if (recipients.ValueKind != JsonValueKind.Array)
         {
             return ActionResult.Fail("Recipients must be an array", "INVALID_PARAMETER");
@@ -445,7 +453,7 @@ public sealed class TwilioConnector : ConnectorBase
             var formData = new Dictionary<string, string>
             {
                 ["To"] = to,
-                ["From"] = from!,
+                ["From"] = from,
                 ["Body"] = body
             };
 

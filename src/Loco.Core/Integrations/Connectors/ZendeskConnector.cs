@@ -551,7 +551,25 @@ public sealed class ZendeskConnector : ConnectorBase
     {
         var ticketId = parameters.GetString("ticketId")!;
         var macroId = parameters.GetString("macroId")!;
-        return await GetAsync($"tickets/{ticketId}/macros/{macroId}/apply.json", ct);
+
+        // Zendesk's macro "apply" endpoint only PREVIEWS the resulting changes
+        // (it returns result.ticket) - it does NOT modify the ticket. The old
+        // code returned that preview and reported success as if the macro had
+        // been applied. Fetch the preview, then PUT the resulting ticket back to
+        // actually apply it.
+        var preview = await GetAsync($"tickets/{ticketId}/macros/{macroId}/apply.json", ct);
+        if (!preview.Success)
+            return preview;
+
+        if (preview.Data is Dictionary<string, object> data
+            && data.TryGetValue("result", out var resultObj)
+            && resultObj is JsonElement { ValueKind: JsonValueKind.Object } result
+            && result.TryGetProperty("ticket", out var ticket))
+        {
+            return await PutAsync($"tickets/{ticketId}.json", new { ticket }, ct);
+        }
+
+        return ActionResult.Fail("Macro preview did not contain the expected ticket changes", "API_ERROR");
     }
 
     private async Task<ActionResult> GetAsync(string endpoint, CancellationToken ct)
