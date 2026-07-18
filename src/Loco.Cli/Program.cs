@@ -28,10 +28,30 @@ class Program
             }
 
             var command = args[0].ToLowerInvariant();
+            var rest = args[1..];
 
             return command switch
             {
-                "workflow" or "run" => await new WorkflowCommand().InvokeAsync(args[1..]),
+                // System.CommandLine-based commands (same proven pattern as workflow)
+                "workflow" or "run" => await new WorkflowCommand().InvokeAsync(rest),
+                "ai" => await new AICommand().InvokeAsync(rest),
+                "diag" => await new DiagCommand().InvokeAsync(rest),
+                "files" => await new FilesCommand().InvokeAsync(rest),
+                "health" => await new HealthCommand().InvokeAsync(rest),
+                "logs" => await new LogsCommand().InvokeAsync(rest),
+                "preset" => await new PresetCommand().InvokeAsync(rest),
+                "rule" => await new RuleCommand().InvokeAsync(rest),
+                "start" => await new StartCommand().InvokeAsync(rest),
+                "test" => await new TestsCommand().InvokeAsync(rest),
+                "update" => await new UpdateCommand().InvokeAsync(rest),
+
+                // BaseCommand-based commands (dispatch via ExecuteAsync)
+                "setup" => await new SetupCommand().ExecuteAsync(rest),
+                "secrets" => await new SecretsCommand().ExecuteAsync(rest),
+
+                // Static command classes
+                "backup-config" => await BackupConfigCommand.ExecuteAsync(rest),
+
                 "version" or "-v" or "--version" => ShowVersion(),
                 "help" or "-h" or "--help" => ShowHelp(),
                 _ => HandleUnknownCommand(command)
@@ -67,8 +87,24 @@ class Program
         Console.WriteLine("Commands:");
         Console.WriteLine("  workflow <file>   Execute a workflow from a JSON file");
         Console.WriteLine("  run <file>        Alias for 'workflow'");
+        Console.WriteLine("  start             Start the workflow engine");
+        Console.WriteLine("  rule              Manage automation rules");
+        Console.WriteLine("  preset            Run a preset (simulation)");
+        Console.WriteLine("  ai                AI-assisted commands");
+        Console.WriteLine("  files             File search / clean / organize utilities");
+        Console.WriteLine("  logs              View and manage logs");
+        Console.WriteLine("  health            Run health checks");
+        Console.WriteLine("  diag              Diagnostics");
+        Console.WriteLine("  test              Run the test suite");
+        Console.WriteLine("  update            Check for updates");
+        Console.WriteLine("  setup             Run the setup wizard");
+        Console.WriteLine("  secrets           Manage stored secrets");
+        Console.WriteLine("  backup-config     Backup / restore configuration");
         Console.WriteLine("  version           Show version information");
         Console.WriteLine("  help              Show this help message");
+        Console.WriteLine();
+        Console.WriteLine("Run 'loco <command> --help' (or 'loco <command>' with no args) for");
+        Console.WriteLine("command-specific usage.");
         Console.WriteLine();
         Console.WriteLine("Workflow Options:");
         Console.WriteLine("  --visualize, -v   Show workflow diagram (full, compact, deps)");
