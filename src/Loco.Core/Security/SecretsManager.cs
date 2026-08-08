@@ -27,9 +27,15 @@ public sealed class SecretEntry
 /// compile. This is the real implementation.
 ///
 /// Design (deliberately BCL-only - no NuGet dependency):
-/// - Values are encrypted with AES-256-CBC. The key is derived from a passphrase
-///   with PBKDF2 (SHA-256, 200k iterations) over a per-store random salt.
-/// - Each secret gets a fresh random IV, stored alongside its ciphertext.
+/// - Values are encrypted with AES-256-GCM, an AEAD cipher: it authenticates as
+///   well as encrypts, so a tampered store fails to decrypt instead of silently
+///   yielding corrupted plaintext. (Unauthenticated modes such as CBC are
+///   malleable and must not be used for at-rest secrets without a separate MAC.)
+/// - The key is derived from a passphrase with PBKDF2-HMAC-SHA256 at 600,000
+///   iterations over a per-store random salt - the work factor OWASP's Password
+///   Storage Cheat Sheet recommends for PBKDF2-HMAC-SHA256.
+/// - Each secret gets a fresh 96-bit nonce; the stored blob is nonce||tag||ciphertext.
+///   Nonce reuse under a fixed key breaks GCM, so it is drawn from a CSPRNG per write.
 /// - The passphrase comes from the LOCO_SECRETS_PASSPHRASE environment variable.
 ///   When unset, a machine-local key file (0600 where the OS supports it) is
 ///   generated so the CLI works out of the box; this protects against casual
@@ -45,13 +51,26 @@ public sealed class SecretEntry
 public sealed class SecretsManager
 {
     private const int SaltSize = 16;
-    private const int IvSize = 16;
-    private const int KeySize = 32; // AES-256
-    private const int Pbkdf2Iterations = 200_000;
+    private const int NonceSize = 12; // 96-bit nonce - the size GCM is specified for
+    private const int TagSize = 16;   // AesGcm.TagByteSizes.MaxSize
+    private const int KeySize = 32;   // AES-256
+
+    /// <summary>
+    /// OWASP Password Storage Cheat Sheet's recommended work factor for
+    /// PBKDF2-HMAC-SHA256. Deriving is deliberately expensive, so the result is
+    /// cached per instance (see <see cref="_derivedKey"/>).
+    /// </summary>
+    private const int Pbkdf2Iterations = 600_000;
+
+    /// <summary>Current on-disk format: PBKDF2-HMAC-SHA256(600k) + AES-256-GCM.</summary>
+    private const int CurrentFormatVersion = 1;
 
     private readonly string _storePath;
     private readonly string _keyFilePath;
     private readonly object _gate = new();
+
+    /// <summary>Cached PBKDF2 output, so a 600k-iteration derive happens once per process.</summary>
+    private byte[]? _derivedKey;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -228,6 +247,14 @@ public sealed class SecretsManager
                     "Restore it from a backup or delete it to start over.");
             }
 
+            if (loaded.Version != CurrentFormatVersion)
+            {
+                throw new InvalidOperationException(
+                    $"Secrets store at {_storePath} uses format version {loaded.Version}, " +
+                    $"but this build reads version {CurrentFormatVersion}. " +
+                    "Upgrade Loco, or re-create the store with the current version.");
+            }
+
             _cache = loaded;
             return _cache;
         }
@@ -256,6 +283,8 @@ public sealed class SecretsManager
 
     private byte[] DeriveKey(byte[] salt)
     {
+        if (_derivedKey is not null) return _derivedKey;
+
         var passphrase = Environment.GetEnvironmentVariable("LOCO_SECRETS_PASSPHRASE");
 
         if (string.IsNullOrEmpty(passphrase))
@@ -263,12 +292,14 @@ public sealed class SecretsManager
             passphrase = ReadOrCreateMachineKey();
         }
 
-        return Rfc2898DeriveBytes.Pbkdf2(
+        _derivedKey = Rfc2898DeriveBytes.Pbkdf2(
             Encoding.UTF8.GetBytes(passphrase),
             salt,
             Pbkdf2Iterations,
             HashAlgorithmName.SHA256,
             KeySize);
+
+        return _derivedKey;
     }
 
     /// <summary>
@@ -288,23 +319,27 @@ public sealed class SecretsManager
         return generated;
     }
 
+    /// <summary>
+    /// AES-256-GCM. Layout: nonce(12) || tag(16) || ciphertext, base64-encoded.
+    /// </summary>
     private string Encrypt(string plaintext, byte[] salt)
     {
-        var key = DeriveKey(salt);
-        var iv = RandomNumberGenerator.GetBytes(IvSize);
-
-        using var aes = Aes.Create();
-        aes.Key = key;
-        aes.IV = iv;
-
-        using var encryptor = aes.CreateEncryptor();
+        var nonce = RandomNumberGenerator.GetBytes(NonceSize);
         var plainBytes = Encoding.UTF8.GetBytes(plaintext);
-        var cipherBytes = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
 
-        // Prefix the IV so each secret carries the IV it was encrypted with
-        var combined = new byte[iv.Length + cipherBytes.Length];
-        Buffer.BlockCopy(iv, 0, combined, 0, iv.Length);
-        Buffer.BlockCopy(cipherBytes, 0, combined, iv.Length, cipherBytes.Length);
+        var cipherBytes = new byte[plainBytes.Length];
+        var tag = new byte[TagSize];
+
+        // .NET 8 requires the tag size up front (the constructors without one are
+        // obsolete: SYSLIB0053), which pins verification to the full 16-byte tag
+        // and prevents truncated-tag acceptance.
+        using var aesGcm = new AesGcm(DeriveKey(salt), TagSize);
+        aesGcm.Encrypt(nonce, plainBytes, cipherBytes, tag);
+
+        var combined = new byte[NonceSize + TagSize + cipherBytes.Length];
+        Buffer.BlockCopy(nonce, 0, combined, 0, NonceSize);
+        Buffer.BlockCopy(tag, 0, combined, NonceSize, TagSize);
+        Buffer.BlockCopy(cipherBytes, 0, combined, NonceSize + TagSize, cipherBytes.Length);
 
         return Convert.ToBase64String(combined);
     }
@@ -312,32 +347,38 @@ public sealed class SecretsManager
     private string Decrypt(string cipherText, byte[] salt)
     {
         var combined = Convert.FromBase64String(cipherText);
-        if (combined.Length <= IvSize)
+        if (combined.Length < NonceSize + TagSize)
         {
-            throw new InvalidOperationException("Stored secret is malformed (too short to contain an IV).");
+            throw new InvalidOperationException(
+                "Stored secret is malformed (too short to contain a nonce and tag).");
         }
 
-        var iv = new byte[IvSize];
-        Buffer.BlockCopy(combined, 0, iv, 0, IvSize);
+        var nonce = new byte[NonceSize];
+        Buffer.BlockCopy(combined, 0, nonce, 0, NonceSize);
 
-        var cipherBytes = new byte[combined.Length - IvSize];
-        Buffer.BlockCopy(combined, IvSize, cipherBytes, 0, cipherBytes.Length);
+        var tag = new byte[TagSize];
+        Buffer.BlockCopy(combined, NonceSize, tag, 0, TagSize);
 
-        using var aes = Aes.Create();
-        aes.Key = DeriveKey(salt);
-        aes.IV = iv;
+        var cipherBytes = new byte[combined.Length - NonceSize - TagSize];
+        Buffer.BlockCopy(combined, NonceSize + TagSize, cipherBytes, 0, cipherBytes.Length);
 
-        using var decryptor = aes.CreateDecryptor();
+        var plainBytes = new byte[cipherBytes.Length];
+
+        using var aesGcm = new AesGcm(DeriveKey(salt), TagSize);
         try
         {
-            var plainBytes = decryptor.TransformFinalBlock(cipherBytes, 0, cipherBytes.Length);
+            // Throws if the tag does not verify - i.e. wrong passphrase OR the
+            // stored blob was tampered with. GCM makes those detectable rather
+            // than returning garbage plaintext.
+            aesGcm.Decrypt(nonce, cipherBytes, tag, plainBytes);
             return Encoding.UTF8.GetString(plainBytes);
         }
         catch (CryptographicException ex)
         {
             throw new InvalidOperationException(
-                "Failed to decrypt secret - the passphrase (LOCO_SECRETS_PASSPHRASE) " +
-                "does not match the one used to store it.", ex);
+                "Failed to decrypt secret: authentication failed. Either the passphrase " +
+                "(LOCO_SECRETS_PASSPHRASE) does not match the one used to store it, or the " +
+                "secrets store has been modified.", ex);
         }
     }
 
@@ -362,13 +403,20 @@ public sealed class SecretsManager
 
     private sealed class SecretsFile
     {
+        /// <summary>
+        /// On-disk format version. Bump whenever the KDF or cipher changes so an
+        /// older store is rejected loudly instead of decrypting to garbage.
+        /// 1 = PBKDF2-HMAC-SHA256(600k) + AES-256-GCM.
+        /// </summary>
+        public int Version { get; set; } = CurrentFormatVersion;
+
         public byte[] Salt { get; set; } = Array.Empty<byte>();
         public Dictionary<string, StoredSecret> Secrets { get; set; } = new();
     }
 
     private sealed class StoredSecret
     {
-        /// <summary>Base64 of IV || AES-256-CBC ciphertext.</summary>
+        /// <summary>Base64 of nonce || tag || AES-256-GCM ciphertext.</summary>
         public string Cipher { get; set; } = string.Empty;
         public string? Description { get; set; }
         public DateTime CreatedAt { get; set; }

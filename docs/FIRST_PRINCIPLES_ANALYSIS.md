@@ -141,9 +141,30 @@ NuGet 遮断環境(`dotnet build` 不能)のため、**検証可能かつ根本�
 U1/U2 の本体(API・UI・常駐スケジューラ)はコンパイラと E2E が必須のため、
 指示書に手順化して引き継ぐ。
 
+#### `SecretsManager` の暗号方式 — 規格・ガイドラインとの突合
+
+初版は AES-256-**CBC** + PBKDF2 20 万回で実装したが、公開ガイドラインと突合して**同セッション内で是正**した:
+
+| 項目 | 初版 | 是正後 | 根拠 |
+|------|------|--------|------|
+| 暗号 | AES-256-CBC(**認証なし**) | **AES-256-GCM**(AEAD) | 認証なしのモードは malleable。改竄された保存領域が「復号成功・中身は別物」になりうる。GCM はタグ検証により**改竄を検出**して失敗する |
+| KDF 反復 | 200,000 | **600,000** | [OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html) が PBKDF2-HMAC-SHA256 に推奨する work factor |
+| nonce/IV | ランダム IV 16B | ランダム **96bit nonce**(GCM 規定長)、書込ごとに CSPRNG から生成 | 固定鍵下での nonce 再利用は GCM の安全性を破壊するため |
+| タグ長 | — | **16B を固定**(コンストラクタで宣言) | .NET 8 はタグ長指定を要求([SYSLIB0053](https://learn.microsoft.com/en-us/dotnet/fundamentals/syslib-diagnostics/syslib0053))。**タグ切り詰め攻撃**を防ぐ |
+| 形式版数 | 無し | `Version` フィールド追加 | 将来 KDF/暗号を変えた際、旧形式を**明示的に拒否**する(黙って誤復号しない) |
+
+600,000 回の派生は高コストなため、派生鍵はプロセス内で 1 回だけ計算してキャッシュする。
+
 ---
 
 ## 参考文献
+
+**暗号・セキュリティ**
+- [OWASP — Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)(PBKDF2-HMAC-SHA256 の推奨 work factor = 600,000)
+- [Microsoft Learn — SYSLIB0053: AesGcm should indicate the required tag size](https://learn.microsoft.com/en-us/dotnet/fundamentals/syslib-diagnostics/syslib0053)(タグ切り詰めの防止)
+- [Authenticated Encryption in .NET with AES-GCM — Scott Brady](https://www.scottbrady.io/c-sharp/aes-gcm-dotnet)
+
+**ワークフロー基盤**
 - [n8n — Credentials API and Security](https://deepwiki.com/n8n-io/n8n/3.2-credentials-api-and-security)
 - [n8n — Dynamic Credentials and External Secrets](https://deepwiki.com/n8n-io/n8n/3.6-dynamic-credentials-and-external-secrets)
 - [n8n — Security (encryption at rest)](https://n8n.io/legal/security/)
