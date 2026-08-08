@@ -8,22 +8,56 @@ export const integrations: Integration[] = [
     category: 'web',
     icon: '🌐',
     description: 'Make HTTP requests to any API endpoint',
+    // HttpConnector models one action PER METHOD (get/post/put/patch/delete),
+    // not a single "request" action with a method parameter. The palette must
+    // match, because the engine resolves handlers by `${integration}:${action}`.
     actions: [
       {
-        id: 'request',
-        name: 'Make Request',
-        description: 'Send an HTTP request',
+        id: 'get',
+        name: 'GET Request',
+        description: 'Send HTTP GET request',
         parameters: [
           { name: 'url', type: 'string', required: true, description: 'Request URL' },
-          { name: 'method', type: 'select', required: true, description: 'HTTP method', options: [
-            { label: 'GET', value: 'GET' },
-            { label: 'POST', value: 'POST' },
-            { label: 'PUT', value: 'PUT' },
-            { label: 'DELETE', value: 'DELETE' },
-            { label: 'PATCH', value: 'PATCH' },
-          ]},
+          { name: 'headers', type: 'json', required: false, description: 'Request headers' },
+        ],
+      },
+      {
+        id: 'post',
+        name: 'POST Request',
+        description: 'Send HTTP POST request with body',
+        parameters: [
+          { name: 'url', type: 'string', required: true, description: 'Request URL' },
           { name: 'headers', type: 'json', required: false, description: 'Request headers' },
           { name: 'body', type: 'json', required: false, description: 'Request body' },
+        ],
+      },
+      {
+        id: 'put',
+        name: 'PUT Request',
+        description: 'Send HTTP PUT request with body',
+        parameters: [
+          { name: 'url', type: 'string', required: true, description: 'Request URL' },
+          { name: 'headers', type: 'json', required: false, description: 'Request headers' },
+          { name: 'body', type: 'json', required: false, description: 'Request body' },
+        ],
+      },
+      {
+        id: 'patch',
+        name: 'PATCH Request',
+        description: 'Send HTTP PATCH request with body',
+        parameters: [
+          { name: 'url', type: 'string', required: true, description: 'Request URL' },
+          { name: 'headers', type: 'json', required: false, description: 'Request headers' },
+          { name: 'body', type: 'json', required: false, description: 'Request body' },
+        ],
+      },
+      {
+        id: 'delete',
+        name: 'DELETE Request',
+        description: 'Send HTTP DELETE request',
+        parameters: [
+          { name: 'url', type: 'string', required: true, description: 'Request URL' },
+          { name: 'headers', type: 'json', required: false, description: 'Request headers' },
         ],
       },
     ],
@@ -145,14 +179,17 @@ export const integrations: Integration[] = [
     description: 'Send SMS messages via Twilio',
     actions: [
       {
-        id: 'sendSMS',
+        // 'sendSms', not 'sendSMS' - the connector's casing is what the engine
+        // matches on. accountSid/authToken are NOT action parameters: the
+        // connector reads them from its ConnectorConfiguration in
+        // InitializeAsync, so they belong to a connection (NodeData.credentialId).
+        id: 'sendSms',
         name: 'Send SMS',
         description: 'Send an SMS message',
         parameters: [
           { name: 'to', type: 'string', required: true, description: 'Recipient phone number' },
           { name: 'body', type: 'string', required: true, description: 'Message body' },
-          { name: 'accountSid', type: 'string', required: true, description: 'Twilio Account SID' },
-          { name: 'authToken', type: 'string', required: true, description: 'Twilio Auth Token' },
+          { name: 'from', type: 'string', required: false, description: 'Sender number (defaults to the connection\'s number)' },
         ],
       },
     ],
@@ -165,14 +202,16 @@ export const integrations: Integration[] = [
     description: 'Send emails via SendGrid',
     actions: [
       {
-        id: 'send',
+        // 'sendEmail' is the connector's action id. The API key is not an action
+        // parameter - it comes from the connection (NodeData.credentialId).
+        id: 'sendEmail',
         name: 'Send Email',
         description: 'Send an email via SendGrid',
         parameters: [
           { name: 'to', type: 'string', required: true, description: 'Recipient email' },
           { name: 'subject', type: 'string', required: true, description: 'Email subject' },
           { name: 'body', type: 'string', required: true, description: 'Email body (HTML)' },
-          { name: 'apiKey', type: 'string', required: true, description: 'SendGrid API key' },
+          { name: 'from', type: 'string', required: false, description: 'Sender email' },
         ],
       },
     ],
@@ -245,20 +284,29 @@ export const integrations: Integration[] = [
     ],
   },
   {
-    id: 'googlesheets',
+    // NOTE: id and action ids must match GoogleSheetsConnector exactly - the
+    // engine looks handlers up by `${integration}:${action}`, so a mismatch
+    // means the node fails at execution with "no handler". This entry used to
+    // say 'googlesheets'/'appendRow'; the connector declares
+    // 'google-sheets'/'appendValues'.
+    id: 'google-sheets',
     name: 'Google Sheets',
     category: 'cloud',
     icon: '📊',
     description: 'Read and write data to Google Sheets',
     actions: [
       {
-        id: 'appendRow',
-        name: 'Append Row',
-        description: 'Add a row to a sheet',
+        id: 'appendValues',
+        name: 'Append Values',
+        description: 'Append rows to a sheet',
         parameters: [
           { name: 'spreadsheetId', type: 'string', required: true, description: 'Spreadsheet ID' },
-          { name: 'range', type: 'string', required: true, description: 'Range (e.g., Sheet1!A1:C1)' },
+          { name: 'range', type: 'string', required: true, description: 'Sheet name or range to append to' },
           { name: 'values', type: 'json', required: true, description: 'Row values' },
+          { name: 'valueInputOption', type: 'select', required: false, description: 'How input is interpreted', options: [
+            { label: 'User Entered', value: 'USER_ENTERED' },
+            { label: 'Raw', value: 'RAW' },
+          ]},
         ],
       },
     ],

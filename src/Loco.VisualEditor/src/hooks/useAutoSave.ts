@@ -14,7 +14,10 @@ const AUTO_SAVE_INTERVAL = 30000; // 30 seconds
 
 export function useAutoSave() {
   const { workflow, exportWorkflow } = useWorkflowStore();
-  const intervalRef = useRef<number | null>(null);
+  // ReturnType<typeof setInterval> rather than number: the timer handle is a
+  // number in the DOM lib but a Timeout object under Node's types, and this
+  // package pulls in both (tests run in Node).
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSavedRef = useRef<string>('');
   const exportWorkflowRef = useRef(exportWorkflow);
   const workflowRef = useRef(workflow);
