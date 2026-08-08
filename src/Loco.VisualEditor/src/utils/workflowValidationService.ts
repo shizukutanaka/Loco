@@ -193,6 +193,14 @@ function validateConfiguration(nodes: Node[]): ValidationIssue[] {
   nodes.forEach((node) => {
     const { type, label } = node.data;
     const config = node.data.config || {};
+    // Read the fields where they are actually written. The canvas drop handler
+    // sets data.integration (NOT config.integration) and PropertyPanel sets
+    // config.action (NOT config.actionType) - the same shape WorkflowMapper
+    // reads on the server. Checking the wrong paths made "Missing Integration"
+    // fire on every correctly configured action node while the action and
+    // parameter checks below could never fire at all.
+    const integration = node.data.integration as string | undefined;
+    const action = config.action as string | undefined;
 
     // Check for missing label
     if (!label || label.trim() === '') {
@@ -209,7 +217,7 @@ function validateConfiguration(nodes: Node[]): ValidationIssue[] {
 
     // Type-specific validation
     if (type === 'action') {
-      if (!config.integration) {
+      if (!integration) {
         issues.push({
           id: `integration-${node.id}`,
           category: 'configuration',
@@ -221,7 +229,7 @@ function validateConfiguration(nodes: Node[]): ValidationIssue[] {
         });
       }
 
-      if (!config.actionType && config.integration) {
+      if (!action && integration) {
         issues.push({
           id: `action-type-${node.id}`,
           category: 'configuration',
@@ -233,8 +241,9 @@ function validateConfiguration(nodes: Node[]): ValidationIssue[] {
         });
       }
 
-      // Validate required parameters
-      const expectedParams = ACTION_PARAMETER_REQUIREMENTS[config.actionType as string] || [];
+      // Validate required parameters. ACTION_PARAMETER_REQUIREMENTS is keyed by
+      // integration id (http/database/email), not by action id.
+      const expectedParams = ACTION_PARAMETER_REQUIREMENTS[integration as string] || [];
       expectedParams.forEach((param: ParameterDefinition) => {
         if (param.required && !config.parameters?.[param.name]) {
           issues.push({

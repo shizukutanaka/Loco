@@ -293,7 +293,10 @@ export function analyzeDataFlow(
     const targetType = targetNode.data.type;
 
     // Get expected parameters for target node
-    const actionType = targetNode.data.config?.actionType || targetType;
+    // Keyed by integration id (http/database/email). config.actionType is never
+    // written by the editor - the real fields are data.integration and
+    // config.action - so reading it here meant this lookup always missed.
+    const actionType = targetNode.data.integration || targetType;
     const expectedParams = ACTION_PARAMETER_REQUIREMENTS[actionType as string] || [];
 
     // Check if target node has any required parameters
