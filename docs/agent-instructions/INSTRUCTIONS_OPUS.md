@@ -3,6 +3,10 @@
 対象モデル: Claude Opus クラス(アーキテクチャ判断・広範囲デバッグを伴うタスク)。
 前提環境: **NuGet(api.nuget.org)に到達できる開発環境**。O-1 以外のタスクも O-1 完了(= ビルドが通る状態)を前提とする。
 
+> **実行順序**: `O-1` → **`O-6`(資格情報)** → **`O-7`(トリガ)** → `O-2` → `O-3` → `O-4` → `O-5`。
+> O-6/O-7 は [FIRST_PRINCIPLES_ANALYSIS.md](../FIRST_PRINCIPLES_ANALYSIS.md) で
+> 「製品が成立するための必須要件」と判定されたため、後発だが O-2 以降より優先する。
+
 ## 共通コンテキスト(全タスク必読)
 
 - ブランチ: `claude/product-strengths-weaknesses-k4tkgk`(旧 WPF プロジェクトの退避先端は `ad9c23d` — 触らない)。
@@ -41,6 +45,65 @@
    - `src/Loco.Cli/Program.cs` のコマンド配線(`87092e6`)— 各コマンドを実際に 1 回ずつ起動して smoke test
 5. 完了条件: `dotnet build` 0 エラー、全テスト緑、`loco help` に列挙された全コマンドが起動する。
 6. 修正コミットの本文に「どのキャベアト付きコミットのエラーをいくつ直したか」を記録(以後キャベアトは不要になる)。
+
+## Task O-6 ★ O-1 の次に最優先: 資格情報の 3 層実装
+
+**背景**: [FIRST_PRINCIPLES_ANALYSIS.md](../FIRST_PRINCIPLES_ANALYSIS.md) §2.1。
+`WorkflowConnectorBridge.ConfigureConnector()` の**呼び出し元がゼロ**、かつエディタのノード型に
+**資格情報フィールドが存在しない**。結果として 28 コネクタは `InitializeAsync` されず
+`_httpClient` が null のまま実行され、**必ず失敗する**。製品最大の資産が到達不能。
+
+```bash
+grep -rn "ConfigureConnector" --include=*.cs src/ | grep -v "WorkflowConnectorBridge.cs"   # → ゼロ
+grep -n  "credential\|Credential" src/Loco.VisualEditor/src/types/workflow.ts               # → ゼロ
+```
+
+**方針** — n8n の実証済みモデルに倣う(資格情報はワークフローと別エンティティ、
+ノードは**秘密値を埋め込まず ID で参照**、実行時に注入):
+
+1. **保存層**: `src/Loco.Core/Security/SecretsManager.cs`(**実装済み** — AES-256 + PBKDF2 +
+   原子的書込)を土台に `ConnectorCredentialStore` を作る。1 資格情報 = `{id, connectorId, name,
+   secrets: Dictionary<string,string>}`。値は SecretsManager 経由で暗号化。
+2. **モデル層**: `WorkflowNode.data` に `credentialId?: string` を追加(フロント `types/workflow.ts`
+   と `WorkflowMapper` の両方)。**秘密値そのものはワークフロー JSON に絶対に入れない**。
+3. **注入層**: `WorkflowsController` の execute 経路で、ワークフローが参照する `credentialId` を解決し
+   `bridge.ConfigureConnector(connectorId, config)` を呼んでから実行する。
+   ※ `ConnectorStartupService` の doc コメント(現在 "registered WITHOUT credentials" と明記)も更新すること。
+4. **API**: `ConnectionsController` — `GET /api/v1/connections`(**値は返さない**、メタデータのみ)、
+   `POST`(作成)、`PUT /{id}`、`DELETE /{id}`、`POST /{id}/test`(`IConnector.TestConnectionAsync` を再利用)。
+5. **UI**: 接続一覧・作成フォーム(`ConfigParameters` から動的生成 — 各コネクタが既に宣言済み)、
+   PropertyPanel のノードに接続セレクタ。既存 `useSecretVisibility` フックでマスク表示。
+
+**受け入れ条件**: Slack 接続を UI で登録 → ワークフローの Slack ノードでそれを選択 → 実行 →
+実際に Slack へ送信される。`GET /connections` のレスポンスに秘密値が含まれないことをテストで保証。
+
+## Task O-7 ★ 最優先の次: トリガ配線(「自動化」の成立条件)
+
+**背景**: 同 §2.2。`CronScheduler`/`EventTrigger`/`FileWatcherTrigger`/`TriggerManager`/`WebhookReceiver`
+は Core に**存在するが、Loco.Api・Loco.Cli からの参照がゼロ**。webhook 受信エンドポイントも無い。
+→ 人間が実行ボタンを押さない限り何も起きない = 自動化ではない。
+
+```bash
+grep -rn "TriggerManager\|CronScheduler\|FileWatcherTrigger" --include=*.cs src/Loco.Api src/Loco.Cli  # → ゼロ
+```
+
+**方針**(小さく始める。durable execution の全面導入はしない):
+1. **スケジュール**: `IHostedService`(`ConnectorStartupService` と同じ形)で常駐スケジューラを 1 つ起動。
+   保存済みワークフローのうちトリガノードが cron を持つものを、**TZ 対応済みの既存 `CronScheduler`**
+   (`e75e3dc` で TimeZoneInfo 対応済み)で評価し、期限が来たら通常の実行経路に流す。
+2. **Webhook**: `POST /api/v1/webhooks/{workflowId}` を追加し、既存 `WebhookReceiver`
+   (**HMAC 署名検証を実装済み**)を再利用。ボディを初期実行コンテキストとして渡す。
+   認証は JWT ではなくワークフロー個別トークン + HMAC にすること(送信元は外部サービスのため)。
+3. **重複実行の防止**: 再起動直後に過去分が一斉発火しないよう、最終発火時刻を永続化する
+   (O-2 の実行履歴永続化と同じストアで良い)。
+4. **UI**: トリガノードに cron 式入力と webhook URL 表示。
+
+**受け入れ条件**: cron を設定したワークフローが**人手を介さず**発火し、`GET /executions` に履歴が残る。
+webhook URL に curl で POST すると実行される。
+
+> 参考: 2025 年以降は ad-hoc な cron/sleep ループではなく、実行状態を永続化した基盤に
+> スケジュールを持たせるのが標準([Temporal Schedules](https://temporal.io/product))。
+> 上記 3.(最終発火時刻の永続化)はその最小版にあたる。
 
 ## Task O-2: 実行履歴のファイル永続化
 
