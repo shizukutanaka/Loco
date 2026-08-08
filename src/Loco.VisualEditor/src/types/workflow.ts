@@ -46,6 +46,17 @@ export interface NodeData {
   integration?: string;
   config: Record<string, any>;
   description?: string;
+  /**
+   * ID of the stored connection supplying this node's credentials.
+   *
+   * A reference, never the secret itself - so an exported workflow JSON is
+   * safe to share and the credential can be rotated without touching the
+   * workflow. The server resolves it and initializes the connector at
+   * execution time (see docs/agent-instructions/INSTRUCTIONS_OPUS.md, O-6).
+   *
+   * Never put credential values in `config`.
+   */
+  credentialId?: string;
 }
 
 export interface EdgeData {
