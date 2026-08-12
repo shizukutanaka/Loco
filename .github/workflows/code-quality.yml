@@ -57,7 +57,7 @@ jobs:
         output-file: ./sbom.xml
 
     - name: Upload SBOM
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v5
       with:
         name: sbom
         path: ./sbom.xml

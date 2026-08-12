@@ -43,7 +43,7 @@ jobs:
         name: codecov-umbrella
 
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v5
       if: always()
       with:
         name: test-results
@@ -53,7 +53,7 @@ jobs:
       run: .\test-suite.bat integration
 
     - name: Upload integration test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v5
       if: always()
       with:
         name: integration-test-results
@@ -77,7 +77,7 @@ jobs:
       run: .\test-suite.bat security
 
     - name: Upload security scan results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v5
       with:
         name: security-scan-results
         path: test-results/
@@ -100,7 +100,7 @@ jobs:
       run: .\test-suite.bat performance
 
     - name: Upload performance results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v5
       with:
         name: performance-test-results
         path: test-results/
