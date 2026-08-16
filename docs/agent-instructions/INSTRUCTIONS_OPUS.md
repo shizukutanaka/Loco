@@ -43,8 +43,15 @@
    - コネクタ修正: Slack/Calendly/Zendesk/HubSpot/Twilio/Stripe/Email(`b10c0e2`, `3a55911`)— boxed `JsonElement` の
      プロパティパターン(`is JsonElement { ValueKind: ... }`)は C# 12 前提
    - `src/Loco.Cli/Program.cs` のコマンド配線(`87092e6`)— 各コマンドを実際に 1 回ずつ起動して smoke test
-5. 完了条件: `dotnet build` 0 エラー、全テスト緑、`loco help` に列挙された全コマンドが起動する。
-6. 修正コミットの本文に「どのキャベアト付きコミットのエラーをいくつ直したか」を記録(以後キャベアトは不要になる)。
+5. **パラメータ受け渡し経路の E2E 確認**(必須): エディタ→実行までの引数は
+   `PropertyPanel(config.parameters.X)` → `StoredWorkflow.Data.Config` →
+   `WorkflowMapper`(**`parameters` オブジェクトを展開**) → `WorkflowNode.Parameters` →
+   `ActionParameters` → `connector.GetString("X")` と流れる。
+   ここが 1 箇所でもずれると**全コネクタの全引数が null になる**(実際に起きていた欠陥。
+   `cdf9426` 以降で mapper 側を修正済み、`WorkflowMapperTests` に回帰テストあり)。
+   http ノードを 1 つ作って `url` が実際にコネクタまで届くことを実機で確認すること。
+6. 完了条件: `dotnet build` 0 エラー、全テスト緑、`loco help` に列挙された全コマンドが起動する。
+7. 修正コミットの本文に「どのキャベアト付きコミットのエラーをいくつ直したか」を記録(以後キャベアトは不要になる)。
 
 ## Task O-6 ★ O-1 の次に最優先: 資格情報の 3 層実装
 

@@ -66,6 +66,102 @@ public class WorkflowMapperTests
     }
 
     [Fact]
+    public void ToVisualWorkflow_FlattensNestedParametersObject()
+    {
+        // The editor's PropertyPanel writes action arguments nested under
+        // config.parameters (keeping them from colliding with "action").
+        // Copying that object across verbatim would give the connector a single
+        // argument literally named "parameters", so every real argument would
+        // read back null - which is what used to happen.
+        var stored = StoredWithConfig(new Dictionary<string, JsonElement>
+        {
+            ["action"] = Json("\"get\""),
+            ["parameters"] = Json("""{"url": "https://api.test/x", "method": "GET"}"""),
+        });
+
+        var node = WorkflowMapper.ToVisualWorkflow(stored).Nodes[0];
+
+        node.Action.Should().Be("get");
+        node.Parameters.Should().ContainKey("url").WhoseValue.Should().Be("https://api.test/x");
+        node.Parameters.Should().ContainKey("method").WhoseValue.Should().Be("GET");
+        node.Parameters.Should().NotContainKey("parameters",
+            "the nested object must be flattened, not passed through as one argument");
+    }
+
+    [Fact]
+    public void ToVisualWorkflow_StillAcceptsFlatConfigEntries()
+    {
+        // Workflows authored with arguments at the top level of config must keep
+        // working - the flattening is additive, not a replacement.
+        var stored = StoredWithConfig(new Dictionary<string, JsonElement>
+        {
+            ["action"] = Json("\"postMessage\""),
+            ["channel"] = Json("\"#general\""),
+        });
+
+        var node = WorkflowMapper.ToVisualWorkflow(stored).Nodes[0];
+
+        node.Parameters.Should().ContainKey("channel").WhoseValue.Should().Be("#general");
+    }
+
+    [Fact]
+    public void ToVisualWorkflow_MergesFlatAndNestedParameters()
+    {
+        var stored = StoredWithConfig(new Dictionary<string, JsonElement>
+        {
+            ["action"] = Json("\"sendSms\""),
+            ["from"] = Json("\"+15550000\""),
+            ["parameters"] = Json("""{"to": "+15551111", "body": "hi"}"""),
+        });
+
+        var node = WorkflowMapper.ToVisualWorkflow(stored).Nodes[0];
+
+        node.Parameters.Should().ContainKey("from").WhoseValue.Should().Be("+15550000");
+        node.Parameters.Should().ContainKey("to").WhoseValue.Should().Be("+15551111");
+        node.Parameters.Should().ContainKey("body").WhoseValue.Should().Be("hi");
+        node.Parameters.Should().NotContainKey("parameters");
+    }
+
+    [Fact]
+    public void ToVisualWorkflow_NonObjectParametersValueIsLeftAlone()
+    {
+        // Only an object is unwrapped; anything else stays a plain argument so a
+        // connector that genuinely takes a "parameters" string is unaffected.
+        var stored = StoredWithConfig(new Dictionary<string, JsonElement>
+        {
+            ["action"] = Json("\"run\""),
+            ["parameters"] = Json("\"raw-string\""),
+        });
+
+        var node = WorkflowMapper.ToVisualWorkflow(stored).Nodes[0];
+
+        node.Parameters.Should().ContainKey("parameters").WhoseValue.Should().Be("raw-string");
+    }
+
+    /// <summary>Single-action-node StoredWorkflow with the given config.</summary>
+    private static StoredWorkflow StoredWithConfig(Dictionary<string, JsonElement> config) => new()
+    {
+        Id = "wf-1",
+        Name = "test",
+        Nodes = new List<StoredWorkflowNode>
+        {
+            new()
+            {
+                Id = "n1",
+                Type = "action",
+                Position = new StoredPosition { X = 0, Y = 0 },
+                Data = new StoredNodeData
+                {
+                    Label = "node",
+                    Integration = "http",
+                    Config = config,
+                },
+            },
+        },
+        Metadata = new StoredWorkflowMetadata(),
+    };
+
+    [Fact]
     public void ToVisualWorkflow_MapsEdgeConditionAndHandles()
     {
         var stored = new StoredWorkflow

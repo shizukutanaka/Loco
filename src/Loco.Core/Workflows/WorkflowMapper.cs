@@ -52,6 +52,23 @@ public static class WorkflowMapper
                     continue;
                 }
 
+                // The editor nests action parameters under config.parameters
+                // (PropertyPanel writes them there, and validation reads them
+                // there), which keeps them from colliding with "action". Copying
+                // that object across verbatim would hand the connector a single
+                // parameter literally named "parameters", so every real argument
+                // - url, channel, to, ... - would arrive as null. Flatten it.
+                if (key == "parameters" && value.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var nested in value.EnumerateObject())
+                    {
+                        parameters[nested.Name] = ToPlainObject(nested.Value);
+                    }
+                    continue;
+                }
+
+                // Top-level config entries are still accepted, so workflows that
+                // were authored flat keep working.
                 parameters[key] = ToPlainObject(value);
             }
 
