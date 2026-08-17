@@ -543,7 +543,9 @@ export const templates: WorkflowTemplate[] = [
               action: 'set',
               parameters: {
                 key: 'cache:users',
-                ttl: 3600,
+                // RedisConnector's parameter is 'expirySeconds'; 'ttl' is a
+                // separate action on that connector and was never read here.
+                expirySeconds: 3600,
               },
             },
           },

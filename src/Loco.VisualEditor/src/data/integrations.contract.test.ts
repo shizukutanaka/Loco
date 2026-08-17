@@ -251,6 +251,37 @@ describe('integrations palette <-> connector contract', () => {
     expect(bad).toEqual([]);
   });
 
+  it('template node parameters are names the connector declares', () => {
+    // Action ids in templates were checked above; the parameter NAMES are the
+    // same class of bug one level down, and the palette had six of them.
+    const bad: string[] = [];
+
+    for (const template of templates) {
+      for (const node of template.workflow.nodes ?? []) {
+        if (node.type !== 'action') continue;
+
+        const integrationId = node.data?.integration as string | undefined;
+        const config = node.data?.config as Record<string, unknown> | undefined;
+        const actionId = config?.action as string | undefined;
+        const params = config?.parameters as Record<string, unknown> | undefined;
+
+        if (!integrationId || !actionId || !params) continue;
+        if (!connectorIds.has(integrationId)) continue;
+
+        const declared = readDeclaredParams(integrationId, actionId);
+        if (declared === null || declared.size === 0) continue;
+
+        for (const name of Object.keys(params)) {
+          if (!declared.has(name)) {
+            bad.push(`${template.id}: ${integrationId}:${actionId} -> ${name}`);
+          }
+        }
+      }
+    }
+
+    expect(bad).toEqual([]);
+  });
+
   it('google-sheets specifically resolves (the regression that motivated this test)', () => {
     const sheets = integrations.find((i) => i.id === 'google-sheets');
     expect(sheets, "palette must use the connector's id, not 'googlesheets'").toBeDefined();
