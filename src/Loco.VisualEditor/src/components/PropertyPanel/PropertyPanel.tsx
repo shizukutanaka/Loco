@@ -9,6 +9,33 @@ import {
 } from '@/hooks';
 
 // ============================================================================
+// Constants
+// ============================================================================
+
+/**
+ * Transform modes the built-in handler supports. "json" deserializes the `json`
+ * parameter; anything else returns the `input` parameter unchanged.
+ */
+const TRANSFORM_TYPES = [
+  { value: 'json', label: 'JSON literal' },
+  { value: 'passthrough', label: 'Passthrough (input unchanged)' },
+];
+
+/**
+ * The comparisons the engine's built-in condition handler implements. Keep in
+ * sync with the `operation switch` in
+ * VisualWorkflowEngine.RegisterDefaultHandlers - an operation not listed there
+ * falls through to `_ => false`.
+ */
+const CONDITION_OPERATIONS = [
+  { value: 'equals', label: 'equals' },
+  { value: 'not_equals', label: 'does not equal' },
+  { value: 'greater_than', label: 'is greater than' },
+  { value: 'less_than', label: 'is less than' },
+  { value: 'contains', label: 'contains' },
+];
+
+// ============================================================================
 // Property Panel Component
 // ============================================================================
 
@@ -137,32 +164,76 @@ function PropertyPanelComponent() {
         <div className="space-y-4">
           <h3 className="text-sm font-semibold text-gray-700">Configuration</h3>
 
+          {/*
+            The engine's built-in condition handler compares three parameters -
+            left, operation, right (VisualWorkflowEngine.RegisterDefaultHandlers).
+            It has no expression parser. This panel used to write a single
+            free-text `condition` string, which the engine never read, so every
+            condition node evaluated Equals(null, null) - i.e. TRUE, always, and
+            silently. These inputs write the parameters the engine actually
+            evaluates.
+          */}
           {selectedNode.type === 'condition' && (
-            <FormTextarea
-              id="condition-expression"
-              label="Condition Expression"
-              value={localData.config?.condition || ''}
-              onChange={(e) => handleConfigChange('condition', e.target.value)}
-              placeholder="e.g., item.price > 100"
-              error={errors.condition}
-              rows={3}
-              isCode={true}
-              helpText="Write a condition that evaluates to true or false"
-            />
+            <>
+              <FormInput
+                id="condition-left"
+                label="Left Value"
+                value={String(localData.config?.left ?? '')}
+                onChange={(e) => handleConfigChange('left', e.target.value)}
+                placeholder="e.g., {{price}}"
+                error={errors.left}
+                helpText="Value to compare. Supports {{variable}} references."
+              />
+              <FormSelect
+                id="condition-operation"
+                label="Operation"
+                value={String(localData.config?.operation ?? 'equals')}
+                onChange={(e) => handleConfigChange('operation', e.target.value)}
+                options={CONDITION_OPERATIONS}
+              />
+              <FormInput
+                id="condition-right"
+                label="Right Value"
+                value={String(localData.config?.right ?? '')}
+                onChange={(e) => handleConfigChange('right', e.target.value)}
+                placeholder="e.g., 100"
+                error={errors.right}
+                helpText="Value to compare against."
+              />
+            </>
           )}
 
+          {/*
+            The built-in transform handler reads `type` and, for type "json",
+            `json` - it does NOT compile or run C#. This panel previously offered
+            a "Transform Code (C#)" editor writing config.code, which the engine
+            never read: the field did nothing and advertised a capability that
+            does not exist. These inputs expose what the handler actually does.
+          */}
           {selectedNode.type === 'transform' && (
-            <FormTextarea
-              id="transform-code"
-              label="Transform Code (C#)"
-              value={localData.config?.code || ''}
-              onChange={(e) => handleConfigChange('code', e.target.value)}
-              placeholder="return items.Select(item => new { ... }).ToList();"
-              error={errors.code}
-              rows={10}
-              isCode={true}
-              helpText="Write C# code to transform the input data"
-            />
+            <>
+              <FormSelect
+                id="transform-type"
+                label="Transform Type"
+                value={String(localData.config?.type ?? 'json')}
+                onChange={(e) => handleConfigChange('type', e.target.value)}
+                options={TRANSFORM_TYPES}
+                helpText="JSON parses the literal below; Passthrough forwards the input unchanged."
+              />
+              {String(localData.config?.type ?? 'json') === 'json' && (
+                <FormTextarea
+                  id="transform-json"
+                  label="JSON"
+                  value={String(localData.config?.json ?? '')}
+                  onChange={(e) => handleConfigChange('json', e.target.value)}
+                  placeholder='{ "key": "value" }'
+                  error={errors.json}
+                  rows={8}
+                  isCode={true}
+                  helpText="Parsed and emitted as this node's output."
+                />
+              )}
+            </>
           )}
 
           {finalIntegration && actionOptions.length > 0 && (

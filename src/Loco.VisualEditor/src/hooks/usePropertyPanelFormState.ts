@@ -28,6 +28,12 @@ export interface ValidationError {
   code?: string;
   action?: string;
   parameters?: Record<string, string>;
+  // Condition nodes are configured as left/operation/right, matching the
+  // comparison the engine's built-in condition handler actually performs.
+  left?: string;
+  right?: string;
+  // Transform nodes of type "json" carry a JSON literal the engine parses.
+  json?: string;
 }
 
 type ConfigValue = string | number | Record<string, unknown> | undefined;
@@ -95,6 +101,17 @@ export function usePropertyPanelFormState(selectedNodeId: string | null) {
         error = validateCondition(String(value || ''));
       } else if (key === 'code') {
         error = validateCode(String(value || ''));
+      } else if (key === 'json') {
+        // The engine deserializes this literal at run time, so malformed JSON
+        // would fail mid-execution. Catch it while the user is still editing.
+        const raw = String(value ?? '').trim();
+        if (raw !== '') {
+          try {
+            JSON.parse(raw);
+          } catch {
+            error = 'Not valid JSON';
+          }
+        }
       }
 
       // Use functional setState to access current state without stale closures
