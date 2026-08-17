@@ -74,6 +74,48 @@ function readActionIds(connectorId: string): Set<string> {
   return actions;
 }
 
+/**
+ * Parameter names an action declares in its C# `Parameters = [...]` block.
+ * Returns null when the block cannot be located, so a parsing gap reads as
+ * "unknown" rather than as a mismatch.
+ */
+function readDeclaredParams(connectorId: string, actionId: string): Set<string> | null {
+  for (const file of readdirSync(CONNECTOR_DIR)) {
+    if (!file.endsWith('.cs')) continue;
+    const source = readFileSync(join(CONNECTOR_DIR, file), 'utf8');
+    const idMatch = source.match(/public\s+override\s+string\s+Id\s*=>\s*"([^"]+)"/);
+    if (idMatch?.[1] !== connectorId) continue;
+
+    // From this action's Id to the start of the next `new()` entry (or the end
+    // of the Actions list).
+    const start = source.search(new RegExp(`\\bId\\s*=\\s*"${actionId}"`));
+    if (start === -1) return null;
+
+    const rest = source.slice(start);
+    const end = rest.search(/\n\s*new\(\)\s*\n\s*\{|\n\s*\];/);
+    const block = end === -1 ? rest : rest.slice(0, end);
+
+    const paramsAssignment = block.match(/Parameters\s*=\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*\)/);
+    if (paramsAssignment) {
+      // Shared helper, e.g. `Parameters = GetRequestParameters()` in
+      // HttpConnector. Resolve the helper's body instead of the action block.
+      const helper = paramsAssignment[1];
+      const helperStart = source.search(
+        new RegExp(`\\b${helper}\\s*\\(\\s*\\)\\s*(=>|\\n?\\s*\\{)`)
+      );
+      if (helperStart === -1) return null;
+      const helperBody = source.slice(helperStart, helperStart + 4000);
+      return new Set(
+        [...helperBody.matchAll(/\bName\s*=\s*"([A-Za-z][A-Za-z0-9_]*)"/g)].map((m) => m[1])
+      );
+    }
+
+    if (!/Parameters\s*=/.test(block)) return new Set();
+    return new Set([...block.matchAll(/\bName\s*=\s*"([A-Za-z][A-Za-z0-9_]*)"/g)].map((m) => m[1]));
+  }
+  return null;
+}
+
 describe('integrations palette <-> connector contract', () => {
   const connectorIds = readConnectorIds();
 
@@ -111,6 +153,41 @@ describe('integrations palette <-> connector contract', () => {
       for (const action of integration.actions ?? []) {
         if (!declared.has(action.id)) {
           mismatches.push(`${integration.id}:${action.id}`);
+        }
+      }
+    }
+
+    expect(mismatches).toEqual([]);
+  });
+
+  it('palette parameter names are all declared by the connector action', () => {
+    // Action ids were the first mismatch found; parameter NAMES are the same
+    // class of bug one level down. A palette parameter the connector never
+    // declares is silently dropped - the user fills in a field that reaches
+    // nothing. This caught six of them: slack/github 'token', stripe 'apiKey',
+    // email 'from', sendgrid 'body' (it reads html/text), redis 'ttl' (it reads
+    // expirySeconds). The first four were credentials, which belong to a
+    // connection, not to node config.
+    //
+    // Compares against the connector's DECLARED parameters rather than the keys
+    // its code reads: declarations are the contract, and reads can hide behind
+    // helpers (HttpConnector applies 'headers' via AddHeaders(), so a
+    // reads-based check would report a false positive there).
+    const mismatches: string[] = [];
+
+    for (const integration of integrations) {
+      if (!connectorIds.has(integration.id)) continue;
+
+      for (const action of integration.actions ?? []) {
+        const declared = readDeclaredParams(integration.id, action.id);
+        // Skip when the action's parameter block could not be located, so a
+        // parsing gap cannot masquerade as a finding.
+        if (declared === null) continue;
+
+        for (const param of action.parameters ?? []) {
+          if (!declared.has(param.name)) {
+            mismatches.push(`${integration.id}:${action.id} -> ${param.name}`);
+          }
         }
       }
     }

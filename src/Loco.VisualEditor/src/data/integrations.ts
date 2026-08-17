@@ -106,7 +106,10 @@ export const integrations: Integration[] = [
           { name: 'to', type: 'string', required: true, description: 'Recipient email' },
           { name: 'subject', type: 'string', required: true, description: 'Email subject' },
           { name: 'body', type: 'string', required: true, description: 'Email body' },
-          { name: 'from', type: 'string', required: false, description: 'Sender email' },
+          // 'from' removed: EmailConnector takes the sender from its credentials
+          // (fromEmail/fromName), not from action parameters.
+          { name: 'cc', type: 'string', required: false, description: 'CC recipients' },
+          { name: 'isHtml', type: 'boolean', required: false, description: 'Send as HTML' },
         ],
       },
     ],
@@ -123,9 +126,13 @@ export const integrations: Integration[] = [
         name: 'Send Message',
         description: 'Post a message to a Slack channel',
         parameters: [
+          // No 'token' here: SlackConnector reads its bot token from
+          // ConnectorConfiguration (GetCredentialString("botToken")), never as an
+          // action parameter, so offering it did nothing except invite a secret
+          // into the workflow JSON. Credentials come from NodeData.credentialId.
           { name: 'channel', type: 'string', required: true, description: 'Channel name or ID' },
           { name: 'text', type: 'string', required: true, description: 'Message text' },
-          { name: 'token', type: 'string', required: true, description: 'Slack bot token' },
+          { name: 'threadTs', type: 'string', required: false, description: 'Thread timestamp to reply in' },
         ],
       },
     ],
@@ -146,7 +153,9 @@ export const integrations: Integration[] = [
           { name: 'repo', type: 'string', required: true, description: 'Repository name' },
           { name: 'title', type: 'string', required: true, description: 'Issue title' },
           { name: 'body', type: 'string', required: false, description: 'Issue description' },
-          { name: 'token', type: 'string', required: true, description: 'GitHub token' },
+          // 'token' removed: it is a credential (GetCredentialString("token")),
+          // not an action parameter.
+          { name: 'labels', type: 'json', required: false, description: 'Issue labels' },
         ],
       },
     ],
@@ -165,7 +174,10 @@ export const integrations: Integration[] = [
         name: 'Send Message',
         description: 'Post a message to Discord',
         parameters: [
-          { name: 'webhookUrl', type: 'string', required: true, description: 'Discord webhook URL' },
+          // 'sendMessage' posts to a channel as the bot (auth via the botToken
+          // credential) and takes channelId. 'webhookUrl' belongs to the separate
+          // 'sendWebhookMessage' action - the two were conflated here.
+          { name: 'channelId', type: 'string', required: true, description: 'Discord channel ID' },
           { name: 'content', type: 'string', required: true, description: 'Message content' },
         ],
       },
@@ -210,7 +222,9 @@ export const integrations: Integration[] = [
         parameters: [
           { name: 'to', type: 'string', required: true, description: 'Recipient email' },
           { name: 'subject', type: 'string', required: true, description: 'Email subject' },
-          { name: 'body', type: 'string', required: true, description: 'Email body (HTML)' },
+          // SendGridConnector reads 'html' and 'text', never 'body'.
+          { name: 'html', type: 'string', required: false, description: 'HTML body' },
+          { name: 'text', type: 'string', required: false, description: 'Plain-text body' },
           { name: 'from', type: 'string', required: false, description: 'Sender email' },
         ],
       },
@@ -249,7 +263,9 @@ export const integrations: Integration[] = [
         parameters: [
           { name: 'bucket', type: 'string', required: true, description: 'S3 bucket name' },
           { name: 'key', type: 'string', required: true, description: 'Object key (path)' },
-          { name: 'content', type: 'string', required: true, description: 'File content' },
+          // The connector uploads from a path ('filePath'), not inline content.
+          { name: 'filePath', type: 'string', required: true, description: 'Local file path to upload' },
+          { name: 'contentType', type: 'string', required: false, description: 'MIME type' },
         ],
       },
     ],
@@ -270,7 +286,9 @@ export const integrations: Integration[] = [
         parameters: [
           { name: 'key', type: 'string', required: true, description: 'Key' },
           { name: 'value', type: 'string', required: true, description: 'Value' },
-          { name: 'ttl', type: 'number', required: false, description: 'Time to live (seconds)' },
+          // RedisConnector's parameter is 'expirySeconds'; 'ttl' is a separate
+          // ACTION on that connector, and was never read here.
+          { name: 'expirySeconds', type: 'number', required: false, description: 'Time to live (seconds)' },
         ],
       },
       {
@@ -326,7 +344,9 @@ export const integrations: Integration[] = [
           { name: 'amount', type: 'number', required: true, description: 'Amount in cents' },
           { name: 'currency', type: 'string', required: true, description: 'Currency code' },
           { name: 'source', type: 'string', required: true, description: 'Payment source' },
-          { name: 'apiKey', type: 'string', required: true, description: 'Stripe API key' },
+          // 'apiKey' removed: StripeConnector authenticates with the credential
+          // GetCredentialString("secretKey") from its configuration.
+          { name: 'description', type: 'string', required: false, description: 'Charge description' },
         ],
       },
     ],
