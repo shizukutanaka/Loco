@@ -391,24 +391,43 @@ export const integrations: Integration[] = [
     ],
   },
 
-  // Transform
+  // Variables. Registered by the engine as "variable:set" / "variable:get", so
+  // unlike transform/condition/delay/loop (which the engine dispatches by node
+  // TYPE) these resolve through the normal `${integration}:${action}` path and
+  // therefore belong in this list.
   {
-    id: 'transform',
-    name: 'Transform',
+    id: 'variable',
+    name: 'Variable',
     category: 'transform',
-    icon: '🔄',
-    description: 'Transform data using C# code',
+    icon: '📦',
+    description: 'Store and read workflow variables',
     actions: [
       {
-        id: 'execute',
-        name: 'Transform Data',
-        description: 'Execute C# transformation code',
+        id: 'set',
+        name: 'Set Variable',
+        description: 'Store a value under a name for later nodes to read',
         parameters: [
-          { name: 'code', type: 'code', required: true, description: 'C# transformation code' },
+          { name: 'name', type: 'string', required: true, description: 'Variable name' },
+          { name: 'value', type: 'string', required: true, description: 'Value to store' },
+        ],
+      },
+      {
+        id: 'get',
+        name: 'Get Variable',
+        description: 'Read a previously stored value',
+        parameters: [
+          { name: 'name', type: 'string', required: true, description: 'Variable name' },
         ],
       },
     ],
   },
+  // NOTE: there is deliberately no 'transform' entry here. The engine dispatches
+  // transform by node TYPE, so an entry in this list would produce
+  // integration='transform', type='action' and a handler key of
+  // "transform:<action>" that is registered nowhere - the node would fail at
+  // execution. The working Transform node is the Logic-section drag source in
+  // NodePalette, which sets type='transform'. (The removed entry also advertised
+  // "Execute C# transformation code"; the engine has no C# execution.)
   // ---------------------------------------------------------------------------
   // Connector-backed integrations.
   //

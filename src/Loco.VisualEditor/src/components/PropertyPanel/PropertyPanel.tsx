@@ -236,6 +236,43 @@ function PropertyPanelComponent() {
             </>
           )}
 
+          {/*
+            The engine's delay handler reads `seconds` and awaits it against the
+            execution's cancellation token, so a running delay is interruptible
+            by POST /executions/{id}/cancel.
+          */}
+          {selectedNode.type === 'delay' && (
+            <FormInput
+              id="delay-seconds"
+              type="number"
+              label="Delay (seconds)"
+              value={String(localData.config?.seconds ?? '1')}
+              onChange={(e) => handleConfigChange('seconds', e.target.value)}
+              placeholder="1"
+              helpText="How long to wait before continuing. Cancelling the execution interrupts the wait."
+            />
+          )}
+
+          {/*
+            The loop handler iterates `items` and exposes each element as the
+            `currentItem` workflow variable. The node type existed with no way to
+            configure it, so the collection was always null and the loop body
+            never ran.
+          */}
+          {selectedNode.type === 'loop' && (
+            <FormTextarea
+              id="loop-items"
+              label="Items"
+              value={String(localData.config?.items ?? '')}
+              onChange={(e) => handleConfigChange('items', e.target.value)}
+              placeholder='["a", "b", "c"]'
+              error={errors.items}
+              rows={4}
+              isCode={true}
+              helpText="JSON array to iterate. Each element is exposed as the currentItem variable."
+            />
+          )}
+
           {finalIntegration && actionOptions.length > 0 && (
             <>
               {/* Action Selection */}

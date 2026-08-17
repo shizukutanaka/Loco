@@ -77,6 +77,43 @@ describe('PropertyPanel <-> engine parameter contract', () => {
     });
   });
 
+  describe('delay node', () => {
+    beforeEach(() => selectNode('delay'));
+
+    it('is configurable at all (the engine handler had no editor node type)', () => {
+      render(<PropertyPanel />);
+      expect(screen.getByLabelText(/delay \(seconds\)/i)).toBeTruthy();
+    });
+
+    it('writes config.seconds, the key the engine reads', () => {
+      render(<PropertyPanel />);
+      fireEvent.change(screen.getByLabelText(/delay \(seconds\)/i), { target: { value: '30' } });
+      expect(configOf().seconds).toBe('30');
+    });
+  });
+
+  describe('loop node', () => {
+    beforeEach(() => selectNode('loop'));
+
+    it('exposes the items collection the handler iterates', () => {
+      render(<PropertyPanel />);
+      expect(screen.getByLabelText(/items/i)).toBeTruthy();
+    });
+
+    it('writes config.items and rejects malformed JSON before execution', () => {
+      render(<PropertyPanel />);
+      const input = screen.getByLabelText(/items/i);
+
+      fireEvent.change(input, { target: { value: '["a","b"]' } });
+      expect(configOf().items).toBe('["a","b"]');
+
+      fireEvent.change(input, { target: { value: '[nope' } });
+      expect(screen.getByText(/not valid json/i)).toBeTruthy();
+      // The invalid value must not reach the store
+      expect(configOf().items).toBe('["a","b"]');
+    });
+  });
+
   describe('transform node', () => {
     beforeEach(() => selectNode('transform'));
 

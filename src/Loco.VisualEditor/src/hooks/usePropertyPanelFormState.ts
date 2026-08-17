@@ -34,6 +34,8 @@ export interface ValidationError {
   right?: string;
   // Transform nodes of type "json" carry a JSON literal the engine parses.
   json?: string;
+  // Loop nodes carry a JSON array the engine iterates.
+  items?: string;
 }
 
 type ConfigValue = string | number | Record<string, unknown> | undefined;
@@ -101,7 +103,7 @@ export function usePropertyPanelFormState(selectedNodeId: string | null) {
         error = validateCondition(String(value || ''));
       } else if (key === 'code') {
         error = validateCode(String(value || ''));
-      } else if (key === 'json') {
+      } else if (key === 'json' || key === 'items') {
         // The engine deserializes this literal at run time, so malformed JSON
         // would fail mid-execution. Catch it while the user is still editing.
         const raw = String(value ?? '').trim();

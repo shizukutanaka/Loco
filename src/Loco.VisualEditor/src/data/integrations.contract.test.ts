@@ -34,6 +34,17 @@ const CONNECTOR_DIR = join(__dirname, '../../../Loco.Core/Integrations/Connector
 const ENGINE_BUILTINS = new Set(['transform', 'condition', 'delay', 'loop', 'variable']);
 
 /**
+ * Engine built-ins split into two dispatch styles, and the distinction decides
+ * whether an entry belongs in the palette list at all:
+ *  - dispatched by node TYPE (transform/condition/delay/loop) - these must NOT
+ *    appear in integrations.ts, or a drag would produce integration=X,
+ *    type='action' and a handler key "X:<action>" registered nowhere.
+ *  - dispatched by `${integration}:${action}` (variable:set / variable:get) -
+ *    these belong in integrations.ts like any connector.
+ */
+const TYPE_DISPATCHED_BUILTINS = new Set(['transform', 'condition', 'delay', 'loop']);
+
+/**
  * Palette entries that are not connector-backed and not engine built-ins.
  * Each one is a node a user can drag onto the canvas that cannot execute today.
  * Listed explicitly so the count cannot grow unnoticed; removing an entry from
@@ -132,6 +143,18 @@ describe('integrations palette <-> connector contract', () => {
       );
 
     expect(unbacked).toEqual([]);
+  });
+
+  it('type-dispatched built-ins are not listed as integrations', () => {
+    // A palette entry for one of these would be dragged as type='action' with
+    // integration=<id>, producing a handler key like "transform:execute" that
+    // the engine never registers - the node would fail at execution. There used
+    // to be exactly such a 'transform' entry.
+    const wrongly = integrations
+      .map((i) => i.id)
+      .filter((id) => TYPE_DISPATCHED_BUILTINS.has(id));
+
+    expect(wrongly).toEqual([]);
   });
 
   it('the known-unbacked list has not grown', () => {

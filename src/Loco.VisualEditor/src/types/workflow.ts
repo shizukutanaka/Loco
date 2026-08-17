@@ -39,7 +39,13 @@ export interface WorkflowMetadata {
   isPublic: boolean;
 }
 
-export type NodeType = 'trigger' | 'action' | 'condition' | 'transform' | 'loop';
+/**
+ * Node types the engine dispatches by TYPE (VisualWorkflowEngine falls back to
+ * _nodeHandlers[node.Type] when no `${integration}:${action}` handler matches).
+ * 'delay' is one of them - the engine has always implemented it, but the editor
+ * had no node type for it, so the feature was unreachable.
+ */
+export type NodeType = 'trigger' | 'action' | 'condition' | 'transform' | 'loop' | 'delay';
 
 export interface NodeData {
   label: string;

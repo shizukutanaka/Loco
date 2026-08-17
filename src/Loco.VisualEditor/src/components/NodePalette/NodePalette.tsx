@@ -135,6 +135,33 @@ function NodePaletteComponent() {
                 </div>
               </div>
             </div>
+
+            {/*
+              Delay has always existed in the engine (a `delay` handler reading
+              `seconds`, cancellable mid-wait) but had no node type in the editor,
+              so it was unreachable. Comparable tools expose the same capability
+              as a first-class core node - n8n calls it Wait - and it is what
+              makes a Loop usable against a rate-limited API.
+            */}
+            <div
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('application/reactflow', JSON.stringify({
+                  type: 'delay',
+                  label: 'Delay',
+                }));
+              }}
+              className="p-3 bg-slate-50 border border-slate-200 rounded-lg cursor-move hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-xl">⏱️</span>
+                <div>
+                  <div className="font-medium text-sm">Delay</div>
+                  <div className="text-xs text-gray-600">Wait before continuing</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
