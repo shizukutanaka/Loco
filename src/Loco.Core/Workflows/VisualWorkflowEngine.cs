@@ -365,6 +365,27 @@ public class VisualWorkflowEngine
 
     private void RegisterDefaultHandlers()
     {
+        // Trigger node - the workflow's entry point.
+        //
+        // Execution starts from every node with no incoming connection, and those
+        // are normally trigger nodes. Without a handler registered under the
+        // "trigger" type, ExecuteNodeHandlerAsync fell through to
+        // NotImplementedException("No handler registered for {integration}:"),
+        // so EVERY workflow built the natural way - starting from a trigger -
+        // failed on its first node. At execution time the trigger has already
+        // fired; the node's job is only to hand the run's starting data to the
+        // nodes downstream.
+        RegisterNodeHandler("trigger", (node, context) =>
+        {
+            var payload = context.Variables.GetValueOrDefault("input");
+            return Task.FromResult<object?>(payload ?? new
+            {
+                triggered = true,
+                executionId = context.ExecutionId,
+                node = node.Id,
+            });
+        });
+
         // Transform node - manipulate data
         RegisterNodeHandler("transform", async (node, context) =>
         {

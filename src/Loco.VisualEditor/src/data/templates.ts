@@ -90,11 +90,13 @@ export const templates: WorkflowTemplate[] = [
           position: { x: 400, y: 100 },
           data: {
             label: 'Query Database',
-            integration: 'database',
+            // 'database' is not a connector; PostgreSqlConnector is, and its
+            // query action reads 'sql' (not 'query').
+            integration: 'postgresql',
             config: {
               action: 'query',
               parameters: {
-                query: 'SELECT * FROM users WHERE active = true',
+                sql: 'SELECT * FROM users WHERE active = true',
               },
             },
           },
@@ -188,7 +190,7 @@ export const templates: WorkflowTemplate[] = [
           position: { x: 700, y: 250 },
           data: {
             label: 'Normal Processing',
-            integration: 'database',
+            integration: 'postgresql',
             config: {
               action: 'query',
               parameters: {},
@@ -261,7 +263,7 @@ export const templates: WorkflowTemplate[] = [
           position: { x: 700, y: 100 },
           data: {
             label: 'Save to Database',
-            integration: 'database',
+            integration: 'postgresql',
             config: {
               action: 'query',
               parameters: {},
@@ -526,7 +528,7 @@ export const templates: WorkflowTemplate[] = [
           position: { x: 400, y: 100 },
           data: {
             label: 'Query Database',
-            integration: 'database',
+            integration: 'postgresql',
             config: { action: 'query' },
           },
         },
@@ -602,7 +604,7 @@ export const templates: WorkflowTemplate[] = [
           position: { x: 700, y: 150 },
           data: {
             label: 'Process Item',
-            integration: 'database',
+            integration: 'postgresql',
             config: { action: 'query' },
           },
         },
@@ -678,7 +680,8 @@ export const templates: WorkflowTemplate[] = [
           data: {
             label: 'Send Receipt',
             integration: 'sendgrid',
-            config: { action: 'send' },
+            // SendGridConnector's action id is 'sendEmail'; 'send' resolved to nothing.
+            config: { action: 'sendEmail' },
           },
         },
         {

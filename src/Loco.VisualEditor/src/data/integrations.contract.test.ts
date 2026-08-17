@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { integrations } from './integrations';
+import { templates } from './templates';
 
 /**
  * Cross-stack contract test.
@@ -216,6 +217,38 @@ describe('integrations palette <-> connector contract', () => {
     }
 
     expect(mismatches).toEqual([]);
+  });
+
+  it('every template node resolves to a real integration and action', () => {
+    // Templates are the first thing a new user runs, so a template node that
+    // cannot execute is the worst version of this bug class. Two were broken:
+    // sendgrid used action 'send' (the connector declares 'sendEmail') and five
+    // nodes used the connector-less 'database' integration.
+    const bad: string[] = [];
+
+    for (const template of templates) {
+      for (const node of template.workflow.nodes ?? []) {
+        const integrationId = node.data?.integration as string | undefined;
+        const actionId = (node.data?.config as Record<string, unknown> | undefined)?.action as
+          | string
+          | undefined;
+
+        // Type-dispatched nodes (trigger/transform/condition/delay/loop) resolve
+        // by node type, so they need no integration:action pair.
+        if (!integrationId || node.type !== 'action') continue;
+
+        const integration = integrations.find((i) => i.id === integrationId);
+        if (!integration) {
+          bad.push(`${template.id}: unknown integration '${integrationId}'`);
+          continue;
+        }
+        if (actionId && !integration.actions?.some((a) => a.id === actionId)) {
+          bad.push(`${template.id}: '${integrationId}' has no action '${actionId}'`);
+        }
+      }
+    }
+
+    expect(bad).toEqual([]);
   });
 
   it('google-sheets specifically resolves (the regression that motivated this test)', () => {
