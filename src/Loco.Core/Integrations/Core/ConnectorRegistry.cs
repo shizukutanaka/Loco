@@ -97,6 +97,26 @@ public sealed class ConnectorRegistry : IDisposable
     }
 
     /// <summary>
+    /// Creates a fresh, uncached connector instance.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="GetConnector"/> caches one instance per id, and initializing a
+    /// connector replaces its configuration - so two connections for the same
+    /// connector cannot both be live on the shared instance. Callers that need
+    /// one instance per credential ask for their own here; the registry does not
+    /// track it, so the caller owns its lifetime.
+    /// </remarks>
+    public IConnector? CreateConnector(string connectorId)
+    {
+        if (!_connectors.TryGetValue(connectorId, out var registration))
+        {
+            return null;
+        }
+
+        return (IConnector)Activator.CreateInstance(registration.Type)!;
+    }
+
+    /// <summary>
     /// Get a connector by ID (throws if not found)
     /// </summary>
     public IConnector GetRequiredConnector(string connectorId)

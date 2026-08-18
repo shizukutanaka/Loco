@@ -16,6 +16,28 @@ public sealed class WorkflowConnectorBridge : IDisposable
     private readonly VisualWorkflowEngine _engine;
     private readonly WebhookReceiver _webhookReceiver;
     private readonly Dictionary<string, ConnectorConfiguration> _connectorConfigs = new();
+
+    /// <summary>
+    /// One connector instance per (connectorId, credentialId), so a workflow can
+    /// use two accounts of the same service at once.
+    ///
+    /// ConnectorRegistry caches a single instance per connector id, and
+    /// InitializeAsync replaces that instance's configuration outright. Two
+    /// Slack nodes on different workspaces therefore both ran against whichever
+    /// credential was applied last - posting to the wrong workspace, with
+    /// nothing anywhere reporting it. The API refused such workflows rather than
+    /// guess; this is what makes them work instead.
+    ///
+    /// Bounded by the number of connections in use, which is small. The stored
+    /// configuration is kept alongside so a repeat call with an unchanged
+    /// credential does not re-initialize: re-initializing disposes the
+    /// connector's HttpClient, and two overlapping runs of the same workflow
+    /// would otherwise pull it out from under each other.
+    /// </summary>
+    private readonly Dictionary<(string ConnectorId, string CredentialId),
+        (IConnector Connector, ConnectorConfiguration Config)> _credentialed = new();
+
+    private readonly SemaphoreSlim _credentialedLock = new(1, 1);
     private bool _disposed;
 
     public WorkflowConnectorBridge(
@@ -69,6 +91,112 @@ public sealed class WorkflowConnectorBridge : IDisposable
     }
 
     /// <summary>
+    /// Configures the connector instance belonging to one connection, and
+    /// initializes it now.
+    /// </summary>
+    /// <remarks>
+    /// Nodes carrying this <paramref name="credentialId"/> execute against this
+    /// instance, so two connections for the same connector stay independent
+    /// within a single workflow.
+    ///
+    /// Repeated calls are expected - every run re-applies its workflow's
+    /// connections - so an unchanged configuration is left alone rather than
+    /// re-initialized. That matters because InitializeAsync disposes the
+    /// connector's HttpClient, which would break a concurrent run mid-action.
+    /// </remarks>
+    public async Task ConfigureConnectionAsync(
+        string connectorId,
+        string credentialId,
+        ConnectorConfiguration config,
+        CancellationToken ct = default)
+    {
+        var key = (connectorId, credentialId);
+
+        await _credentialedLock.WaitAsync(ct);
+        IConnector connector;
+        try
+        {
+            if (_credentialed.TryGetValue(key, out var existing))
+            {
+                if (SameCredentials(existing.Config, config))
+                {
+                    return;
+                }
+
+                connector = existing.Connector;
+            }
+            else
+            {
+                var created = _registry.CreateConnector(connectorId);
+                if (created is null)
+                {
+                    // Engine built-ins carry no connector; not an error here.
+                    return;
+                }
+
+                connector = created;
+            }
+
+            _credentialed[key] = (connector, config);
+        }
+        finally
+        {
+            _credentialedLock.Release();
+        }
+
+        await connector.InitializeAsync(config, ct);
+    }
+
+    /// <summary>
+    /// Whether two configurations carry the same credential values. Compared by
+    /// value because a connection re-read from the store is a different object
+    /// holding the same secrets, and re-initializing on that would defeat the
+    /// point of caching the instance.
+    /// </summary>
+    private static bool SameCredentials(ConnectorConfiguration a, ConnectorConfiguration b)
+    {
+        if (a.Credentials.Count != b.Credentials.Count) return false;
+
+        foreach (var (name, value) in a.Credentials)
+        {
+            if (!b.Credentials.TryGetValue(name, out var other)) return false;
+            if (!Equals(value, other)) return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Removes the instance a connection owns, after the connection itself is
+    /// gone. Without this a deleted connection's credentials would stay live in
+    /// memory for as long as the process runs.
+    /// </summary>
+    public async Task ReleaseConnectionAsync(string credentialId, CancellationToken ct = default)
+    {
+        List<(string ConnectorId, string CredentialId)> keys;
+
+        await _credentialedLock.WaitAsync(ct);
+        try
+        {
+            keys = _credentialed.Keys
+                .Where(k => string.Equals(k.CredentialId, credentialId, StringComparison.Ordinal))
+                .ToList();
+
+            foreach (var key in keys)
+            {
+                if (_credentialed.Remove(key, out var entry) && entry.Connector is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
+        }
+        finally
+        {
+            _credentialedLock.Release();
+        }
+    }
+
+    /// <summary>
     /// Register all connectors with the workflow engine
     /// Automatically creates handlers for each connector action
     /// </summary>
@@ -106,8 +234,11 @@ public sealed class WorkflowConnectorBridge : IDisposable
 
             _engine.RegisterNodeHandler(handlerKey, async (node, context) =>
             {
+                // Resolved per node, not captured: a node naming a connection
+                // must run against that connection's own instance, and which
+                // connection that is only becomes known at execution time.
                 return await ExecuteConnectorActionAsync(
-                    connector,
+                    ResolveConnector(connector, node),
                     action,
                     node,
                     context,
@@ -122,13 +253,46 @@ public sealed class WorkflowConnectorBridge : IDisposable
 
             _engine.RegisterNodeHandler(handlerKey, async (node, context) =>
             {
+                // Resolved per node, not captured: a node naming a connection
+                // must run against that connection's own instance, and which
+                // connection that is only becomes known at execution time.
                 return await ExecuteConnectorActionAsync(
-                    connector,
+                    ResolveConnector(connector, node),
                     action,
                     node,
                     context,
                     ct);
             });
+        }
+    }
+
+    /// <summary>
+    /// The connector instance a node should run against.
+    ///
+    /// A node naming a connection gets that connection's own instance;
+    /// everything else gets the registry's shared one, which is what a workflow
+    /// with a single connection per connector has always used.
+    ///
+    /// Falling back rather than failing is deliberate: a node can name a
+    /// connection the caller never configured (a workflow saved before the
+    /// connection was deleted, say), and the shared instance then produces the
+    /// connector's own "not initialized" error, which says more than a lookup
+    /// miss here would.
+    /// </summary>
+    private IConnector ResolveConnector(IConnector shared, WorkflowNode node)
+    {
+        if (string.IsNullOrEmpty(node.CredentialId)) return shared;
+
+        _credentialedLock.Wait();
+        try
+        {
+            return _credentialed.TryGetValue((shared.Id, node.CredentialId), out var entry)
+                ? entry.Connector
+                : shared;
+        }
+        finally
+        {
+            _credentialedLock.Release();
         }
     }
 
@@ -330,6 +494,14 @@ public sealed class WorkflowConnectorBridge : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+
+        foreach (var (connector, _) in _credentialed.Values)
+        {
+            if (connector is IDisposable disposable) disposable.Dispose();
+        }
+        _credentialed.Clear();
+
+        _credentialedLock.Dispose();
         _webhookReceiver.Dispose();
     }
 }

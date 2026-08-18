@@ -29,15 +29,18 @@ public class ConnectionsController : ControllerBase
 {
     private readonly JsonFileConnectionStore _store;
     private readonly ConnectorRegistry _registry;
+    private readonly WorkflowConnectorBridge _bridge;
     private readonly ILogger<ConnectionsController> _logger;
 
     public ConnectionsController(
         JsonFileConnectionStore store,
         ConnectorRegistry registry,
+        WorkflowConnectorBridge bridge,
         ILogger<ConnectionsController> logger)
     {
         _store = store;
         _registry = registry;
+        _bridge = bridge;
         _logger = logger;
     }
 
@@ -149,6 +152,12 @@ public class ConnectionsController : ControllerBase
         {
             return NotFound(Envelope.Fail("NOT_FOUND", $"Connection '{id}' was not found"));
         }
+
+        // The bridge holds a connector instance per connection, initialized with
+        // that connection's decrypted credentials. Deleting the stored record
+        // without this would leave those secrets live in memory - and reachable
+        // by any workflow still naming the id - for the life of the process.
+        await _bridge.ReleaseConnectionAsync(id, cancellationToken);
 
         _logger.LogInformation("Deleted connection {ConnectionId}", id);
         return Ok(Envelope.Ok(message: "Connection deleted"));

@@ -313,15 +313,25 @@ public class WorkflowScheduleReconciliationTests
 }
 
 /// <summary>
-/// Tests for the credential-conflict guard in WorkflowExecutionService.
+/// Tests for how a workflow's connections are grouped before they are applied.
 ///
-/// ConnectorRegistry caches one connector instance per connectorId, and
-/// initializing it replaces its configuration. Two nodes using different
-/// connections for the same connector would therefore both run against whichever
-/// credential was applied last - posting to the wrong Slack workspace with no
-/// error anywhere. The guard refuses instead of guessing.
+/// This decides which connector instance each node runs against. It used to be
+/// a refusal: ConnectorRegistry caches one instance per connector id and
+/// InitializeAsync replaces its configuration, so two Slack nodes on different
+/// workspaces both ran against whichever credential was applied last - posting
+/// to the wrong workspace with nothing anywhere reporting it, which is why the
+/// API declined such workflows rather than guess.
+///
+/// WorkflowConnectorBridge now keeps one instance per (connector, connection),
+/// and the node handler resolves which to use from the node's own CredentialId.
+/// So the grouping below is no longer a veto; it is the set of connections to
+/// resolve and initialize, and two connections for one connector is an ordinary
+/// case that must produce two groups.
+///
+/// NOTE: authored in an environment where dotnet test could not run (NuGet
+/// egress blocked by organization policy); the first CI run executes these.
 /// </summary>
-public class ConnectorCredentialConflictTests
+public class ConnectorConnectionGroupingTests
 {
     private static VisualWorkflow WorkflowWith(params (string Integration, string? CredentialId)[] nodes)
     {
@@ -342,49 +352,63 @@ public class ConnectorCredentialConflictTests
     }
 
     /// <summary>
-    /// Mirrors the guard's rule. Kept separate from the service so the decision
-    /// can be asserted without standing up its five dependencies; the service
-    /// applies exactly this grouping before it resolves anything.
+    /// Mirrors the grouping ConfigureConnectorsAsync applies. Kept separate from
+    /// the service so the decision can be asserted without standing up its five
+    /// dependencies; the service groups exactly this way before resolving.
     /// </summary>
-    private static List<string> Conflicts(VisualWorkflow workflow) =>
+    private static List<(string Integration, string CredentialId)> Groups(VisualWorkflow workflow) =>
         workflow.Nodes
             .Where(n => !string.IsNullOrEmpty(n.CredentialId) && !string.IsNullOrEmpty(n.Integration))
-            .GroupBy(n => n.Integration)
-            .Where(g => g.Select(n => n.CredentialId).Distinct().Count() > 1)
+            .GroupBy(n => (n.Integration, CredentialId: n.CredentialId!))
             .Select(g => g.Key)
+            .OrderBy(k => k.Integration)
+            .ThenBy(k => k.CredentialId)
             .ToList();
 
     [Fact]
-    public void TwoConnectionsForOneConnector_IsAConflict()
+    public void Two_connections_for_one_connector_produce_two_groups()
     {
+        // The case that was refused outright. Each connection gets its own
+        // instance, so both nodes reach the workspace they name.
         var workflow = WorkflowWith(("slack", "conn-a"), ("slack", "conn-b"));
 
-        Conflicts(workflow).Should().ContainSingle().Which.Should().Be("slack");
+        Groups(workflow).Should().Equal(("slack", "conn-a"), ("slack", "conn-b"));
     }
 
     [Fact]
-    public void SameConnectionUsedTwice_IsFine()
+    public void The_same_connection_used_twice_is_resolved_once()
     {
-        // Two Slack nodes on the same workspace is the common case and must work.
+        // Two Slack nodes on one workspace is the common case, and resolving it
+        // twice would decrypt and re-initialize for no reason.
         var workflow = WorkflowWith(("slack", "conn-a"), ("slack", "conn-a"));
 
-        Conflicts(workflow).Should().BeEmpty();
+        Groups(workflow).Should().Equal(("slack", "conn-a"));
     }
 
     [Fact]
-    public void DifferentConnectorsWithDifferentConnections_IsFine()
+    public void Different_connectors_are_grouped_separately()
     {
         var workflow = WorkflowWith(("slack", "conn-a"), ("github", "conn-b"));
 
-        Conflicts(workflow).Should().BeEmpty();
+        Groups(workflow).Should().Equal(("github", "conn-b"), ("slack", "conn-a"));
     }
 
     [Fact]
-    public void NodesWithoutCredentials_AreIgnored()
+    public void Nodes_without_a_connection_are_ignored()
     {
-        // Engine built-ins carry no credential and must not look like a conflict.
+        // Engine built-ins carry no credential and need nothing resolved.
         var workflow = WorkflowWith(("slack", "conn-a"), ("slack", null), ("transform", null));
 
-        Conflicts(workflow).Should().BeEmpty();
+        Groups(workflow).Should().Equal(("slack", "conn-a"));
+    }
+
+    [Fact]
+    public void One_connection_shared_by_two_connectors_stays_two_groups()
+    {
+        // Nothing stops a connection id being named by nodes of different
+        // connectors; each connector still needs its own instance initialized.
+        var workflow = WorkflowWith(("slack", "conn-a"), ("github", "conn-a"));
+
+        Groups(workflow).Should().Equal(("github", "conn-a"), ("slack", "conn-a"));
     }
 }

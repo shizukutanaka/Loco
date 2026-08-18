@@ -112,31 +112,37 @@ webhook URL に curl で POST すると実行される。
 > スケジュールを持たせるのが標準([Temporal Schedules](https://temporal.io/product))。
 > 上記 3.(最終発火時刻の永続化)はその最小版にあたる。
 
-## Task O-8: コネクタインスタンスを資格情報ごとに分離する
+## Task O-8: コネクタインスタンスを資格情報ごとに分離する — **完了**
 
 **背景**: `ConnectorRegistry.GetConnector` は connectorId ごとに**インスタンスを1つ
 キャッシュ**する(`_instances.GetOrAdd`)。`InitializeAsync` は設定を置き換えるため、
 1 つのワークフローが同じコネクタを**異なる接続**で使うと、後勝ちで全ノードが同じ
 資格情報で実行される — 間違った宛先に送信し、実行ログ上は成功に見える。
 
-現状は `WorkflowExecutionService.ConfigureConnectorsAsync` が**実行前に拒否**する
-(コネクタ名と衝突する接続を明示)。近似せず限界を報告する暫定対応であり、
-`ConnectorCredentialConflictTests` が規則を固定している。
+暫定対応として `WorkflowExecutionService.ConfigureConnectorsAsync` が実行前に
+**拒否**していた。近似せず限界を報告する扱いだったが、2 つの Slack ワークスペースを
+1 つのワークフローで使う、というごく普通の要求が通らなかった。
 
-**本来の修正**:
-1. `ConnectorRegistry` のインスタンスキャッシュを `(connectorId, credentialId)` で
-   キーイングする。credentialId 無し(組み込み・資格情報不要)は従来どおり単一。
-2. `WorkflowConnectorBridge` のハンドラ登録キー `"{connectorId}:{actionId}"` は
-   ノードの Integration/Action から引かれるため**変更できない**。代わりにハンドラ内で
-   `node.CredentialId` を見て該当インスタンスを選ぶ。
-3. 同時実行の考慮: インスタンスを共有しなくなるので `InitializeAsync` の競合は消えるが、
-   インスタンス数が (コネクタ×接続) に増える。`HttpClient` は `IHttpClientFactory`
-   経由なので (`65e1094`) ソケット枯渇は起きないはずだが、実機で確認すること。
-4. 完了したら `ConfigureConnectorsAsync` の衝突ガードと、それを固定している
-   4 テストを削除する。
+**実装**:
+1. `ConnectorRegistry.CreateConnector(connectorId)` を追加 — キャッシュを介さない
+   新規インスタンスを返す。レジストリは追跡しないので寿命は呼び出し側が持つ。
+2. `WorkflowConnectorBridge` が `(connectorId, credentialId)` をキーに
+   インスタンスと設定を保持する。ハンドラ登録キー
+   `"{connectorId}:{actionId}"` はノードの Integration/Action から引かれるため
+   変更していない。代わりにハンドラ内で `node.CredentialId` を見て
+   `ResolveConnector` が該当インスタンスを選ぶ。
+3. 同一資格情報での再設定は**再初期化しない**(`SameCredentials` で値比較)。
+   `InitializeAsync` は HttpClient を破棄するため、同じワークフローの同時実行が
+   互いの HttpClient を引き抜く事故を防ぐ。
+4. 接続削除時に `ReleaseConnectionAsync` でインスタンスを破棄する。
+   これが無いと、削除済み接続の復号済み資格情報がプロセス生存中ずっと
+   メモリに残り、その id を名指しするワークフローから到達できてしまう。
+5. 衝突ガードと、それを固定していた 4 テストは削除。代わりに
+   `ConnectorConnectionGroupingTests` が「2 接続 → 2 グループ」を固定する。
 
 **受け入れ条件**: 2 つの異なる Slack 接続を使うワークフローが、**両方とも正しい
-ワークスペース**に送信する。
+ワークスペース**に送信する。→ コードパスは実装済み。実機確認は backend CI が
+動いてから(NuGet 遮断のため当環境では実行不可)。
 
 ## Task O-2: 実行履歴のファイル永続化
 

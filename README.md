@@ -36,10 +36,11 @@ This repository is a work in progress. Being honest about the state:
   frontend (builds clean, 432 passing tests), the credential store and its
   UI, the cron scheduler, and the HTTP API's CRUD / execute / validate /
   connections / connectors / auth endpoints.
-- **In progress / limitations**: finished executions are now persisted to disk
-  and survive an API restart, but a run that was still in flight when the process
-  stopped is lost rather than resumed; the CLI's default engine currently runs a
-  limited action set.
+- **In progress / limitations**: finished executions are persisted to disk and
+  survive an API restart, but a run still in flight when the process stopped is
+  lost rather than resumed; the CLI's default engine runs a limited action set.
+  A workflow can now use two accounts of the same service at once - two Slack
+  workspaces, say - which the API used to refuse.
 - **CLI caveats**: the command classes under `src/Loco.Cli/Commands/`
   (start, rule, ai, files, logs, health, diag, test, update, setup,
   secrets, backup-config) are now dispatched from `Program.cs` in addition

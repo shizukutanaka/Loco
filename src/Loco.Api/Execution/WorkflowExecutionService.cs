@@ -112,31 +112,16 @@ public sealed class WorkflowExecutionService
             .Where(n => !string.IsNullOrEmpty(n.CredentialId) && !string.IsNullOrEmpty(n.Integration))
             .ToList();
 
-        // ConnectorRegistry caches ONE instance per connectorId, and initializing
-        // it replaces its configuration. So a workflow using two different
-        // connections for the same connector - two Slack workspaces, say - would
-        // have both nodes run against whichever credential was applied last,
-        // silently posting to the wrong account. Refuse rather than guess.
+        // One connector instance per (connector, connection), so two Slack nodes
+        // on different workspaces stay independent.
         //
-        // Supporting it properly means keying connector instances and their node
-        // handlers by (connectorId, credentialId) rather than connectorId alone,
-        // which is an engine-level change; until then this is reported, not
-        // approximated.
-        foreach (var conflict in credentialed
-                     .GroupBy(n => n.Integration)
-                     .Where(g => g.Select(n => n.CredentialId).Distinct().Count() > 1))
-        {
-            var connections = string.Join(", ",
-                conflict.Select(n => n.CredentialId).Distinct().OrderBy(id => id));
-
-            problems.Add(
-                $"connector '{conflict.Key}' is used with more than one connection " +
-                $"({connections}); a workflow can currently use only one connection " +
-                $"per connector, because all its nodes share a single connector instance");
-        }
-
-        if (problems.Count > 0) return problems;
-
+        // This used to be refused outright. ConnectorRegistry caches a single
+        // instance per connector id and InitializeAsync replaces its
+        // configuration, so both nodes ran against whichever credential was
+        // applied last - posting to the wrong workspace with nothing reporting
+        // it. Refusing was the honest stopgap; WorkflowConnectorBridge now keys
+        // instances by connection, and the node handler resolves which one to
+        // use from the node's own CredentialId at execution time.
         foreach (var group in credentialed
                      .GroupBy(n => (n.Integration, CredentialId: n.CredentialId!)))
         {
@@ -150,7 +135,8 @@ public sealed class WorkflowExecutionService
                 continue;
             }
 
-            await _bridge.ConfigureConnectorAsync(group.Key.Integration, config, cancellationToken);
+            await _bridge.ConfigureConnectionAsync(
+                group.Key.Integration, group.Key.CredentialId, config, cancellationToken);
         }
 
         return problems;
