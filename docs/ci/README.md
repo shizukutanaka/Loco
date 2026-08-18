@@ -1,12 +1,19 @@
 # CI — 要手動適用
 
-`docs/ci/ci.yml` は統合済みの CI 定義ですが、**自動でコミットできませんでした**。
-このセッションの GitHub App に `workflows` 権限が無く、push が拒否されるためです:
+`docs/ci/ci.yml` は統合済みの CI 定義ですが、**自動で適用できませんでした**。
+このセッションの GitHub App に `workflows` 権限が無いためです。
+**2 つの独立した経路で試し、どちらも拒否されました**:
 
-```
-! [remote rejected] refusing to allow a GitHub App to create or update
-  workflow `.github/workflows/ci.yml` without `workflows` permission
-```
+| 経路 | 結果 |
+|---|---|
+| `git push` | `! [remote rejected] refusing to allow a GitHub App to create or update workflow \`.github/workflows/ci.yml\` without \`workflows\` permission` |
+| GitHub REST API (`PUT /repos/.../contents/.github/workflows/ci.yml`) | `403 Resource not accessible by integration` |
+
+つまりこれは回避可能な設定ミスではなく、**App の権限境界**です。
+解決するには、リポジトリ所有者が次のいずれかを行う必要があります:
+
+- GitHub App に `workflows: write` 権限を付与する、または
+- 下記「適用手順」のコマンドを手元で実行する
 
 ## なぜ差し替えるのか
 
@@ -28,14 +35,18 @@
 2. **7 つすべてが .NET 専用**。フロントエンドの **400 テストが CI に一切乗っていない** —
    このプロダクトで唯一検証済みの部分が自動化されていない、という逆転が起きています。
 
-統合版は 2 ジョブ構成です:
+統合版は 3 ジョブ構成です:
 
 - **frontend**: `npm ci` → `tsc --noEmit` → `vitest` → `build` → `lint`。
   バックエンドに依存しないので、.NET がビルドできなくても緑を維持できます。
-- **backend**: `restore` → `build` → `test`。
-  **当面は失敗する想定**です。バックエンドは NuGet 到達不能な環境で書かれたため
-  一度もコンパイルされておらず、該当コミットには全て VERIFICATION CAVEAT が付いています。
-  **このジョブが初めて緑になった時点で、それらの但し書きを外せます。**
+- **backend**: `restore` → `build` → `test`。バックエンドは NuGet 到達不能な環境
+  (api.nuget.org がプロキシで 403) で書かれたため、該当コミットには VERIFICATION
+  CAVEAT が付いています。**このジョブが初めて緑になった時点で、それらの但し書きを外せます。**
+- **typecheck-offline**: `scripts/typecheck-offline.sh`。NuGet 無しで Roslyn と
+  net8.0 参照アセンブリだけを使い、全ソースを型検査します。**現時点で未説明エラーは
+  ゼロ**(全 67 エラーが NuGet パッケージ型または未実行のソースジェネレータ由来)。
+  restore が壊れても回帰を検出し続けるための保険です。
+  ただしパッケージ型の呼び出し箇所は見えないため、`dotnet build` の代替にはなりません。
 
 ## 適用手順
 
