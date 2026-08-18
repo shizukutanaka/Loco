@@ -48,7 +48,7 @@
 | 7 | `src/Loco.Core/Practical/` の 32 クラスがデッドコード(fully dead 20 / dead island 12 / wired は SimpleLogger のみ) | 中 | Sonnet S-3 |
 | 8 | ESLint warning 102 件(エラーは 0。`lint:strict` は未達) | 低 | Sonnet S-2 |
 | 9 | `loco preset` はシミュレーション、`loco backup` はスタブ(いずれも出力で明示済み) | 低 | 据え置き(誠実表示済み) |
-| 10 | `docs/PHASE_9`〜`PHASE_14` は実装されていない設計文書(各ファイルに NOT IMPLEMENTED バナー付与済み) | 低 | 据え置き or 削除判断 |
+| ~~10~~ | ~~`docs/PHASE_9`〜`PHASE_14`~~ → **削除済み**(10,828 行) | — | 完了 |
 
 ## 改善案(優先度付きロードマップ)
 

@@ -38,13 +38,13 @@ This repository is a work in progress. Being honest about the state:
   to `workflow`/`run`. `loco preset` execution is an explicit simulation
   (it prints the planned actions without performing them), and `loco backup`
   remains an honest "not yet implemented" stub.
-- **Known dead code**: most classes under `src/Loco.Core/Practical/` (the
-  `Simple*` pattern implementations) have no callers from any compiling
-  entry point and are retained for reference only.
-- **Not implemented** (despite what some older `docs/PHASE_*` files claim): the
-  distributed-systems / service-mesh / quantum / zero-knowledge material in
-  `docs/PHASE_9`–`PHASE_14` describes designs that are **not** in the codebase.
-  Those documents are aspirational and are being removed or clearly marked.
+- **Dead code removed**: the unreachable `Simple*` pattern library, the
+  `AIPlatform` "engines", and ten compile-excluded `Loco.Api` subsystems have
+  been deleted (~33k lines). Every `<Compile Remove>` is gone from the repo.
+- The aspirational `docs/PHASE_9`–`PHASE_14` design documents, which described
+  distributed-systems / service-mesh / quantum / zero-knowledge material that was
+  never in the codebase, have been **deleted** along with the unreachable code
+  they described.
 
 ## Quick Start
 
@@ -143,7 +143,6 @@ const execution = await client.workflows.waitForExecution("workflow-id", result.
 ### Core Components
 
 - **Loco.Core**: Core workflow engine, rule management, and storage abstractions
-  - **Practical Patterns**: 37 lightweight, production-ready patterns (see below)
   - **Visual Workflow Engine**: JSON-based workflow builder with 10 templates - [Docs](src/Loco.Core/Workflows/README.md)
   - **AI Integration**: Multi-provider AI framework (OpenAI, Claude) - [Docs](src/Loco.Core/AI/AIIntegrationFramework.cs)
   - **Pre-built Integrations**: 15 ready-to-use connectors across 3 phases - [Docs](src/Loco.Core/Integrations/README.md)
@@ -160,35 +159,12 @@ const execution = await client.workflows.waitForExecution("workflow-id", result.
 - **Loco.Cli**: Command-line interface for local automation
 - **SDKs**: Client libraries for Python and TypeScript/JavaScript
 
-### Loco.Core Practical Patterns 🎯
+### Loco.Core/Practical
 
-**NEW**: A complete collection of 23 simple, high-performance patterns following Carmack/Pike/Martin design principles.
-
-📚 **[Complete Documentation](src/Loco.Core/Practical/INDEX.md)** | 🚀 **[Quick Reference](src/Loco.Core/Practical/QUICK_REFERENCE.md)**
-
-A collection of small, self-contained utility classes under
-`src/Loco.Core/Practical` (caching, pooling, a lightweight HTTP server, simple
-auth/job/monitoring helpers), each kept small and dependency-light. Performance
-numbers previously quoted here (e.g. "10M+ ops/sec", "50-100x faster") were not
-backed by committed benchmarks and have been removed; see `benchmarks/` if you
-want to measure on your own hardware.
-
-**Some patterns**:
-- `SimpleHttpServer` - lightweight HTTP server
-- `SimpleDatabase` - direct SQL without ORM overhead
-- `SimpleCache` - in-memory cache
-- `SimpleJob` - background job helper
-- `SimpleAuth` - JWT helpers
-- `SimpleMonitoring` - basic metrics helpers
-
-**Documentation**:
-- [INDEX.md](src/Loco.Core/Practical/INDEX.md) - Master navigation
-- [README.md](src/Loco.Core/Practical/README.md) - All patterns overview
-- [EXAMPLES.md](src/Loco.Core/Practical/EXAMPLES.md) - Real-world apps
-- [INTEGRATION_GUIDE.md](src/Loco.Core/Practical/INTEGRATION_GUIDE.md) - Combining patterns
-- [MIGRATION_GUIDE.md](src/Loco.Core/Practical/MIGRATION_GUIDE.md) - From frameworks
-- [BENCHMARKS.md](src/Loco.Core/Practical/BENCHMARKS.md) - Performance data
-- [TROUBLESHOOTING.md](src/Loco.Core/Practical/TROUBLESHOOTING.md) - Problem solving
+Formerly a collection of 32 `Simple*` utility classes with 143KB of supporting
+documentation. All but `SimpleLogger` had no caller from any compiling entry
+point, so they and their docs were deleted. `SimpleLogger` remains because the
+AI and connector code genuinely uses it.
 
 ### Project Structure
 
@@ -196,7 +172,6 @@ want to measure on your own hardware.
 loco/
 ├── src/
 │   ├── Loco.Core/           # Core engine
-│   │   ├── Practical/       # 🎯 37 lightweight patterns (143KB docs)
 │   │   ├── Workflows/       # 📊 Visual workflow engine (JSON-based, 10 templates)
 │   │   ├── AI/              # 🤖 AI integration framework (OpenAI, Claude)
 │   │   └── Integrations/    # 🔌 15 pre-built connectors (3 phases)

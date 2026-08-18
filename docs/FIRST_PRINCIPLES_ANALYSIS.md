@@ -115,7 +115,7 @@ grep -rn "class SecretsManager" --include=*.cs src/                          # �
 | **O1** | `src/Loco.Core/AIPlatform/ExternalSecretsEngine.cs` | **1,265 行** | Vault/AWS/Azure/GCP 連携を騙る。中身は `random.Next()` で偽の同期メトリクスを返すだけ。**実際の秘密保存が存在しない一方でこれがある** — 過不足の象徴 |
 | **O2** | `src/Loco.Core/Practical/` | **32 クラス** | デッドコード(`SimpleLogger` のみ実使用) |
 | **O3** | コンパイル除外サブシステム | **9 ディレクトリ** | BFF/Gateway/GraphQL/Versioning/Idempotency/Services/HealthChecks/RateLimiting/OpenApi — `Loco.Api.csproj` の `<Compile Remove>` で除外済みだがリポジトリに残存 |
-| **O4** | `docs/PHASE_9`〜`PHASE_14` | 多数 | 未実装の設計文書(NOT IMPLEMENTED バナー付与済み) |
+| ~~**O4**~~ | ~~`docs/PHASE_9`〜`PHASE_14`~~ | ~~10,828 行~~ | **削除済み** — 未実装の設計文書 |
 
 **O1 が示す構造的問題**: このプロジェクトは「エンタープライズらしく見える機能」を大量に生成する一方、
 「製品が成立するための最小要件」を実装していない。**1,265 行の偽 Vault 連携より、
