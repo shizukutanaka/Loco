@@ -36,8 +36,10 @@ This repository is a work in progress. Being honest about the state:
   (start, rule, ai, files, logs, health, diag, test, update, setup,
   secrets, backup-config) are now dispatched from `Program.cs` in addition
   to `workflow`/`run`. `loco preset` execution is an explicit simulation
-  (it prints the planned actions without performing them), and `loco backup`
-  remains an honest "not yet implemented" stub.
+  (it prints the planned actions without performing them). The `loco backup`
+  stub was removed rather than implemented: workflows are JSON files in a data
+  directory, so backing them up is a directory copy, and `loco backup-config`
+  already covers configuration.
 - **Dead code removed**: the unreachable `Simple*` pattern library, the
   `AIPlatform` "engines", and ten compile-excluded `Loco.Api` subsystems have
   been deleted (~33k lines). Every `<Compile Remove>` is gone from the repo.
