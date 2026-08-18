@@ -49,7 +49,7 @@ async def main():
     ) as client:
         # List workflows
         workflows = await client.list_workflows()
-        print(f"Found {len(workflows['items'])} workflows")
+        print(f"Found {workflows['total']} workflows")
 
         # Get specific workflow
         workflow = await client.get_workflow("workflow-1")
@@ -58,14 +58,13 @@ async def main():
         # Execute workflow
         execution = await client.execute_workflow(
             "workflow-1",
-            parameters={"invoice_id": "INV-001"}
+            input={"invoice_id": "INV-001"}
         )
-        print(f"Execution started: {execution['execution_id']}")
+        print(f"Execution started: {execution['executionId']}")
 
         # Wait for completion
         result = await client.wait_for_execution(
-            "workflow-1",
-            execution['execution_id'],
+            execution['executionId'],
             timeout=300
         )
         print(f"Execution result: {result}")
@@ -129,7 +128,7 @@ client = LocoClient(
 
 ```python
 # List workflows (paginated)
-workflows = await client.list_workflows(skip=0, take=20)
+workflows = await client.list_workflows(page=1, page_size=20)
 
 # Get single workflow
 workflow = await client.get_workflow("workflow-id")
@@ -138,7 +137,8 @@ workflow = await client.get_workflow("workflow-id")
 new_workflow = await client.create_workflow(
     name="Process Invoice",
     description="Auto-processes invoices",
-    steps=[...]
+    nodes=[...],   # the same node graph the visual editor saves
+    edges=[...],
 )
 
 # Update workflow
@@ -157,19 +157,18 @@ await client.delete_workflow("workflow-id")
 # Execute workflow (async)
 execution = await client.execute_workflow(
     "workflow-id",
-    parameters={"key": "value"},
-    async_execution=True
+    input={"key": "value"},   # initial variables, available to every node
 )
 
+# Plan a run without invoking any connector
+planned = await client.execute_workflow("workflow-id", dry_run=True)
+
 # Get execution status
-status = await client.get_execution_status(
-    "workflow-id",
-    execution['execution_id']
-)
+# Executions are addressed globally by id, not nested under a workflow
+status = await client.get_execution_status(execution['executionId'])
 
 # Wait for execution (blocking)
 result = await client.wait_for_execution(
-    "workflow-id",
     "execution-id",
     timeout=300,
     poll_interval=1.0
@@ -217,7 +216,7 @@ async def execute_batch(client, workflow_id, items):
     tasks = [
         client.execute_workflow(
             workflow_id,
-            parameters={"item": item}
+            input={"item": item}
         )
         for item in items
     ]
@@ -231,17 +230,16 @@ executions = await execute_batch(client, "workflow-1", items)
 ### Polling with Timeout
 
 ```python
-async def execute_with_timeout(client, workflow_id, params, timeout=60):
+async def execute_with_timeout(client, workflow_id, variables, timeout=60):
     """Execute and wait with timeout"""
     execution = await client.execute_workflow(
         workflow_id,
-        parameters=params
+        input=variables
     )
 
     try:
         result = await client.wait_for_execution(
-            workflow_id,
-            execution['execution_id'],
+            execution['executionId'],
             timeout=timeout
         )
         return result
@@ -288,11 +286,11 @@ import asyncio
 app = Celery('loco_tasks')
 
 @app.task
-def execute_workflow_task(workflow_id, parameters=None):
+def execute_workflow_task(workflow_id, variables=None):
     """Celery task for workflow execution"""
     async def _execute():
         async with LocoClient("https://api.loco.io", api_key="loco_sk_xxx") as client:
-            result = await client.execute_workflow(workflow_id, parameters)
+            result = await client.execute_workflow(workflow_id, input=variables)
             return result
 
     return asyncio.run(_execute())

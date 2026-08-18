@@ -23,60 +23,97 @@
 
 import { v4 as uuidv4 } from "uuid";
 
-// Type definitions
+// Type definitions.
+//
+// Field names are camelCase because the API serializes that way
+// (JsonNamingPolicy.CamelCase, set in Program.cs). These were snake_case,
+// which meant every property read was undefined on a response that had
+// actually succeeded.
+
+/** The statuses an execution can end on. Lowercase, as the API emits them. */
+export const TERMINAL_STATUSES = ["completed", "failed", "cancelled"] as const;
+
+/**
+ * A stored workflow. Loco models a workflow as a node graph - `nodes` carry
+ * the actions and `edges` connect them - not as an ordered step list.
+ */
 export interface WorkflowData {
   id: string;
   name: string;
   description?: string;
-  steps?: WorkflowStep[];
-  created_at: string;
-  updated_at: string;
+  nodes?: WorkflowNode[];
+  edges?: WorkflowEdge[];
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface WorkflowStep {
+export interface WorkflowNode {
   id: string;
-  order: number;
   type: string;
-  action_name: string;
-  configuration?: Record<string, unknown>;
+  position: { x: number; y: number };
+  data: {
+    label?: string;
+    integration?: string;
+    credentialId?: string;
+    config?: Record<string, unknown>;
+  };
 }
 
+export interface WorkflowEdge {
+  id: string;
+  source: string;
+  target: string;
+  data?: { condition?: string };
+}
+
+/**
+ * One execution. `output` and `logs` appear once the run finishes; `error`
+ * only on a failed or cancelled one.
+ */
 export interface ExecutionResult {
-  execution_id: string;
-  workflow_id: string;
+  executionId: string;
   status: string;
-  started_at: string;
-  completed_at?: string;
-  progress: number;
-  result?: Record<string, unknown>;
+  startedAt: string;
+  completedAt?: string;
+  output?: Record<string, unknown>;
+  error?: { nodeId: string; message: string };
+  logs?: ExecutionLog[];
 }
 
-export interface ExecutionStatus extends ExecutionResult {
-  step_executions?: StepExecution[];
-}
+export type ExecutionStatus = ExecutionResult;
 
-export interface StepExecution {
-  step_id: string;
-  status: string;
-  started_at?: string;
-  completed_at?: string;
-  result?: Record<string, unknown>;
+export interface ExecutionLog {
+  timestamp: string;
+  level: string;
+  message: string;
+  nodeId?: string;
 }
 
 export interface TokenResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
+  accessToken: string;
+  tokenType: string;
+  expiresIn: number;
   scope: string;
-  refresh_token?: string;
 }
 
+/** The list endpoint's payload. It keys the page by `workflows`, not `items`. */
 export interface PaginatedResponse<T> {
-  items: T[];
+  workflows: T[];
   total: number;
-  skip: number;
-  take: number;
-  has_more: boolean;
+  page: number;
+  pageSize: number;
+}
+
+/**
+ * The envelope every endpoint answers with (Loco.Api.Contracts.ApiEnvelope).
+ * `_request` unwraps it, so no method here ever returns one.
+ */
+interface ApiEnvelope<T> {
+  success: boolean;
+  data?: T;
+  error?: { code: string; message: string };
+  message?: string;
 }
 
 export interface LocoClientConfig {
@@ -130,6 +167,51 @@ export class RateLimitError extends LocoException {
   constructor(message: string) {
     super(message, 429);
     this.name = "RateLimitError";
+  }
+}
+
+/**
+ * Returns the payload from Loco's response envelope.
+ *
+ * Every endpoint answers with the same shape:
+ *
+ *   { success: true,  data: {...},  message?: string }
+ *   { success: false, error: { code, message } }
+ *
+ * This client used to hand the whole envelope to the caller, so
+ * `result.status` was undefined on a response that had actually succeeded,
+ * and a failure arrived as the bare HTTP code with the server's explanation
+ * thrown away.
+ *
+ * `/health` is ASP.NET Core's health endpoint and is not enveloped, so a body
+ * without a `success` key is passed through unchanged.
+ */
+function unwrap<T>(body: unknown): T {
+  if (typeof body !== "object" || body === null || !("success" in body)) {
+    return body as T;
+  }
+
+  const envelope = body as ApiEnvelope<T>;
+  if (envelope.success) {
+    return (envelope.data ?? ({} as T)) as T;
+  }
+
+  const code = envelope.error?.code ?? "UNKNOWN";
+  const message = envelope.error?.message ?? "Request failed";
+  const detail = `${code}: ${message}`;
+
+  switch (code) {
+    case "UNAUTHORIZED":
+    case "AUTH_NOT_CONFIGURED":
+      throw new LocoAuthError(detail);
+    case "NOT_FOUND":
+      throw new LocoNotFoundError(detail);
+    case "INVALID_ARGUMENT":
+    case "INVALID_WORKFLOW":
+    case "UNKNOWN_CONNECTOR":
+      throw new LocoValidationError(detail);
+    default:
+      throw new LocoException(detail);
   }
 }
 
@@ -191,8 +273,8 @@ export class LocoClient {
         { skipAuth: true }
       );
 
-      this.jwtToken = response.access_token;
-      this.tokenExpiry = new Date(Date.now() + response.expires_in * 1000);
+      this.jwtToken = response.accessToken;
+      this.tokenExpiry = new Date(Date.now() + response.expiresIn * 1000);
       console.log(`Authentication successful, token expires at ${this.tokenExpiry}`);
 
       return response;
@@ -288,7 +370,7 @@ export class LocoClient {
             throw new LocoException(`Request failed with status ${response.status}`);
           }
 
-          return (await response.json()) as T;
+          return unwrap<T>(await response.json());
         } finally {
           clearTimeout(timeoutId);
         }
@@ -333,10 +415,13 @@ export class WorkflowsAPI {
   /**
    * List workflows
    */
-  async list(skip = 0, take = 20): Promise<PaginatedResponse<WorkflowData>> {
+  async list(page = 1, pageSize = 20): Promise<PaginatedResponse<WorkflowData>> {
+    // The API pages by page/pageSize (WorkflowsController.GetWorkflows).
+    // This sent skip/take, which ASP.NET Core ignored - so every call
+    // returned the first page whatever was asked for, with no error.
     const params = new URLSearchParams({
-      skip: String(skip),
-      take: String(Math.min(take, 100)),
+      page: String(page),
+      pageSize: String(Math.min(pageSize, 100)),
     });
     return (this.client as any)._request(
       "GET",
@@ -357,12 +442,19 @@ export class WorkflowsAPI {
   async create(
     name: string,
     description?: string,
-    steps?: WorkflowStep[]
+    nodes: WorkflowNode[] = [],
+    edges: WorkflowEdge[] = [],
+    metadata: Record<string, unknown> = {}
   ): Promise<WorkflowData> {
+    // WorkflowCreateRequest has no `steps` property, so a workflow created
+    // through this method used to come back empty: accepted, stored, and
+    // containing nothing.
     return (this.client as any)._request("POST", "/api/v1/workflows", {
       name,
       description,
-      steps,
+      nodes,
+      edges,
+      metadata,
     });
   }
 
@@ -395,29 +487,38 @@ export class WorkflowsAPI {
    */
   async execute(
     workflowId: string,
-    parameters?: Record<string, unknown>,
-    asyncExecution = true
+    input: Record<string, unknown> = {},
+    dryRun = false
   ): Promise<ExecutionResult> {
+    // The body is ExecuteRequest: { input, dryRun }. Sending
+    // { parameters, asyncExecution } meant initial variables never reached
+    // the workflow, and a dry run executed for real. Execution is always
+    // asynchronous - the call returns as soon as the run is registered.
     return (this.client as any)._request(
       "POST",
       `/api/v1/workflows/${workflowId}/execute`,
-      {
-        parameters: parameters || {},
-        asyncExecution,
-      }
+      { input, dryRun }
     );
   }
 
   /**
    * Get execution status
    */
-  async getExecutionStatus(
-    workflowId: string,
-    executionId: string
-  ): Promise<ExecutionStatus> {
+  async getExecutionStatus(executionId: string): Promise<ExecutionStatus> {
+    // Executions are addressed globally by id (ExecutionsController), not
+    // nested under their workflow. The nested route does not exist, so this
+    // used to 404 on every call.
     return (this.client as any)._request(
       "GET",
-      `/api/v1/workflows/${workflowId}/executions/${executionId}`
+      `/api/v1/executions/${executionId}`
+    );
+  }
+
+  /** Ask a running execution to stop. */
+  async cancelExecution(executionId: string): Promise<void> {
+    await (this.client as any)._request(
+      "POST",
+      `/api/v1/executions/${executionId}/cancel`
     );
   }
 
@@ -425,7 +526,6 @@ export class WorkflowsAPI {
    * Wait for execution to complete
    */
   async waitForExecution(
-    workflowId: string,
     executionId: string,
     timeout = 300000, // milliseconds
     pollInterval = 1000
@@ -433,9 +533,13 @@ export class WorkflowsAPI {
     const startTime = Date.now();
 
     while (true) {
-      const status = await this.getExecutionStatus(workflowId, executionId);
+      const status = await this.getExecutionStatus(executionId);
 
-      if (["Completed", "Failed", "Cancelled"].includes(status.status)) {
+      // Lowercase: ExecutionResponseFactory.ToFrontendStatus emits
+      // pending/running/completed/failed/cancelled. Comparing against
+      // "Completed" never matched, so this ran to timeout on runs that had
+      // already succeeded.
+      if ((TERMINAL_STATUSES as readonly string[]).includes(status.status)) {
         return status;
       }
 

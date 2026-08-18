@@ -41,7 +41,7 @@ const client = new LocoClient("https://api.loco.io", {
 
 // List workflows
 const workflows = await client.workflows.list();
-console.log(`Found ${workflows.items.length} workflows`);
+console.log(`Found ${workflows.total} workflows`);
 
 // Get specific workflow
 const workflow = await client.workflows.get("workflow-1");
@@ -51,12 +51,11 @@ console.log(`Workflow: ${workflow.name}`);
 const execution = await client.workflows.execute("workflow-1", {
   invoice_id: "INV-001",
 });
-console.log(`Execution started: ${execution.execution_id}`);
+console.log(`Execution started: ${execution.executionId}`);
 
-// Wait for completion
+// Wait for completion. Executions are addressed by their own id.
 const result = await client.workflows.waitForExecution(
-  "workflow-1",
-  execution.execution_id,
+  execution.executionId,
   300000 // 5 minute timeout
 );
 console.log(`Execution result:`, result);
@@ -130,20 +129,38 @@ const client = new LocoClient("https://api.loco.io", {
 
 ```typescript
 // List workflows (paginated)
-const response = await client.workflows.list(0, 20);
-// { items: [...], total: 100, skip: 0, take: 20, has_more: true }
+const response = await client.workflows.list(1, 20);
+// { workflows: [...], total: 100, page: 1, pageSize: 20 }
 
 // Get single workflow
 const workflow = await client.workflows.get("workflow-id");
 
 // Create workflow
-const newWorkflow = await client.workflows.create("Process Invoice", {
-  description: "Auto-processes invoices",
-  steps: [
-    { order: 1, type: "action", action_name: "download_file" },
-    { order: 2, type: "action", action_name: "process_data" },
+// A workflow is a node graph, the same shape the visual editor saves.
+const newWorkflow = await client.workflows.create(
+  "Process Invoice",
+  "Auto-processes invoices",
+  [
+    {
+      id: "n1",
+      type: "trigger",
+      position: { x: 0, y: 0 },
+      data: { label: "Start" },
+    },
+    {
+      id: "n2",
+      type: "action",
+      position: { x: 240, y: 0 },
+      data: {
+        label: "Fetch invoice",
+        integration: "http",
+        credentialId: "conn-1",
+        config: { action: "get", parameters: { url: "https://example.test" } },
+      },
+    },
   ],
-});
+  [{ id: "e1", source: "n1", target: "n2" }]
+);
 
 // Update workflow
 const updated = await client.workflows.update("workflow-id", {
@@ -159,25 +176,28 @@ await client.workflows.delete("workflow-id");
 
 ```typescript
 // Execute workflow asynchronously
+// The second argument is the run's initial variables, available to every node.
 const execution = await client.workflows.execute("workflow-id", {
   invoice_id: "INV-001",
   amount: 1500.00,
 });
-// { execution_id: "...", status: "Queued", progress: 0 }
+// { executionId: "...", status: "running", startedAt: "..." }
+
+// Plan a run without invoking any connector
+const planned = await client.workflows.execute("workflow-id", {}, true);
 
 // Get execution status
-const status = await client.workflows.getExecutionStatus(
-  "workflow-id",
-  "execution-id"
-);
+const status = await client.workflows.getExecutionStatus("execution-id");
 
 // Wait for execution to complete
 const result = await client.workflows.waitForExecution(
-  "workflow-id",
   "execution-id",
   300000, // timeout in ms
   1000    // poll interval in ms
 );
+
+// Stop a run that is still going
+await client.workflows.cancelExecution("execution-id");
 ```
 
 ### Health & Diagnostics
@@ -269,13 +289,12 @@ async function executeWithCustomPolling(
 
   while (Date.now() - startTime < maxWaitTime) {
     const status = await client.workflows.getExecutionStatus(
-      workflowId,
-      execution.execution_id
+      execution.executionId
     );
 
-    console.log(`Status: ${status.status}, Progress: ${status.progress}%`);
+    console.log(`Status: ${status.status}`);
 
-    if (["Completed", "Failed", "Cancelled"].includes(status.status)) {
+    if (["completed", "failed", "cancelled"].includes(status.status)) {
       return status;
     }
 
@@ -387,12 +406,17 @@ describe("Loco Client", () => {
     global.fetch = jest.fn(() =>
       Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ items: [], total: 0 }),
+        // The client unwraps the API's envelope, so mock the whole shape.
+        json: () =>
+          Promise.resolve({
+            success: true,
+            data: { workflows: [], total: 0, page: 1, pageSize: 20 },
+          }),
       })
     );
 
     const result = await client.workflows.list();
-    expect(result.items).toEqual([]);
+    expect(result.workflows).toEqual([]);
   });
 });
 ```

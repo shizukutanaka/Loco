@@ -24,6 +24,11 @@ invisible to the compiler, to the tests, and to review:
             user can do. Dead code does not announce itself; it accumulates
             quietly and makes every subsequent search noisier.
 
+  sdks      Both client SDKs polled /api/v1/workflows/{id}/executions/{id},
+            a route that does not exist - executions are addressed globally.
+            Nothing connects an SDK to the controllers, so the two drift in
+            silence and the only symptom is a 404 in someone else's program.
+
 Run: python3 scripts/check-structure.py
 Exit: 0 when every check passes, 1 otherwise.
 """
@@ -218,6 +223,73 @@ def check_reachable(sources):
     return problems
 
 
+ROUTE_ATTR = re.compile(r'\[Route\("([^"]+)"\)\]')
+HTTP_ATTR = re.compile(r'\[Http(?:Get|Post|Put|Delete|Patch)(?:\("([^"]*)"\))?\]')
+CONTROLLER_NAME = re.compile(r"class\s+([A-Za-z0-9_]+)Controller\b")
+# Any /api/... path literal in an SDK, however it is quoted or interpolated.
+SDK_PATH = re.compile(r"""["'`](/api/[^"'`\s]*)["'`]""")
+
+
+def normalize_route(path):
+    """Reduce a route to its shape: /api/v1/workflows/{}/execute."""
+    path = re.sub(r"\{[^}]*\}", "{}", path)          # {id}, {workflowId}
+    path = re.sub(r"\$\{[^}]*\}", "{}", path)        # ${workflowId}
+    path = path.split("?")[0].rstrip("/")
+    return path
+
+
+def check_sdks(sources):
+    """
+    Every /api path an SDK calls must be a route the API exposes.
+
+    Nothing links the two: the SDKs are hand-written against a remembered
+    spec, so a controller can be renamed or a route re-nested and the SDKs
+    keep compiling, keep passing their own type-check, and keep 404ing in
+    somebody else's program. That is how both of them ended up polling
+    /api/v1/workflows/{id}/executions/{id}, which has never existed.
+    """
+    routes = set()
+
+    for path, text in sources.items():
+        if "/Controllers/" not in path:
+            continue
+
+        route_attr = ROUTE_ATTR.search(text)
+        name_match = CONTROLLER_NAME.search(text)
+        if not route_attr or not name_match:
+            continue
+
+        base = route_attr.group(1).replace("[controller]", name_match.group(1).lower())
+
+        for suffix in HTTP_ATTR.findall(text):
+            full = f"/{base}/{suffix}" if suffix else f"/{base}"
+            routes.add(normalize_route(full))
+
+    if not routes:
+        return ["no controller routes found - the route parser needs updating"]
+
+    problems = []
+    sdk_dir = os.path.join(REPO, "sdks")
+    if not os.path.isdir(sdk_dir):
+        return problems
+
+    for root, dirs, names in os.walk(sdk_dir):
+        if any(skip in root.replace(os.sep, "/") for skip in SKIP_DIRS):
+            continue
+        for name in sorted(names):
+            if not name.endswith((".py", ".ts", ".js", ".md")):
+                continue
+            path = os.path.join(root, name)
+            rel = os.path.relpath(path, REPO).replace(os.sep, "/")
+            text = open(path, encoding="utf-8", errors="ignore").read()
+
+            for called in sorted(set(SDK_PATH.findall(text))):
+                if normalize_route(called) not in routes:
+                    problems.append(f"{rel}: calls {called}, which the API does not route")
+
+    return problems
+
+
 def main():
     sources = read_sources()
 
@@ -225,6 +297,7 @@ def main():
         ("packages", "central package management is consistent", check_packages()),
         ("tests", "every type a test names exists in src", check_test_references(sources)),
         ("reachable", "every Loco.Core file has a path from an entry point", check_reachable(sources)),
+        ("sdks", "every API path an SDK calls is a route the API exposes", check_sdks(sources)),
     ]
 
     failed = False
