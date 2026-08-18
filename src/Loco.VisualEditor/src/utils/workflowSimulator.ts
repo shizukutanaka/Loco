@@ -121,7 +121,9 @@ function generateMockData(
     case 'delay':
       return {
         waited: true,
-        duration: config.duration || 1000,
+        // Delay nodes store `seconds`, so report the wait in the same unit the
+        // user configured rather than a millisecond key nobody writes.
+        duration: (Number(config.seconds) || 1) * 1000,
       };
 
     default:
@@ -174,8 +176,11 @@ export function simulateNodeExecution(
 
   // Simulate delay
   let duration = Math.random() * 100; // Base 0-100ms simulation
-  if (config.mockDelay && node.data.config?.duration) {
-    duration = (node.data.config.duration / (config.delayMultiplier || 10)); // Scale down for simulation
+  // Delay nodes store `seconds`; `duration` was never written, so simulated
+  // delays were always the random baseline regardless of configuration.
+  const delaySeconds = Number(node.data.config?.seconds ?? 0);
+  if (config.mockDelay && delaySeconds > 0) {
+    duration = (delaySeconds * 1000) / (config.delayMultiplier || 10);
   }
 
   const endTime = startTime + duration;

@@ -306,7 +306,8 @@ function validateConfiguration(nodes: Node[]): ValidationIssue[] {
     }
 
     if (type === 'delay') {
-      const duration = config.duration;
+      // `seconds` is what the panel writes and the engine reads.
+      const duration = Number(config.seconds ?? 0);
       if (!duration || duration <= 0) {
         issues.push({
           id: `delay-${node.id}`,
@@ -407,10 +408,10 @@ function validateBestPractices(nodes: Node[], edges: Edge[]): ValidationIssue[] 
   nodes
     .filter((n) => n.type === 'transform')
     .forEach((node) => {
-      const code = node.data.config?.code || '';
-      // Simple heuristic: check if code has uncommented lines
-      const lines = code.split('\n').filter((l: string) => l.trim() && !l.trim().startsWith('//'));
-      if (lines.length === 0 || code.trim() === '') {
+      // Transform nodes carry a JSON literal in `json`; `code` was removed
+      // when the panel stopped offering a C# editor the engine cannot run.
+      const json = String(node.data.config?.json ?? '');
+      if (json.trim() === '') {
         issues.push({
           id: `transform-empty-${node.id}`,
           category: 'best_practices',
@@ -455,33 +456,11 @@ function validateSecurity(nodes: Node[]): ValidationIssue[] {
       }
     }
 
-    if (type === 'transform') {
-      const code = config.code || '';
-      // Check for dangerous patterns
-      if (code.includes('eval(') || code.includes('new Function(')) {
-        issues.push({
-          id: `dangerous-eval-${node.id}`,
-          category: 'security',
-          severity: 'error',
-          title: 'Dangerous Code Pattern',
-          description: `Transform "${node.data.label}" uses eval() which is a security risk`,
-          nodeId: node.id,
-          suggestion: 'Refactor to use safer alternatives',
-        });
-      }
-
-      if (code.includes('require(') || code.includes('import(')) {
-        issues.push({
-          id: `dynamic-import-${node.id}`,
-          category: 'security',
-          severity: 'warning',
-          title: 'Dynamic Import Detected',
-          description: `Transform "${node.data.label}" uses dynamic imports`,
-          nodeId: node.id,
-          suggestion: 'Use static imports for better security and performance',
-        });
-      }
-    }
+    // A transform-node security scan for eval() / require() used to live here.
+    // It read config.code, which nothing writes any more: the transform node
+    // carries a JSON literal that the engine DESERIALIZES and never executes,
+    // so there is no code path for those patterns to reach. Scanning for them
+    // was theatre against a threat this design does not have.
   });
 
   return issues;
@@ -525,13 +504,13 @@ function estimatePerformance(nodes: Node[], edges: Edge[]): PerformanceEstimate 
       });
     }
 
-    if (
-      nodeType === 'delay' &&
-      (node.data.config?.duration || 0) > 5000
-    ) {
+    // `seconds`, not `duration`: that is what the panel writes and what the
+    // engine's delay handler reads. This check never fired before.
+    const delaySeconds = Number(node.data.config?.seconds ?? 0);
+    if (nodeType === 'delay' && delaySeconds > 5) {
       bottlenecks.push({
         nodeId: node.id,
-        reason: `Large delay (${Math.round((node.data.config?.duration || 0) / 1000)}s)`,
+        reason: `Large delay (${delaySeconds}s)`,
         impact: 'high',
       });
     }
