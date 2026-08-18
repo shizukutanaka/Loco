@@ -176,12 +176,12 @@ export function analyzeValidationIssues(issues: ValidationIssue[]): AIInsight[] 
  */
 export function detectWorkflowPatterns(nodes: Node[], edges: Edge[]): WorkflowPattern[] {
   const patterns: WorkflowPattern[] = [];
-  const nodeTypes = new Set(nodes.map((n) => n.data.type));
+  const nodeTypes = new Set(nodes.map((n) => n.type));
 
   // Pattern 1: Request-Response pattern
   if (nodeTypes.has('action') && nodeTypes.has('transform')) {
-    const actionNodes = nodes.filter((n) => n.data.type === 'action');
-    const transformNodes = nodes.filter((n) => n.data.type === 'transform');
+    const actionNodes = nodes.filter((n) => n.type === 'action');
+    const transformNodes = nodes.filter((n) => n.type === 'transform');
 
     if (actionNodes.length > 0 && transformNodes.length > 0) {
       patterns.push({
@@ -200,7 +200,7 @@ export function detectWorkflowPatterns(nodes: Node[], edges: Edge[]): WorkflowPa
 
   // Pattern 2: Conditional Logic
   if (nodeTypes.has('condition')) {
-    const conditionNodes = nodes.filter((n) => n.data.type === 'condition');
+    const conditionNodes = nodes.filter((n) => n.type === 'condition');
     const conditionDepth = calculateConditionDepth(nodes, edges);
 
     patterns.push({
@@ -241,7 +241,7 @@ export function detectWorkflowPatterns(nodes: Node[], edges: Edge[]): WorkflowPa
   // Pattern 4: Data Transformation Pipeline
   if (
     nodeTypes.has('transform') &&
-    nodes.filter((n) => n.data.type === 'transform').length >= 2
+    nodes.filter((n) => n.type === 'transform').length >= 2
   ) {
     patterns.push({
       name: 'Transformation Pipeline',
@@ -278,19 +278,19 @@ function calculateConditionDepth(nodes: Node[], edges: Edge[]): number {
     const node = nodes.find((n) => n.id === nodeId);
     if (!node) return;
 
-    if (node.data.type === 'condition') {
+    if (node.type === 'condition') {
       maxDepth = Math.max(maxDepth, depth + 1);
     }
 
     const children = graph.get(nodeId) || [];
     children.forEach((childId) => {
       const childNode = nodes.find((n) => n.id === childId);
-      const newDepth = childNode?.data.type === 'condition' ? depth + 1 : depth;
+      const newDepth = childNode?.type === 'condition' ? depth + 1 : depth;
       dfs(childId, newDepth);
     });
   }
 
-  const startNode = nodes.find((n) => n.data.type === 'trigger');
+  const startNode = nodes.find((n) => n.type === 'trigger');
   if (startNode) {
     dfs(startNode.id, 0);
   }

@@ -155,7 +155,7 @@ function validateStructure(nodes: Node[], edges: Edge[]): ValidationIssue[] {
   const disconnected = findDisconnectedNodes(nodes, edges);
   disconnected.forEach((nodeId) => {
     const node = nodes.find((n) => n.id === nodeId);
-    if (node && node.data.type !== 'trigger') {
+    if (node && node.type !== 'trigger') {
       issues.push({
         id: `disconnected-${nodeId}`,
         category: 'structure',
@@ -169,7 +169,7 @@ function validateStructure(nodes: Node[], edges: Edge[]): ValidationIssue[] {
   });
 
   // Check for missing trigger
-  const hasTrigger = nodes.some((n) => n.data.type === 'trigger');
+  const hasTrigger = nodes.some((n) => n.type === 'trigger');
   if (!hasTrigger) {
     issues.push({
       id: 'missing-trigger',
@@ -191,7 +191,13 @@ function validateConfiguration(nodes: Node[]): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
   nodes.forEach((node) => {
-    const { type, label } = node.data;
+    // node.type, not node.data.type: React Flow owns the node's type and the
+    // canvas drop handler sets it there. Nothing in the app ever writes
+    // data.type, so every type check in this file was comparing undefined -
+    // "Missing Trigger Node" fired on every workflow, and the action- and
+    // transform-specific rules below never ran at all.
+    const type = node.type;
+    const { label } = node.data;
     const config = node.data.config || {};
     // Read the fields where they are actually written. The canvas drop handler
     // sets data.integration (NOT config.integration) and PropertyPanel sets
@@ -365,7 +371,7 @@ function validateBestPractices(nodes: Node[], edges: Edge[]): ValidationIssue[] 
   const issues: ValidationIssue[] = [];
 
   // Check for missing error handlers
-  const actionNodes = nodes.filter((n) => n.data.type === 'action');
+  const actionNodes = nodes.filter((n) => n.type === 'action');
   actionNodes.forEach((node) => {
     const hasErrorHandler = edges.some(
       (e) => e.source === node.id && e.data?.type === 'error'
@@ -399,7 +405,7 @@ function validateBestPractices(nodes: Node[], edges: Edge[]): ValidationIssue[] 
 
   // Check for unused variables in transforms
   nodes
-    .filter((n) => n.data.type === 'transform')
+    .filter((n) => n.type === 'transform')
     .forEach((node) => {
       const code = node.data.config?.code || '';
       // Simple heuristic: check if code has uncommented lines
@@ -503,7 +509,7 @@ function estimatePerformance(nodes: Node[], edges: Edge[]): PerformanceEstimate 
 
   // Identify bottlenecks in critical path
   nodes.forEach((node) => {
-    const nodeType = node.data.type;
+    const nodeType = node.type;
     const typeMemory = NODE_TYPE_MEMORY[nodeType as keyof typeof NODE_TYPE_MEMORY] || 10240;
 
     estimatedMemoryUsage += typeMemory;
@@ -565,7 +571,7 @@ function calculateDataVolume(nodes: Node[], _edges: Edge[]): number {
   };
 
   nodes.forEach((node) => {
-    const nodeType = node.data.type;
+    const nodeType = node.type ?? 'unknown';
     totalVolume += nodeTypeVolumeMap[nodeType] || 1024;
   });
 
@@ -646,7 +652,7 @@ function findDisconnectedNodes(nodes: Node[], edges: Edge[]): string[] {
   }
 
   // Find a trigger or first node to start DFS
-  const startNode = nodes.find((n) => n.data.type === 'trigger') || nodes[0];
+  const startNode = nodes.find((n) => n.type === 'trigger') || nodes[0];
   if (startNode) {
     dfs(startNode.id);
   }
@@ -675,7 +681,7 @@ function findMaxConditionDepth(nodes: Node[], edges: Edge[]): number {
     if (!node) return currentDepth;
 
     let newDepth = currentDepth;
-    if (node.data.type === 'condition') {
+    if (node.type === 'condition') {
       newDepth = currentDepth + 1;
     }
 
@@ -688,7 +694,7 @@ function findMaxConditionDepth(nodes: Node[], edges: Edge[]): number {
     return depth;
   }
 
-  const startNode = nodes.find((n) => n.data.type === 'trigger') || nodes[0];
+  const startNode = nodes.find((n) => n.type === 'trigger') || nodes[0];
   if (startNode) {
     maxDepth = calculateDepth(startNode.id, 0);
   }
@@ -706,15 +712,15 @@ function calculateCriticalPath(nodes: Node[], edges: Edge[]): number {
   nodes.forEach((n) => {
     nodeType.set(
       n.id,
-      n.data.type
+      n.type ?? 'unknown'
     );
     const typeDuration =
-      NODE_TYPE_DURATIONS[n.data.type as keyof typeof NODE_TYPE_DURATIONS] || 10;
+      NODE_TYPE_DURATIONS[n.type as keyof typeof NODE_TYPE_DURATIONS] || 10;
     durations.set(n.id, typeDuration);
   });
 
   let totalDuration = 0;
-  let currentNode: Node | undefined = nodes.find((n) => n.data.type === 'trigger');
+  let currentNode: Node | undefined = nodes.find((n) => n.type === 'trigger');
 
   const visited = new Set<string>();
   while (currentNode && !visited.has(currentNode.id)) {

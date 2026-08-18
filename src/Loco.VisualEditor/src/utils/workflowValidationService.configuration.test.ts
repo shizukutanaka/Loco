@@ -22,7 +22,6 @@ const actionNode = (over: Record<string, unknown> = {}): Node => ({
   type: 'action',
   position: { x: 0, y: 0 },
   data: {
-    type: 'action',
     label: 'Call API',
     integration: 'http',
     config: { action: 'get', parameters: { url: 'https://x.test', method: 'GET' } },

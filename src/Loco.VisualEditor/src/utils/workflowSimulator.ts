@@ -153,7 +153,7 @@ export function simulateNodeExecution(
   config: SimulationConfig = {}
 ): ExecutionStep {
   const startTime = performance.now();
-  const nodeType = node.data.type;
+  const nodeType = node.type ?? 'unknown';
   let status: ExecutionResult = 'success';
   let outputData = generateMockData(nodeType, node.data.config);
   let error: string | undefined;
@@ -243,7 +243,7 @@ export function simulateWorkflow(
   const warnings: string[] = [];
 
   // Find trigger node (workflow start)
-  const triggerNode = nodes.find((n) => n.data.type === 'trigger');
+  const triggerNode = nodes.find((n) => n.type === 'trigger');
   if (!triggerNode) {
     return {
       success: false,
@@ -267,7 +267,7 @@ export function simulateWorkflow(
     const nextNodes: Node[] = [];
 
     for (const node of currentNodes) {
-      if (visitedNodes.has(node.id) && node.data.type !== 'loop') {
+      if (visitedNodes.has(node.id) && node.type !== 'loop') {
         // Skip already visited nodes (except loops which can repeat)
         continue;
       }
@@ -306,7 +306,7 @@ export function simulateWorkflow(
       currentData = mergeData(currentData, step.outputData);
 
       // Find next nodes to execute
-      if (node.data.type === 'condition') {
+      if (node.type === 'condition') {
         // For conditions, evaluate and pick one branch
         // Note: we randomly pick a branch in simulation, regardless of actual condition
         evaluateCondition(node, currentData);
@@ -460,7 +460,7 @@ export function tracePathToTrigger(
     if (!sourceNode) break;
     path.unshift(edge.source);
 
-    if (sourceNode.data.type === 'trigger') {
+    if (sourceNode.type === 'trigger') {
       break;
     }
 

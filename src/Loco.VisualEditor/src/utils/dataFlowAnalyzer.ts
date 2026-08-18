@@ -200,7 +200,7 @@ export function traceDataFlowPaths(
   const paths: Array<{ path: string[]; dataType: DataType }> = [];
 
   // Find all trigger nodes (start points)
-  const triggerNodes = nodes.filter((n) => n.data.type === 'trigger');
+  const triggerNodes = nodes.filter((n) => n.type === 'trigger');
 
   if (triggerNodes.length === 0) {
     return paths;
@@ -268,7 +268,7 @@ export function analyzeDataFlow(
 
   // Step 1: Determine output schema for each node
   nodes.forEach((node) => {
-    const nodeType = node.data.type;
+    const nodeType = node.type ?? 'unknown';
 
     if (NODE_OUTPUT_SCHEMAS[nodeType]) {
       nodeOutputSchemas.set(node.id, { ...NODE_OUTPUT_SCHEMAS[nodeType] });
@@ -290,7 +290,7 @@ export function analyzeDataFlow(
     }
 
     const sourceOutputs = nodeOutputSchemas.get(edge.source) || {};
-    const targetType = targetNode.data.type;
+    const targetType = targetNode.type;
 
     // Get expected parameters for target node
     // Keyed by integration id (http/database/email). config.actionType is never
@@ -334,7 +334,7 @@ export function analyzeDataFlow(
 
   // Step 4: Detect missing critical outputs
   nodes.forEach((node) => {
-    const nodeType = node.data.type;
+    const nodeType = node.type;
     const isAction = nodeType === 'action';
 
     if (isAction && !nodeOutputSchemas.has(node.id)) {
@@ -352,7 +352,7 @@ export function analyzeDataFlow(
 
   nodes.forEach((node) => {
     if (
-      node.data.type !== 'trigger' &&
+      node.type !== 'trigger' &&
       !nodesWithIncoming.has(node.id)
     ) {
       issues.push({
