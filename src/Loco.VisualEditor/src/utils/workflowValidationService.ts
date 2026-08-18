@@ -375,7 +375,7 @@ function validateBestPractices(nodes: Node[], edges: Edge[]): ValidationIssue[] 
   const actionNodes = nodes.filter((n) => n.type === 'action');
   actionNodes.forEach((node) => {
     const hasErrorHandler = edges.some(
-      (e) => e.source === node.id && e.data?.type === 'error'
+      (e) => e.source === node.id && e.data?.condition === 'error'
     );
 
     if (!hasErrorHandler) {

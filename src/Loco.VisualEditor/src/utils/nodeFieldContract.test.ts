@@ -30,27 +30,29 @@ const SRC = join(__dirname, '..');
 /** Field reads that are known-wrong, with what to use instead. */
 const FORBIDDEN: Array<{ pattern: RegExp; use: string; why: string }> = [
   {
-    pattern: /\.data\.type\b/,
-    use: 'node.type',
-    why: 'React Flow owns the node type; nothing writes data.type',
+    pattern: /\.data\??\.type\b/,
+    use: 'node.type (nodes) or edge.data.condition (edges)',
+    why:
+      'React Flow owns the node type and nothing writes data.type; edges store ' +
+      'their branch in data.condition, so data?.type found no error branches either',
   },
   {
-    pattern: /config\??\.integration\b|config\['integration'\]/,
+    pattern: /config\s*\??\.\s*integration\b|config\[\s*'integration'\s*\]/,
     use: 'node.data.integration',
     why: 'the canvas drop handler writes integration on data, not config',
   },
   {
-    pattern: /config\??\.actionType\b|config\['actionType'\]/,
+    pattern: /config\s*\??\.\s*actionType\b|config\[\s*'actionType'\s*\]/,
     use: "config.action",
     why: 'PropertyPanel writes config.action; actionType is written nowhere',
   },
   {
-    pattern: /config\??\.code\b|config\['code'\]/,
+    pattern: /config\s*\??\.\s*code\b|config\[\s*'code'\s*\]/,
     use: 'config.json',
     why: 'the transform node writes a JSON literal, not C# code',
   },
   {
-    pattern: /config\??\.duration\b|config\['duration'\]/,
+    pattern: /config\s*\??\.\s*duration\b|config\[\s*'duration'\s*\]/,
     use: 'config.seconds',
     why: "the delay node writes seconds, which is what the engine's handler reads",
   },

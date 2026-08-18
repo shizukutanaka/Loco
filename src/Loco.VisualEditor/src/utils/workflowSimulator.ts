@@ -295,7 +295,7 @@ export function simulateWorkflow(
         if (config.breakOnError) {
           // Check if there's an error handler
           const errorPath = edges.find(
-            (e) => e.source === node.id && e.data?.type === 'error'
+            (e) => e.source === node.id && e.data?.condition === 'error'
           );
           if (!errorPath) {
             // No error handler - execution stops
@@ -426,7 +426,7 @@ export function simulateErrorScenario(
 
   // Check for error handlers
   const errorHandlers = edges.filter(
-    (e) => e.source === errorNodeId && e.data?.type === 'error'
+    (e) => e.source === errorNodeId && e.data?.condition === 'error'
   );
 
   return {
