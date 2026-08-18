@@ -7,7 +7,7 @@ using Loco.Core.Integrations.Core;
 using Loco.Core.Interfaces;
 using Loco.Core.Storage;
 using Loco.Core.Workflows;
-using VisualValidator = Loco.Core.Workflows.WorkflowValidator;
+using VisualValidator = Loco.Core.Workflows.VisualWorkflowValidator;
 
 namespace Loco.Api.Controllers;
 

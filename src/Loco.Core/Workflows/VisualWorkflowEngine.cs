@@ -565,7 +565,17 @@ public class VisualWorkflowBuilder
 /// <summary>
 /// Workflow validation - check for errors before execution
 /// </summary>
-public class WorkflowValidator
+/// <summary>
+/// Validates a <see cref="VisualWorkflow"/>.
+///
+/// Named VisualWorkflowValidator, not WorkflowValidator, because
+/// Loco.Core.Workflow (singular) also defines a WorkflowValidator - one that
+/// validates a WorkflowDefinition instead. Two identically-named types in
+/// namespaces differing by one letter is a trap: which one a file gets depends
+/// entirely on its usings, and picking the wrong one fails only at the call
+/// site's argument type.
+/// </summary>
+public class VisualWorkflowValidator
 {
     public VisualWorkflowValidationResult Validate(VisualWorkflow workflow)
     {

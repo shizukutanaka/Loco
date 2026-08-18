@@ -15,14 +15,14 @@ namespace Loco.Core.Workflows
     public class WorkflowLoader
     {
         private readonly ILogger? _logger;
-        private readonly WorkflowValidator _validator;
+        private readonly VisualWorkflowValidator _validator;
         private readonly VariableResolver _variableResolver;
         private readonly string? _environment;
 
         public WorkflowLoader(ILogger? logger = null, Dictionary<string, string>? variables = null, string? environment = null)
         {
             _logger = logger;
-            _validator = new WorkflowValidator();
+            _validator = new VisualWorkflowValidator();
             _variableResolver = new VariableResolver(variables);
             _environment = environment;
         }

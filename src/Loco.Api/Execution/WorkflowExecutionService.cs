@@ -80,7 +80,7 @@ public sealed class WorkflowExecutionService
 
         var visual = WorkflowMapper.ToVisualWorkflow(stored);
 
-        var validation = new WorkflowValidator().Validate(visual);
+        var validation = new VisualWorkflowValidator().Validate(visual);
         if (!validation.IsValid)
         {
             return StartResult.Fail(StartFailure.ValidationFailed, validation.Errors.ToList());
