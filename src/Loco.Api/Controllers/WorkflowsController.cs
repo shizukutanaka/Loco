@@ -28,25 +28,16 @@ namespace Loco.Api.Controllers;
 public class WorkflowsController : ControllerBase
 {
     private readonly IWorkflowStore _store;
-    private readonly VisualWorkflowEngine _engine;
-    private readonly ExecutionRegistry _executions;
-    private readonly JsonFileConnectionStore _connections;
-    private readonly WorkflowConnectorBridge _bridge;
+    private readonly WorkflowExecutionService _executor;
     private readonly ILogger<WorkflowsController> _logger;
 
     public WorkflowsController(
         IWorkflowStore store,
-        VisualWorkflowEngine engine,
-        ExecutionRegistry executions,
-        JsonFileConnectionStore connections,
-        WorkflowConnectorBridge bridge,
+        WorkflowExecutionService executor,
         ILogger<WorkflowsController> logger)
     {
         _store = store;
-        _engine = engine;
-        _executions = executions;
-        _connections = connections;
-        _bridge = bridge;
+        _executor = executor;
         _logger = logger;
     }
 
@@ -220,76 +211,35 @@ public class WorkflowsController : ControllerBase
             }));
         }
 
-        // Initialize every connector this workflow uses with its stored
-        // credentials BEFORE execution starts.
-        //
-        // This is the step that was missing entirely: WorkflowConnectorBridge.
-        // ConfigureConnector had no caller anywhere in the codebase, so connectors
-        // were registered as node handlers but never initialized - all 28 of them
-        // failed at execution with a null HttpClient. A node referencing a
-        // connection that no longer exists is reported here rather than failing
-        // opaquely mid-run.
-        var missingCredentials = new List<string>();
-
-        foreach (var group in visual.Nodes
-                     .Where(n => !string.IsNullOrEmpty(n.CredentialId) && !string.IsNullOrEmpty(n.Integration))
-                     .GroupBy(n => (n.Integration, n.CredentialId!)))
-        {
-            var (integration, credentialId) = group.Key;
-            var config = await _connections.BuildConfigurationAsync(credentialId, cancellationToken);
-
-            if (config is null)
-            {
-                missingCredentials.Add(
-                    $"node '{group.First().Name}' references connection '{credentialId}', which does not exist");
-                continue;
-            }
-
-            await _bridge.ConfigureConnectorAsync(integration, config, cancellationToken);
-        }
-
-        if (missingCredentials.Count > 0)
-        {
-            return BadRequest(Envelope.Fail(
-                "MISSING_CREDENTIALS",
-                "One or more nodes reference a connection that is not available",
-                new Dictionary<string, object> { ["errors"] = missingCredentials }));
-        }
-
         var initialVariables = request?.Input?
             .ToDictionary(kv => kv.Key, kv => WorkflowMapper.ToPlainObject(kv.Value));
 
-        var executionId = Guid.NewGuid().ToString("N");
-        // The execution outlives this HTTP request - tie its lifetime to the app,
-        // not to the request's cancellation token.
-        var cts = new CancellationTokenSource();
+        // Credential resolution, connector initialization and registry
+        // bookkeeping all live in WorkflowExecutionService so that a scheduled
+        // run takes exactly the same path as this one.
+        var result = await _executor.StartAsync(id, initialVariables, cancellationToken);
 
-        var context = new WorkflowExecutionContext
+        if (result is null)
         {
-            ExecutionId = executionId,
-            WorkflowId = stored.Id,
-            Status = WorkflowExecutionStatus.Running,
-        };
+            return NotFound(Envelope.Fail("NOT_FOUND", $"Workflow '{id}' was not found"));
+        }
 
-        var completion = Task.Run(async () =>
+        if (!result.Started)
         {
-            var resultContext = await _engine.ExecuteAsync(visual, initialVariables, cts.Token);
-            // The engine builds its own context; copy the outcome onto the one the
-            // registry exposes so pollers observe the terminal state.
-            context.Status = resultContext.Status;
-            context.Error = resultContext.Error;
-            context.EndTime = resultContext.EndTime;
-            context.NodeResults = resultContext.NodeResults;
-            context.Variables = resultContext.Variables;
-            context.ExecutionLog = resultContext.ExecutionLog;
-        }, CancellationToken.None);
+            return result.Failure switch
+            {
+                WorkflowExecutionService.StartFailure.MissingCredentials => BadRequest(Envelope.Fail(
+                    "MISSING_CREDENTIALS",
+                    "One or more nodes reference a connection that is not available",
+                    new Dictionary<string, object> { ["errors"] = result.Errors })),
+                _ => BadRequest(Envelope.Fail(
+                    "INVALID_WORKFLOW",
+                    "Workflow failed validation",
+                    new Dictionary<string, object> { ["errors"] = result.Errors })),
+            };
+        }
 
-        var entry = new ExecutionRegistry.Entry(
-            executionId, stored.Id, DateTime.UtcNow, context, cts, completion);
-        _executions.Register(entry);
-
-        _logger.LogInformation(
-            "Started execution {ExecutionId} of workflow {WorkflowId}", executionId, id);
+        var entry = result.Entry!;
 
         return Accepted(Envelope.Ok(ExecutionResponseFactory.Create(entry)));
     }

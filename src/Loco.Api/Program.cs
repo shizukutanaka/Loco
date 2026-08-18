@@ -205,7 +205,14 @@ builder.Services.AddSingleton<ExecutionRegistry>();
 // WorkflowsController resolves a workflow's connections and initializes each
 // connector immediately before executing it.
 builder.Services.AddSingleton(_ => new JsonFileConnectionStore(dataDirectory));
+// The one path from "a stored workflow" to "a running execution", shared by the
+// HTTP controller and the scheduler so a scheduled run cannot drift from a
+// manual one.
+builder.Services.AddSingleton<WorkflowExecutionService>();
 builder.Services.AddHostedService<ConnectorStartupService>();
+// Runs cron-scheduled workflows with no human in the loop. Without this the
+// product is a workflow runner, not automation.
+builder.Services.AddHostedService<WorkflowSchedulerService>();
 
 var app = builder.Build();
 
