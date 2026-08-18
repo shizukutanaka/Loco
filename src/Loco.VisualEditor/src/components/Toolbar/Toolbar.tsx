@@ -15,6 +15,7 @@ import {
   Shuffle,
   FolderOpen,
   CheckCircle,
+  Plug,
 } from 'lucide-react';
 import { useToolbarKeyboardShortcuts, useWorkflowOperations, useWorkflowExecution, useToolbarModals } from '@/hooks';
 import { WorkflowList } from '@/components/WorkflowList/WorkflowList';
@@ -26,6 +27,11 @@ import { KeyboardShortcuts } from '@/components/KeyboardShortcuts/KeyboardShortc
 // Lazy load TemplateGallery (large component with template data)
 const TemplateGallery = lazy(() => import('@/components/TemplateGallery/TemplateGallery').then(module => ({
   default: module.TemplateGallery
+})));
+
+// Lazy load ConnectionsManager - only needed when managing credentials
+const ConnectionsManager = lazy(() => import('@/components/ConnectionsManager/ConnectionsManager').then(module => ({
+  default: module.ConnectionsManager
 })));
 
 // Lazy load SettingsPanel (large component with settings management)
@@ -147,6 +153,16 @@ function ToolbarComponent() {
           >
             <Plus className="w-4 h-4" aria-hidden="true" />
             <span className="text-sm font-medium">New</span>
+          </button>
+
+          <button
+            onClick={modals.openConnectionsManager}
+            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Connections"
+            aria-label="Manage connector credentials"
+          >
+            <Plug className="w-4 h-4" aria-hidden="true" />
+            <span className="hidden lg:inline">Connections</span>
           </button>
 
           <button
@@ -284,6 +300,19 @@ function ToolbarComponent() {
           <TemplateGallery
             isOpen={modals.isTemplateGalleryOpen}
             onClose={modals.closeTemplateGallery}
+          />
+        </Suspense>
+      )}
+
+      {modals.isConnectionsManagerOpen && (
+        <Suspense fallback={<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6">
+            <Loader2 className="w-8 h-8 animate-spin text-loco-primary" />
+          </div>
+        </div>}>
+          <ConnectionsManager
+            isOpen={modals.isConnectionsManagerOpen}
+            onClose={modals.closeConnectionsManager}
           />
         </Suspense>
       )}

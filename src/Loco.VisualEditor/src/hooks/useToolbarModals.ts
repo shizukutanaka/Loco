@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 interface ToolbarModalsState {
   isTemplateGalleryOpen: boolean;
+  isConnectionsManagerOpen: boolean;
   isWorkflowListOpen: boolean;
   isSettingsPanelOpen: boolean;
   isCollaborationPanelOpen: boolean;
@@ -13,6 +14,8 @@ interface ToolbarModalsState {
 interface ToolbarModalsActions {
   openTemplateGallery: () => void;
   closeTemplateGallery: () => void;
+  openConnectionsManager: () => void;
+  closeConnectionsManager: () => void;
   openWorkflowList: () => void;
   closeWorkflowList: () => void;
   openSettingsPanel: () => void;
@@ -32,6 +35,7 @@ interface ToolbarModalsActions {
  */
 export function useToolbarModals(): ToolbarModalsState & ToolbarModalsActions {
   const [isTemplateGalleryOpen, setIsTemplateGalleryOpen] = useState(false);
+  const [isConnectionsManagerOpen, setIsConnectionsManagerOpen] = useState(false);
   const [isWorkflowListOpen, setIsWorkflowListOpen] = useState(false);
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
   const [isCollaborationPanelOpen, setIsCollaborationPanelOpen] = useState(false);
@@ -42,6 +46,7 @@ export function useToolbarModals(): ToolbarModalsState & ToolbarModalsActions {
   return {
     // State
     isTemplateGalleryOpen,
+    isConnectionsManagerOpen,
     isWorkflowListOpen,
     isSettingsPanelOpen,
     isCollaborationPanelOpen,
@@ -52,6 +57,8 @@ export function useToolbarModals(): ToolbarModalsState & ToolbarModalsActions {
     // Template Gallery actions
     openTemplateGallery: () => setIsTemplateGalleryOpen(true),
     closeTemplateGallery: () => setIsTemplateGalleryOpen(false),
+    openConnectionsManager: () => setIsConnectionsManagerOpen(true),
+    closeConnectionsManager: () => setIsConnectionsManagerOpen(false),
 
     // Workflow List actions
     openWorkflowList: () => setIsWorkflowListOpen(true),
