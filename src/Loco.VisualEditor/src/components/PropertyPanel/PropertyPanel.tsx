@@ -287,7 +287,7 @@ function PropertyPanelComponent() {
                 onChange={(e) => handleConfigChange('cron', e.target.value)}
                 placeholder="0 9 * * 1-5"
                 error={errors.cron}
-                helpText="minute hour day month day-of-week. Leave empty to run on demand only."
+                helpText="minute hour day month day-of-week. Leave empty to run on demand only. Takes effect within a minute of saving."
               />
               {String(localData.config?.cron ?? '').trim() !== '' && (
                 <FormInput

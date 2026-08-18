@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FluentAssertions;
 using Loco.Api.Execution;
+using Loco.Core.Triggers;
 using Loco.Core.Workflows;
 
 namespace Loco.Api.Tests;
@@ -166,6 +167,148 @@ public class WorkflowSchedulerServiceTests
         var workflow = new StoredWorkflow { Id = "wf-1", Name = "empty", Metadata = new() };
 
         WorkflowSchedulerService.ReadSchedule(workflow).Should().BeNull();
+    }
+}
+
+/// <summary>
+/// Tests for reconciling registered schedules against the store.
+///
+/// Schedules used to be read once, at startup. That made the feature look
+/// finished while failing at the only moment a user meets it: set a cron in the
+/// editor, save, and nothing ever fires, because the workflow did not exist when
+/// the process started. Removing a cron had the mirror problem - the workflow
+/// kept running on the old schedule until someone restarted the server.
+///
+/// Both failures are silent. A schedule that does not fire produces no error, no
+/// log line and no execution to look at, so the diff below is the only place the
+/// mistake can be caught.
+///
+/// NOTE: authored in an environment where dotnet test could not run (NuGet
+/// egress blocked by organization policy); the first CI run executes these.
+/// </summary>
+public class WorkflowScheduleReconciliationTests
+{
+    private static Dictionary<string, (string Expression, string Timezone)> Registered(
+        params (string Id, string Expression, string Timezone)[] entries) =>
+        entries.ToDictionary(e => e.Id, e => (e.Expression, e.Timezone), StringComparer.Ordinal);
+
+    private static Dictionary<string, CronSchedule> Desired(
+        params (string Id, string Expression, string Timezone)[] entries) =>
+        entries.ToDictionary(
+            e => e.Id,
+            e => new CronSchedule { Expression = e.Expression, Timezone = e.Timezone, Enabled = true },
+            StringComparer.Ordinal);
+
+    [Fact]
+    public void Registers_a_workflow_saved_after_the_server_started()
+    {
+        // The core regression: nothing was registered, the store now has a
+        // scheduled workflow, and it must be picked up without a restart.
+        var plan = WorkflowSchedulerService.Plan(
+            Registered(),
+            Desired(("wf-1", "0 9 * * 1-5", "UTC")));
+
+        plan.Add.Should().Equal("wf-1");
+        plan.Remove.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Drops_a_schedule_the_user_removed()
+    {
+        var plan = WorkflowSchedulerService.Plan(
+            Registered(("wf-1", "0 9 * * 1-5", "UTC")),
+            Desired());
+
+        plan.Remove.Should().Equal("wf-1");
+        plan.Add.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Leaves_an_unchanged_schedule_alone()
+    {
+        // Re-adding on every sync would work, but it would also log a change
+        // every 30 seconds and make a real change impossible to spot.
+        var plan = WorkflowSchedulerService.Plan(
+            Registered(("wf-1", "0 9 * * 1-5", "UTC")),
+            Desired(("wf-1", "0 9 * * 1-5", "UTC")));
+
+        plan.Add.Should().BeEmpty();
+        plan.Remove.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Re_registers_a_workflow_whose_expression_changed()
+    {
+        var plan = WorkflowSchedulerService.Plan(
+            Registered(("wf-1", "0 9 * * 1-5", "UTC")),
+            Desired(("wf-1", "0 17 * * 1-5", "UTC")));
+
+        plan.Add.Should().Equal("wf-1");
+        plan.Remove.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Re_registers_a_workflow_whose_timezone_changed()
+    {
+        // "9am UTC" and "9am Tokyo" are different schedules; comparing only the
+        // expression would leave the workflow firing nine hours late forever.
+        var plan = WorkflowSchedulerService.Plan(
+            Registered(("wf-1", "0 9 * * *", "UTC")),
+            Desired(("wf-1", "0 9 * * *", "Asia/Tokyo")));
+
+        plan.Add.Should().Equal("wf-1");
+    }
+
+    [Fact]
+    public void Handles_several_workflows_moving_in_different_directions_at_once()
+    {
+        var plan = WorkflowSchedulerService.Plan(
+            Registered(
+                ("unchanged", "0 9 * * *", "UTC"),
+                ("changed", "0 9 * * *", "UTC"),
+                ("deleted", "0 9 * * *", "UTC")),
+            Desired(
+                ("unchanged", "0 9 * * *", "UTC"),
+                ("changed", "*/5 * * * *", "UTC"),
+                ("added", "0 0 * * *", "UTC")));
+
+        plan.Add.Should().BeEquivalentTo(new[] { "changed", "added" });
+        plan.Remove.Should().Equal("deleted");
+    }
+
+    [Fact]
+    public void Reads_only_the_workflows_that_carry_a_cron()
+    {
+        var scheduled = new StoredWorkflow
+        {
+            Id = "wf-1",
+            Name = "daily",
+            Nodes = new List<StoredWorkflowNode>
+            {
+                new()
+                {
+                    Id = "n1",
+                    Type = "trigger",
+                    Position = new StoredPosition { X = 0, Y = 0 },
+                    Data = new StoredNodeData
+                    {
+                        Label = "Trigger",
+                        Config = new Dictionary<string, JsonElement>
+                        {
+                            ["cron"] = JsonDocument.Parse("\"0 9 * * *\"").RootElement,
+                        },
+                    },
+                },
+            },
+            Metadata = new StoredWorkflowMetadata(),
+        };
+
+        var manual = new StoredWorkflow { Id = "wf-2", Name = "manual", Metadata = new() };
+
+        var schedules = WorkflowSchedulerService.ReadSchedules(new[] { scheduled, manual });
+
+        schedules.Keys.Should().Equal("wf-1");
+        schedules["wf-1"].Expression.Should().Be("0 9 * * *");
     }
 }
 
