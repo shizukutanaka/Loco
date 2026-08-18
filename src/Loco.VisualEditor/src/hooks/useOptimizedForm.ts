@@ -22,7 +22,7 @@ export function useOptimizedForm<T extends FieldValues = FieldValues>(
   schema?: ZodSchema,
   defaultValues?: DefaultValues<T>,
   options?: Omit<UseFormProps<T>, 'resolver' | 'defaultValues'>
-): UseFormReturn<T, any, any> {
+): UseFormReturn<T> {
   // Memoize resolver to prevent unnecessary recreations
   const resolver = useMemo(() => {
     return schema ? zodResolver(schema) : undefined;

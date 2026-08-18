@@ -25,7 +25,7 @@ export function deferHistorySnapshot(callback: () => void): void {
  * @returns Function that defers history snapshot
  */
 export function createDeferredHistorySnapshot(
-  getState: () => any
+  getState: () => { pushToHistory: () => void }
 ): () => void {
   return () => {
     deferHistorySnapshot(() => getState().pushToHistory());

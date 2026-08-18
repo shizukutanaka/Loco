@@ -191,7 +191,7 @@ export function useOptimisticList<T extends Record<string, any>>(
 export function useOptimisticAsync<S, A>(
   initialState: S,
   reducer: OptimisticReducer<S, A>,
-  onOptimisticUpdate?: (action: A) => Promise<any>
+  onOptimisticUpdate?: (action: A) => Promise<unknown>
 ): readonly [
   optimisticState: S,
   dispatch: OptimisticActionDispatcher<A>,
