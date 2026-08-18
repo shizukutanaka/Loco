@@ -7,7 +7,10 @@ export {
 } from './nodeValidation';
 
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-export const URL_REGEX = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+// Escapes that are no-ops inside a character class are omitted. The path
+// group is also no longer ( [...]* )* : the nested quantifier matched the
+// same strings but made a long non-matching input backtrack catastrophically.
+export const URL_REGEX = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)\/?$/;
 
 export function validateEmail(email: string): string | null {
   if (!email) return 'Email is required';

@@ -132,7 +132,7 @@ export function useCanvasQuickActions({
         case 'add-action':
         case 'add-condition':
         case 'add-transform':
-        case 'add-loop':
+        case 'add-loop': {
           const nodeType = action.replace('add-', '');
           const position = reactFlowInstance.project({
             x: contextMenuPosition.x - (reactFlowWrapper.current?.offsetLeft || 0),
@@ -150,6 +150,7 @@ export function useCanvasQuickActions({
           addNode(newNode);
           toast.success(`Added ${nodeType} node`);
           break;
+        }
 
         default:
           break;

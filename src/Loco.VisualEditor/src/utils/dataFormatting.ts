@@ -41,7 +41,7 @@ export function capitalize(str: string): string {
 }
 
 export function toKebabCase(str: string): string {
-  return str.replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '\$1-\$2').toLowerCase();
+  return str.replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1-$2').toLowerCase();
 }
 
 export function toCamelCase(str: string): string {

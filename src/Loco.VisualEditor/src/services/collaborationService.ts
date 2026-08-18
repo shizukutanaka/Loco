@@ -6,7 +6,17 @@
  */
 
 import { io, Socket } from 'socket.io-client';
-import { Node, Edge } from 'reactflow';
+
+/**
+ * Acknowledgement the server sends back when joining a room. Typed rather than
+ * `any` so the success/error branches below are checked.
+ */
+interface JoinRoomAck {
+  success: boolean;
+  room?: CollaborationRoom;
+  error?: string;
+}
+import { Node, Edge, NodeChange, EdgeChange } from 'reactflow';
 
 // ============================================================================
 // Types
@@ -36,11 +46,11 @@ export type CollaborationEvent =
   | { type: 'user:left'; userId: string; data: { user: CollaborationUser | null }; timestamp: string }
   | { type: 'user:cursor-moved'; userId: string; data: { x: number; y: number }; timestamp: string }
   | { type: 'user:selection-changed'; userId: string; data: { nodeIds: string[] }; timestamp: string }
-  | { type: 'nodes:changed'; userId: string; data: { changes: any[] }; timestamp: string }
-  | { type: 'edges:changed'; userId: string; data: { changes: any[] }; timestamp: string }
+  | { type: 'nodes:changed'; userId: string; data: { changes: NodeChange[] }; timestamp: string }
+  | { type: 'edges:changed'; userId: string; data: { changes: EdgeChange[] }; timestamp: string }
   | { type: 'node:added'; userId: string; data: { node: Node }; timestamp: string }
   | { type: 'node:deleted'; userId: string; data: { nodeId: string }; timestamp: string }
-  | { type: 'node:updated'; userId: string; data: { nodeId: string; data: any }; timestamp: string }
+  | { type: 'node:updated'; userId: string; data: { nodeId: string; data: Node['data'] }; timestamp: string }
   | { type: 'edge:added'; userId: string; data: { edge: Edge }; timestamp: string }
   | { type: 'edge:deleted'; userId: string; data: { edgeId: string }; timestamp: string }
   | { type: 'workflow:locked'; userId: string; data: { userId: string }; timestamp: string }
@@ -130,7 +140,11 @@ export class CollaborationService {
 
         this.socket.on('room:joined', (room: CollaborationRoom) => {
           this.room = room;
-          this.emitEvent('user:joined', { user: this.currentUser });
+          // currentUser is set before connect(); guard anyway so the event's
+          // non-null `user` contract holds rather than shipping null.
+          if (this.currentUser) {
+            this.emitEvent('user:joined', { user: this.currentUser });
+          }
         });
 
         this.socket.on('room:users', (users: CollaborationUser[]) => {
@@ -158,9 +172,9 @@ export class CollaborationService {
       this.socket.emit('room:join', {
         workflowId,
         user: this.currentUser,
-      }, (response: any) => {
+      }, (response: JoinRoomAck) => {
         if (response.success) {
-          this.room = response.room;
+          this.room = response.room ?? null;
           resolve();
         } else {
           reject(new Error(response.error || 'Failed to join room'));
@@ -219,14 +233,14 @@ export class CollaborationService {
   /**
    * Send node changes
    */
-  sendNodeChanges(changes: any[]): void {
+  sendNodeChanges(changes: NodeChange[]): void {
     this.emitEvent('nodes:changed', { changes });
   }
 
   /**
    * Send edge changes
    */
-  sendEdgeChanges(changes: any[]): void {
+  sendEdgeChanges(changes: EdgeChange[]): void {
     this.emitEvent('edges:changed', { changes });
   }
 
@@ -247,7 +261,7 @@ export class CollaborationService {
   /**
    * Send node update
    */
-  sendNodeUpdated(nodeId: string, data: any): void {
+  sendNodeUpdated(nodeId: string, data: Node['data']): void {
     this.emitEvent('node:updated', { nodeId, data });
   }
 
@@ -277,9 +291,9 @@ export class CollaborationService {
 
       this.socket.emit('workflow:lock', {
         roomId: this.room.id,
-      }, (response: any) => {
+      }, (response: { success: boolean }) => {
         if (response.success) {
-          this.emitEvent('workflow:locked', { userId: this.currentUser?.id });
+          this.emitEvent('workflow:locked', { userId: this.currentUser?.id ?? '' });
         }
         resolve(response.success);
       });
@@ -296,7 +310,7 @@ export class CollaborationService {
       roomId: this.room.id,
     });
 
-    this.emitEvent('workflow:unlocked', { userId: this.currentUser?.id });
+    this.emitEvent('workflow:unlocked', { userId: this.currentUser?.id ?? '' });
   }
 
   /**
@@ -358,15 +372,18 @@ export class CollaborationService {
   // Private Methods
   // ============================================================================
 
-  private emitEvent(type: CollaborationEvent['type'], data: any): void {
+  private emitEvent<T extends CollaborationEvent['type']>(
+    type: T,
+    data: Extract<CollaborationEvent, { type: T }>['data']
+  ): void {
     if (!this.socket) return;
 
-    const event: CollaborationEvent = {
+    const event = {
       type,
       userId: this.currentUser?.id || '',
       data,
       timestamp: new Date().toISOString(),
-    };
+    } as CollaborationEvent;
 
     this.socket.emit('event', event);
   }

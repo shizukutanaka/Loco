@@ -219,7 +219,7 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
     const state = get();
 
     switch (event.type) {
-      case 'user:joined':
+      case 'user:joined': {
         // Add new user to collaborators
         const newUser = event.data.user as CollaborationUser;
         if (newUser && newUser.id !== state.currentUser?.id) {
@@ -228,8 +228,9 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
           });
         }
         break;
+      }
 
-      case 'user:left':
+      case 'user:left': {
         // Remove user from collaborators
         const leftUser = event.data.user as CollaborationUser;
         if (leftUser) {
@@ -246,6 +247,7 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
           });
         }
         break;
+      }
 
       case 'user:cursor-moved':
         // Update user cursor position

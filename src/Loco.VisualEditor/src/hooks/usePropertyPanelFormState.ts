@@ -114,7 +114,7 @@ export function usePropertyPanelFormState(selectedNodeId: string | null) {
           const fields = raw.split(/\s+/);
           if (fields.length !== 5) {
             error = 'Expected 5 fields: minute hour day month day-of-week';
-          } else if (!fields.every((f) => /^[*\d/,\-]+$/.test(f))) {
+          } else if (!fields.every((f) => /^[*\d/,-]+$/.test(f))) {
             error = 'Only digits and * , - / are allowed in each field';
           }
         }
