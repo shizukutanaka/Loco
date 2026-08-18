@@ -52,7 +52,7 @@ export function useToolbarKeyboardShortcuts(handlers: KeyboardShortcutHandlers) 
       // Help shortcuts: ? or Ctrl+/
       if (e.key === '?' || (ctrlKey && e.key === '/')) {
         e.preventDefault();
-        handlers.onOpenKeyboardShortcuts();
+        onOpenKeyboardShortcuts();
         return;
       }
 
@@ -76,40 +76,40 @@ export function useToolbarKeyboardShortcuts(handlers: KeyboardShortcutHandlers) 
             break;
           case 'n':
             e.preventDefault();
-            handlers.onNew();
+            onNew();
             break;
           case 's':
             e.preventDefault();
-            handlers.onSave();
+            onSave();
             break;
           case 'o':
             e.preventDefault();
-            handlers.onImport();
+            onImport();
             break;
           case 'e':
             e.preventDefault();
-            handlers.onExport();
+            onExport();
             break;
           case 'k':
             e.preventDefault();
-            handlers.onOpenWorkflowList();
+            onOpenWorkflowList();
             break;
           case 't':
             if (!e.shiftKey) {
               e.preventDefault();
-              handlers.onOpenTemplateGallery();
+              onOpenTemplateGallery();
             } else {
               e.preventDefault();
-              handlers.onOpenWorkflowTester();
+              onOpenWorkflowTester();
             }
             break;
           case ',':
             e.preventDefault();
-            handlers.onOpenSettings();
+            onOpenSettings();
             break;
           case 'enter':
             e.preventDefault();
-            handlers.onRun();
+            onRun();
             break;
           default:
             break;
@@ -120,7 +120,7 @@ export function useToolbarKeyboardShortcuts(handlers: KeyboardShortcutHandlers) 
           switch (e.key.toLowerCase()) {
             case 'c':
               e.preventDefault();
-              handlers.onOpenCollaboration();
+              onOpenCollaboration();
               break;
             case 'f':
               e.preventDefault();

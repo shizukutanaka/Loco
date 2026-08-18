@@ -130,15 +130,20 @@ export function useFocusTrap(
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
+    // Capture the node the listener was attached to. By cleanup time the ref may
+    // already point elsewhere, which would leave the listener on the old node.
+    const trappedContainer = containerRef.current;
+    const restoreTarget = restoreFocusRef?.current ?? previousFocusRef.current;
+
     return () => {
       // Remove event listener
-      containerRef.current?.removeEventListener('keydown', handleKeyDown);
+      trappedContainer?.removeEventListener('keydown', handleKeyDown);
 
       // Restore body overflow
       document.body.style.overflow = previousOverflow;
 
       // Restore focus to the trigger element or previous focus
-      const restoreFocus = restoreFocusRef?.current ?? previousFocusRef.current;
+      const restoreFocus = restoreTarget;
       if (restoreFocus && (restoreFocus as HTMLElement).offsetParent !== null) {
         // Use setTimeout to ensure focus is restored after the modal is removed from DOM
         setTimeout(() => {

@@ -268,7 +268,10 @@ function CollaborationPanelComponent({
     toast.info('Email sending requires backend API integration', 5000);
     setInviteEmail('');
     setInviteMessage('');
-  }, [inviteEmail, toast]);
+    // inviteMessage was missing here: the callback read it but never re-created
+    // when it changed, so the invitation would carry whatever the message was on
+    // first render rather than what the user typed.
+  }, [inviteEmail, inviteMessage, toast]);
 
   // Memoize user status color getter to preserve referential equality
   const getUserStatusColor = useCallback(

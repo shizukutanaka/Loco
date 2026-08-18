@@ -22,9 +22,12 @@ export function useWorkflowListFilters(workflows: WorkflowListItem[]) {
 
   // Update debounced search on query change
   useEffect(() => {
-    debouncedSearchRef.current(searchQuery);
+    // Capture the debounced function now: cleanup runs later, and reading
+    // .current then could cancel a different instance than the one started here.
+    const debouncedSearch = debouncedSearchRef.current;
+    debouncedSearch(searchQuery);
     return () => {
-      debouncedSearchRef.current.cancel();
+      debouncedSearch.cancel();
     };
   }, [searchQuery]);
 
