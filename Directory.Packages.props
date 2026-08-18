@@ -14,11 +14,19 @@
     Microsoft.AspNetCore.OpenApi (Swashbuckle does this job), the two
     AspNetCore.HealthChecks packages and the two Mvc.Versioning packages (never
     referenced by any project - health checks come from the shared framework),
-    and Microsoft.SourceLink.GitHub.
+    and Microsoft.SourceLink.GitHub. BenchmarkDotNet went with the benchmark
+    project, which measured three classes that do not exist.
 
     A version declared for a package nobody references is not inert: it pins the
     package transitively, so it still shapes what restore resolves - while
     reading as a dependency the product has.
+
+    Every PackageReference in the repository resolves here, and every entry here
+    is referenced: no NU1008 (an inline Version= under central management), no
+    NU1010 (a reference with no version), no orphans. Before this, two projects
+    carried inline versions, so a repo-wide `dotnet restore` failed on NU1008
+    before it could reach a single package - a build break that had nothing to
+    do with network access.
   -->
   <ItemGroup>
     <!-- Microsoft Extensions -->
@@ -56,11 +64,5 @@
     <PackageVersion Include="FluentAssertions" Version="8.8.0" />
     <PackageVersion Include="Moq" Version="4.20.72" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
-
-    <!-- Benchmarks. benchmarks/Loco.Benchmarks is outside Loco.sln by design,
-         but this file governs every project in the repo: its version lived
-         inline on the PackageReference, which is NU1008 under central
-         management and failed any repo-wide restore. -->
-    <PackageVersion Include="BenchmarkDotNet" Version="0.13.12" />
   </ItemGroup>
 </Project>
