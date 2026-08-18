@@ -14,6 +14,14 @@ vi.mock('@/api/connections', () => ({
   testConnection: (...args: unknown[]) => testConnection(...args),
 }));
 
+const listConnectors = vi.fn();
+
+vi.mock('@/api/connectors', async (importActual) => ({
+  // getMissingRequiredFields is pure logic under test, not a boundary.
+  ...(await importActual<typeof import('@/api/connectors')>()),
+  listConnectors: (...args: unknown[]) => listConnectors(...args),
+}));
+
 const okList = (connections: unknown[] = []) => ({
   success: true as const,
   data: { connections, total: connections.length, page: 1, pageSize: 50 },
@@ -36,6 +44,12 @@ const slackConnection = {
 describe('ConnectionsManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Catalogue unreachable by default, which is the fallback path: the form
+    // asks for field names by hand. The declared-field path has its own block.
+    listConnectors.mockResolvedValue({
+      success: false,
+      error: { code: 'UNAVAILABLE', message: 'Catalogue unavailable' },
+    });
     listConnections.mockResolvedValue(okList());
     createConnection.mockResolvedValue({ success: true, data: slackConnection });
     deleteConnection.mockResolvedValue({ success: true, data: undefined });
@@ -154,5 +168,187 @@ describe('ConnectionsManager', () => {
     fireEvent.change(screen.getByLabelText(/connector/i), { target: { value: 'slack' } });
 
     expect(await screen.findByText(/could not load connections: not signed in/i)).toBeTruthy();
+  });
+});
+
+/**
+ * The form used to ask the user to type credential field names from memory,
+ * under the warning "must match the connector's field name". A typo was
+ * undetectable: the connection saved, listed, and reported its fields as set,
+ * then failed at execution with a credential the connector never found.
+ *
+ * Each connector declares its fields exactly - name, label, whether to mask,
+ * whether it is required - and reads them back by those names. These pin that
+ * the form renders the declaration and submits the declared names verbatim.
+ */
+describe('ConnectionsManager with the connector catalogue', () => {
+  const slackDescriptor = {
+    id: 'slack',
+    name: 'Slack',
+    description: 'Slack messaging',
+    category: 'Communication',
+    authType: 'ApiKey',
+    credentialFields: [
+      {
+        name: 'botToken',
+        label: 'Bot User OAuth Token',
+        type: 'password',
+        required: true,
+        description: 'Starts with xoxb-',
+      },
+      {
+        name: 'signingSecret',
+        label: 'Signing Secret',
+        type: 'password',
+        required: false,
+      },
+    ],
+  };
+
+  const selectSlack = () =>
+    fireEvent.change(screen.getByLabelText(/connector/i), { target: { value: 'slack' } });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    listConnectors.mockResolvedValue({
+      success: true,
+      data: { connectors: [slackDescriptor], total: 1 },
+    });
+    listConnections.mockResolvedValue(okList());
+    createConnection.mockResolvedValue({ success: true, data: slackConnection });
+  });
+
+  it('renders the fields the connector declares, by their labels', async () => {
+    render(<ConnectionsManager isOpen onClose={() => {}} />);
+    await screen.findByRole('option', { name: /slack/i });
+    selectSlack();
+
+    expect(await screen.findByLabelText(/bot user oauth token/i)).toBeTruthy();
+    expect(screen.getByLabelText(/signing secret/i)).toBeTruthy();
+    // The whole point: no free-text name box to get wrong.
+    expect(screen.queryByLabelText(/^credential field$/i)).toBeNull();
+  });
+
+  it('submits the declared field name, not anything the user typed', async () => {
+    render(<ConnectionsManager isOpen onClose={() => {}} />);
+    await screen.findByRole('option', { name: /slack/i });
+    selectSlack();
+
+    fireEvent.change(screen.getByLabelText(/^name$/i), { target: { value: 'Acme' } });
+    fireEvent.change(await screen.findByLabelText(/bot user oauth token/i), {
+      target: { value: 'xoxb-secret' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /create connection/i }));
+
+    await waitFor(() =>
+      expect(createConnection).toHaveBeenCalledWith({
+        connectorId: 'slack',
+        name: 'Acme',
+        secrets: { botToken: 'xoxb-secret' },
+      })
+    );
+  });
+
+  it('omits an optional field left blank rather than storing an empty secret', async () => {
+    render(<ConnectionsManager isOpen onClose={() => {}} />);
+    await screen.findByRole('option', { name: /slack/i });
+    selectSlack();
+
+    fireEvent.change(screen.getByLabelText(/^name$/i), { target: { value: 'Acme' } });
+    fireEvent.change(await screen.findByLabelText(/bot user oauth token/i), {
+      target: { value: 'xoxb-secret' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /create connection/i }));
+
+    await waitFor(() => expect(createConnection).toHaveBeenCalled());
+    // configuredFields drives the "is this connection complete" display, so an
+    // empty signingSecret must not count as set.
+    expect(createConnection.mock.calls[0][0].secrets).not.toHaveProperty('signingSecret');
+  });
+
+  it('blocks submission naming the required field the connector is missing', async () => {
+    render(<ConnectionsManager isOpen onClose={() => {}} />);
+    await screen.findByRole('option', { name: /slack/i });
+    selectSlack();
+
+    fireEvent.change(screen.getByLabelText(/^name$/i), { target: { value: 'Acme' } });
+    fireEvent.click(screen.getByRole('button', { name: /create connection/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toMatch(/bot user oauth token/i)
+    );
+    expect(createConnection).not.toHaveBeenCalled();
+  });
+
+  it('does not demand an optional field', async () => {
+    render(<ConnectionsManager isOpen onClose={() => {}} />);
+    await screen.findByRole('option', { name: /slack/i });
+    selectSlack();
+
+    fireEvent.change(screen.getByLabelText(/^name$/i), { target: { value: 'Acme' } });
+    fireEvent.change(await screen.findByLabelText(/bot user oauth token/i), {
+      target: { value: 'xoxb-secret' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /create connection/i }));
+
+    await waitFor(() => expect(createConnection).toHaveBeenCalled());
+  });
+
+  it('masks a password-typed field', async () => {
+    render(<ConnectionsManager isOpen onClose={() => {}} />);
+    await screen.findByRole('option', { name: /slack/i });
+    selectSlack();
+
+    expect(await screen.findByLabelText(/bot user oauth token/i))
+      .toHaveProperty('type', 'password');
+  });
+
+  it('clears entered values when the connector changes', async () => {
+    listConnectors.mockResolvedValue({
+      success: true,
+      data: {
+        connectors: [
+          slackDescriptor,
+          {
+            ...slackDescriptor,
+            id: 'notion',
+            name: 'Notion',
+            credentialFields: [
+              { name: 'apiKey', label: 'Internal Integration Token', type: 'password', required: true },
+            ],
+          },
+        ],
+        total: 2,
+      },
+    });
+
+    render(<ConnectionsManager isOpen onClose={() => {}} />);
+    await screen.findByRole('option', { name: /slack/i });
+    selectSlack();
+
+    fireEvent.change(await screen.findByLabelText(/bot user oauth token/i), {
+      target: { value: 'xoxb-secret' },
+    });
+
+    fireEvent.change(screen.getByLabelText(/connector/i), { target: { value: 'notion' } });
+
+    // Two connectors can both declare "apiKey"; carrying a value across would
+    // quietly file one account's key under another.
+    const notionField = await screen.findByLabelText(/internal integration token/i);
+    expect(notionField).toHaveProperty('value', '');
+    expect(document.body.textContent).not.toMatch(/xoxb/);
+  });
+
+  it('falls back to manual entry, and says why, when the catalogue is unreachable', async () => {
+    listConnectors.mockResolvedValue({
+      success: false,
+      error: { code: 'UNAVAILABLE', message: 'Catalogue unavailable' },
+    });
+
+    render(<ConnectionsManager isOpen onClose={() => {}} />);
+    selectSlack();
+
+    expect(await screen.findByLabelText(/^credential field$/i)).toBeTruthy();
+    expect(screen.getByText(/could not load this connector's credential fields/i)).toBeTruthy();
   });
 });

@@ -8,7 +8,9 @@ import {
   testConnection,
   type Connection,
 } from '@/api/connections';
+import { getMissingRequiredFields, type CredentialFieldDescriptor } from '@/api/connectors';
 import { useConnections } from '@/hooks/useConnections';
+import { useConnectors } from '@/hooks/useConnectors';
 
 interface ConnectionsManagerProps {
   isOpen: boolean;
@@ -37,24 +39,48 @@ function ConnectionsManagerComponent({ isOpen, onClose }: ConnectionsManagerProp
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string }>>({});
 
   const { connections, loading, error, reload } = useConnections(connectorId || undefined);
-
-  // Only connector-backed integrations can hold credentials.
-  const connectorOptions = useMemo(
-    () =>
-      integrations
-        .filter((i) => i.id !== 'variable')
-        .map((i) => ({ value: i.id, label: `${i.icon} ${i.name}` })),
-    []
-  );
+  const { byId: connectorsById, error: catalogueError } = useConnectors(isOpen);
 
   /**
-   * Which credential fields to ask for. The connector declares these as
-   * ConfigParameters server-side; the editor's catalogue does not carry them
-   * yet, so the form starts from a single free-form pair and lets the user add
-   * more. Named fields must match what the connector reads (e.g. Slack's
-   * botToken), which is why the help text says so explicitly.
+   * Which credential fields to ask for.
+   *
+   * The connector declares them itself - name, label, whether to mask, whether
+   * it can work without one - and reads them back by exactly those names at
+   * execution time. Rendering the declaration is what removes the whole class of
+   * "saved fine, failed at execution" connections that a hand-typed field name
+   * produced.
+   *
+   * `fieldNames` remains as the fallback for a connector the catalogue could not
+   * describe (the server is unreachable, or it is a connector this build does
+   * not know). Then, and only then, the user types names again.
    */
   const [fieldNames, setFieldNames] = useState<string[]>(['']);
+
+  const selectedConnector = connectorId ? connectorsById[connectorId] : undefined;
+  const declaredFields: CredentialFieldDescriptor[] | null =
+    selectedConnector?.credentialFields ?? null;
+
+  // The catalogue is authoritative about which connectors exist; the local
+  // integrations list only supplies the icon, and connectors without a palette
+  // entry still have to be selectable.
+  const connectorOptions = useMemo(() => {
+    const iconOf = (id: string) => integrations.find((i) => i.id === id)?.icon;
+    const catalogue = Object.values(connectorsById);
+
+    if (catalogue.length > 0) {
+      return catalogue
+        .map((c) => {
+          const icon = iconOf(c.id);
+          return { value: c.id, label: icon ? `${icon} ${c.name}` : c.name };
+        })
+        .sort((a, b) => a.label.localeCompare(b.label));
+    }
+
+    // Catalogue unavailable: fall back to the palette so the dialog still works.
+    return integrations
+      .filter((i) => i.id !== 'variable')
+      .map((i) => ({ value: i.id, label: `${i.icon} ${i.name}` }));
+  }, [connectorsById]);
 
   const resetForm = useCallback(() => {
     setName('');
@@ -68,16 +94,37 @@ function ConnectionsManagerComponent({ isOpen, onClose }: ConnectionsManagerProp
     if (!name.trim()) return setFormError('Give the connection a name');
 
     const secrets: Record<string, string> = {};
-    for (const field of fieldNames) {
-      const key = field.trim();
-      if (key === '') continue;
-      if (!secretValues[key]?.trim()) {
-        return setFormError(`Enter a value for '${key}'`);
+
+    if (selectedConnector) {
+      const missing = getMissingRequiredFields(selectedConnector, secretValues);
+      if (missing.length > 0) {
+        return setFormError(
+          `Enter a value for ${missing.map((f) => f.label).join(', ')}`
+        );
       }
-      secrets[key] = secretValues[key];
+
+      // Only declared fields are submitted, and blank optional ones are left
+      // out entirely so configuredFields reports what is genuinely set.
+      for (const field of selectedConnector.credentialFields) {
+        const value = secretValues[field.name];
+        if (value?.trim()) secrets[field.name] = value;
+      }
+
+    } else {
+      for (const field of fieldNames) {
+        const key = field.trim();
+        if (key === '') continue;
+        if (!secretValues[key]?.trim()) {
+          return setFormError(`Enter a value for '${key}'`);
+        }
+        secrets[key] = secretValues[key];
+      }
     }
 
-    if (Object.keys(secrets).length === 0) {
+    // A connector that declares no credentials - an unauthenticated webhook, say -
+    // still needs a connection record for a node to reference, so an empty set is
+    // only an error when fields were expected.
+    if (Object.keys(secrets).length === 0 && declaredFields?.length !== 0) {
       return setFormError('Add at least one credential field');
     }
 
@@ -96,7 +143,16 @@ function ConnectionsManagerComponent({ isOpen, onClose }: ConnectionsManagerProp
     } finally {
       setBusy(false);
     }
-  }, [connectorId, name, fieldNames, secretValues, resetForm, reload]);
+  }, [
+    connectorId,
+    name,
+    fieldNames,
+    secretValues,
+    selectedConnector,
+    declaredFields,
+    resetForm,
+    reload,
+  ]);
 
   const handleDelete = useCallback(
     async (connection: Connection) => {
@@ -169,7 +225,16 @@ function ConnectionsManagerComponent({ isOpen, onClose }: ConnectionsManagerProp
               id="connection-connector"
               label="Connector"
               value={connectorId}
-              onChange={(e) => setConnectorId(e.target.value)}
+              onChange={(e) => {
+                // Values typed for the previous connector must not carry over:
+                // two connectors can both declare "apiKey", and silently reusing
+                // one account's key for another is exactly the mistake stored
+                // credentials exist to prevent.
+                setConnectorId(e.target.value);
+                setSecretValues({});
+                setFieldNames(['']);
+                setFormError(null);
+              }}
               options={connectorOptions}
               placeholder="Select a connector"
             />
@@ -183,41 +248,82 @@ function ConnectionsManagerComponent({ isOpen, onClose }: ConnectionsManagerProp
               helpText="Shown when picking a connection on a node."
             />
 
-            {fieldNames.map((field, index) => (
-              <div key={index} className="grid grid-cols-2 gap-2">
-                <FormInput
-                  id={`connection-field-${index}`}
-                  label={index === 0 ? 'Credential field' : ''}
-                  value={field}
-                  onChange={(e) => {
-                    const next = [...fieldNames];
-                    next[index] = e.target.value;
-                    setFieldNames(next);
-                  }}
-                  placeholder="botToken"
-                  helpText={index === 0 ? "Must match the connector's field name." : undefined}
-                />
-                <FormInput
-                  id={`connection-value-${index}`}
-                  label={index === 0 ? 'Value' : ''}
-                  type="password"
-                  value={secretValues[field.trim()] ?? ''}
-                  onChange={(e) =>
-                    setSecretValues((prev) => ({ ...prev, [field.trim()]: e.target.value }))
-                  }
-                  placeholder="••••••••"
-                  helpText={index === 0 ? 'Sent once; never returned.' : undefined}
-                />
-              </div>
-            ))}
+            {/*
+              The connector's own declaration when we have it, so the field
+              names are right by construction. Only when the catalogue is
+              unavailable does the user type them again.
+            */}
+            {declaredFields ? (
+              <>
+                {declaredFields.length === 0 && (
+                  <div className="text-xs text-gray-600">
+                    {selectedConnector?.name} needs no credentials. Create the
+                    connection so nodes have something to reference.
+                  </div>
+                )}
 
-            <button
-              type="button"
-              onClick={() => setFieldNames((prev) => [...prev, ''])}
-              className="text-xs text-blue-600 hover:underline"
-            >
-              + Add another field
-            </button>
+                {declaredFields.map((field) => (
+                  <FormInput
+                    key={field.name}
+                    id={`connection-field-${field.name}`}
+                    label={field.required ? `${field.label} *` : `${field.label} (optional)`}
+                    type={field.type === 'password' ? 'password' : 'text'}
+                    value={secretValues[field.name] ?? ''}
+                    onChange={(e) =>
+                      setSecretValues((prev) => ({ ...prev, [field.name]: e.target.value }))
+                    }
+                    placeholder={field.type === 'password' ? '••••••••' : field.name}
+                    helpText={field.description ?? `Stored as ${field.name}.`}
+                  />
+                ))}
+              </>
+            ) : (
+              <>
+                {connectorId && catalogueError && (
+                  <div className="text-xs text-amber-700" role="status">
+                    Could not load this connector&apos;s credential fields (
+                    {catalogueError}). Enter the field names manually — they must
+                    match what the connector reads.
+                  </div>
+                )}
+
+                {fieldNames.map((field, index) => (
+                  <div key={index} className="grid grid-cols-2 gap-2">
+                    <FormInput
+                      id={`connection-field-${index}`}
+                      label={index === 0 ? 'Credential field' : ''}
+                      value={field}
+                      onChange={(e) => {
+                        const next = [...fieldNames];
+                        next[index] = e.target.value;
+                        setFieldNames(next);
+                      }}
+                      placeholder="botToken"
+                      helpText={index === 0 ? "Must match the connector's field name." : undefined}
+                    />
+                    <FormInput
+                      id={`connection-value-${index}`}
+                      label={index === 0 ? 'Value' : ''}
+                      type="password"
+                      value={secretValues[field.trim()] ?? ''}
+                      onChange={(e) =>
+                        setSecretValues((prev) => ({ ...prev, [field.trim()]: e.target.value }))
+                      }
+                      placeholder="••••••••"
+                      helpText={index === 0 ? 'Sent once; never returned.' : undefined}
+                    />
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => setFieldNames((prev) => [...prev, ''])}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  + Add another field
+                </button>
+              </>
+            )}
 
             {formError && (
               <div className="text-xs text-red-600" role="alert">
