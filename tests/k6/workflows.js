@@ -102,6 +102,9 @@ function healthCheck() {
 // invokes no connector and needs no credentials.
 function sampleWorkflow(id = generateId()) {
   return {
+    // `id` is ignored by POST /workflows (the server assigns one) and used by
+    // POST /workflows/validate, which takes a whole StoredWorkflow.
+    id,
     name: `Load-Test-Workflow-${id}`,
     description: 'Load testing workflow',
     nodes: [
@@ -212,7 +215,7 @@ function validateWorkflow(workflow) {
 
     check(res, {
       'validate status is 200': (r) => r.status === 200,
-      'validation reports a verdict': (r) => r.json('data.isValid') !== undefined,
+      'validation reports a verdict': (r) => r.json('data.valid') !== undefined,
       'validate response time < 500ms': (r) => r.timings.duration < 500,
     });
 
