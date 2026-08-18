@@ -43,26 +43,6 @@
       than deleted so reviewers can inspect and delete them deliberately;
       none of them are part of the shipped API surface.
     -->
-    <Compile Remove="BFF\**\*.cs" />
-    <Compile Remove="Endpoints\**\*.cs" />
-    <Compile Remove="Gateway\**\*.cs" />
-    <Compile Remove="GraphQL\**\*.cs" />
-    <Compile Remove="HealthChecks\**\*.cs" />
-    <Compile Remove="Idempotency\**\*.cs" />
-    <Compile Remove="OpenApi\**\*.cs" />
-    <Compile Remove="RateLimiting\**\*.cs" />
-    <Compile Remove="Security\AdvancedApiSecurityPatterns.cs" />
-    <Compile Remove="Services\**\*.cs" />
-    <Compile Remove="Versioning\**\*.cs" />
-    <Compile Remove="Controllers\BpmnController.cs" />
-    <Compile Remove="Controllers\SchedulingController.cs" />
-    <Compile Remove="Filters\ExceptionFilters.cs" />
-    <Compile Remove="JsonOptimization.cs" />
-    <Compile Remove="NativeAotOptimization.cs" />
-    <Compile Remove="Middleware\OptimizedMiddlewarePipeline.cs" />
-    <Compile Remove="Middleware\SerilogRequestLoggingMiddleware.cs" />
-    <Compile Remove="Middleware\CorrelationIdMiddleware.cs" />
-    <Compile Remove="Middleware\TraceContextMiddleware.cs" />
   </ItemGroup>
 
 </Project>

@@ -44,10 +44,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Commands\AICommand.cs" />
-    <Compile Remove="Commands\SecretsCommand.cs" />
-    <Compile Remove="UI\InteractiveTerminalUI.cs" />
-    <Compile Remove="SetupWizard.cs" />
   </ItemGroup>
 
 </Project>

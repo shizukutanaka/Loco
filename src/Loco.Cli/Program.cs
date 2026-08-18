@@ -34,7 +34,6 @@ class Program
             {
                 // System.CommandLine-based commands (same proven pattern as workflow)
                 "workflow" or "run" => await new WorkflowCommand().InvokeAsync(rest),
-                "ai" => await new AICommand().InvokeAsync(rest),
                 "diag" => await new DiagCommand().InvokeAsync(rest),
                 "files" => await new FilesCommand().InvokeAsync(rest),
                 "health" => await new HealthCommand().InvokeAsync(rest),
@@ -90,7 +89,6 @@ class Program
         Console.WriteLine("  start             Start the workflow engine");
         Console.WriteLine("  rule              Manage automation rules");
         Console.WriteLine("  preset            Run a preset (simulation)");
-        Console.WriteLine("  ai                AI-assisted commands");
         Console.WriteLine("  files             File search / clean / organize utilities");
         Console.WriteLine("  logs              View and manage logs");
         Console.WriteLine("  health            Run health checks");
