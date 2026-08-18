@@ -92,7 +92,12 @@ public sealed class WorkflowSchedulerService : IHostedService, IDisposable
     /// Reads a cron schedule from the workflow's trigger nodes, or null when it
     /// has none. The first trigger node carrying a `cron` value wins.
     /// </summary>
-    private static CronSchedule? ReadSchedule(StoredWorkflow workflow)
+    /// <remarks>
+    /// Internal rather than private so it can be tested directly. This decides
+    /// whether a workflow runs on its own at all, and getting it wrong is silent:
+    /// the workflow simply never fires.
+    /// </remarks>
+    internal static CronSchedule? ReadSchedule(StoredWorkflow workflow)
     {
         foreach (var node in workflow.Nodes)
         {

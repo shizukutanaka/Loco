@@ -45,4 +45,10 @@
     -->
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- WorkflowSchedulerService.ReadSchedule decides whether a workflow is
+         scheduled at all, and a wrong answer is silent - the workflow just never
+         fires. Exposed to the test project rather than left untestable. -->
+    <InternalsVisibleTo Include="Loco.Api.Tests" />
+  </ItemGroup>
 </Project>
