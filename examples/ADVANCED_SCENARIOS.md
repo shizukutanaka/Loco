@@ -5,7 +5,7 @@ Real-world examples combining multiple Loco templates and integrations to solve 
 ## Overview
 
 This guide demonstrates how to combine:
-- **10 workflow templates** (from [WorkflowTemplates.cs](../src/Loco.Core/Workflows/WorkflowTemplates.cs))
+- **10 workflow templates** (from [WorkflowTemplates.cs](../examples/))
 - **15 integrations** (from [Integrations](../src/Loco.Core/Integrations/))
 - **AI capabilities** (OpenAI, Claude)
 
@@ -600,8 +600,8 @@ public class WorkflowHandler
 ## Resources
 
 - [Workflow Templates](../src/Loco.Core/Workflows/README.md)
-- [Integration Library](../src/Loco.Core/Integrations/README.md)
-- [AI Integration](../src/Loco.Core/AI/AIIntegrationFramework.cs)
+- [Integration Library](../src/Loco.Core/Integrations/Connectors/)
+- [AI Integration](../src/Loco.Core/Integrations/Connectors/HttpConnector.cs)
 - [Getting Started Guide](../docs/GETTING_STARTED.md)
 
 ---

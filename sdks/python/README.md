@@ -45,7 +45,7 @@ async def main():
     # Create client with API key
     async with LocoClient(
         "https://api.loco.io",
-        api_key="loco_sk_xxxxxx"
+        username="admin", password="…"
     ) as client:
         # List workflows
         workflows = await client.list_workflows()
@@ -80,7 +80,7 @@ import asyncio
 from loco_client import create_client
 
 # Create client
-client = create_client("https://api.loco.io", api_key="loco_sk_xxxxxx")
+client = create_client("https://api.loco.io", username="admin", password="…")
 
 async def main():
     async with client:
@@ -97,7 +97,7 @@ result = asyncio.run(main())
 ```python
 client = LocoClient(
     "https://api.loco.io",
-    api_key="loco_sk_xxxxxx"
+    username="admin", password="…"
 )
 ```
 
@@ -260,7 +260,7 @@ async def scheduled_execution():
     scheduler = AsyncIOScheduler()
 
     async def job():
-        async with LocoClient("https://api.loco.io", api_key="loco_sk_xxx") as client:
+        async with LocoClient("https://api.loco.io", username="admin", password="…") as client:
             await client.execute_workflow("daily-report-workflow")
 
     # Schedule daily at 9 AM
@@ -289,7 +289,7 @@ app = Celery('loco_tasks')
 def execute_workflow_task(workflow_id, variables=None):
     """Celery task for workflow execution"""
     async def _execute():
-        async with LocoClient("https://api.loco.io", api_key="loco_sk_xxx") as client:
+        async with LocoClient("https://api.loco.io", username="admin", password="…") as client:
             result = await client.execute_workflow(workflow_id, input=variables)
             return result
 
@@ -321,7 +321,7 @@ LOCO_VERIFY_SSL=true
 ```python
 client = LocoClient(
     base_url="https://api.loco.io",
-    api_key="loco_sk_xxxxxx",
+    username="admin", password="…",
     timeout=60.0,           # Request timeout
     max_retries=5,          # Retry attempts
     verify_ssl=True         # Verify SSL certificates
@@ -336,7 +336,7 @@ The `httpx.AsyncClient` automatically handles connection pooling:
 
 ```python
 # Reuse client for multiple requests (better performance)
-async with LocoClient("https://api.loco.io", api_key="loco_sk_xxx") as client:
+async with LocoClient("https://api.loco.io", username="admin", password="…") as client:
     for workflow_id in workflow_ids:
         workflow = await client.get_workflow(workflow_id)
         # Connections are reused
@@ -378,7 +378,7 @@ async def test_list_workflows():
             return_value=Mock(status_code=200, json=lambda: {"items": []})
         )
 
-        async with LocoClient("https://api.loco.io", api_key="test") as client:
+        async with LocoClient("https://api.loco.io", jwt_token="test") as client:
             result = await client.list_workflows()
             assert result == {"items": []}
 ```

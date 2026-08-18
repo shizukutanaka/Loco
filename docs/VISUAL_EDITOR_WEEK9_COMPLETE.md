@@ -342,7 +342,7 @@ manualChunks: {
 
 ### 3. Performance Utilities
 
-**File Created**: [performance.ts](../src/Loco.VisualEditor/src/utils/performance.ts) (174 lines)
+**File Created**: `src/Loco.VisualEditor/src/utils/performance.ts` (174 lines) - since removed
 
 **Features**:
 - **Performance Measurement**: `measurePerformance()` and `measureAsyncPerformance()`

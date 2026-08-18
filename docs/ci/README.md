@@ -55,8 +55,9 @@
   CAVEAT が付いています。**このジョブが初めて緑になった時点で、それらの但し書きを外せます。**
 - **offline-checks**: `scripts/typecheck-offline.sh` と `scripts/check-structure.py`。
   NuGet 無しで Roslyn と net8.0 参照アセンブリだけを使って全ソースを型検査し、
-  加えて 3 つの構造検査（パッケージ管理の整合性・テストが参照する型の実在・
-  Loco.Core 全ファイルの到達可能性）を行います。**現時点で未説明エラーはゼロ**
+  加えて 5 つの構造検査（パッケージ管理の整合性・テストが参照する型の実在・
+  Loco.Core 全ファイルの到達可能性・SDK が叩く API 経路の実在・
+  ドキュメントが参照するファイルの実在）を行います。**現時点で未説明エラーはゼロ**
   （残る 12 エラーはすべて restore できないパッケージの型）。
   restore が壊れても回帰を検出し続けるための保険です。
   ただしパッケージ型の呼び出し箇所は見えないため、`dotnet build` の代替にはなりません。
@@ -90,7 +91,7 @@ git push
 - `src/Loco.VisualEditor/package-lock.json` は git 管理下にあり `npm ci` が使用可能
 - `Loco.sln` が参照する 6 プロジェクトはすべて実在する
 - `dotnet restore` を止めていた **NU1008 は解消済み**。以前は
-  `tests/Loco.E2E.Tests` と `benchmarks/Loco.Benchmarks` が
+  `tests/Loco.E2E.Tests`（削除済み）と `benchmarks/Loco.Benchmarks` が
   `PackageReference` に `Version=` を直書きしており、中央パッケージ管理下では
   **パッケージを 1 つも取得する前に restore が失敗**していました。
   これはネットワークとは無関係のビルド破損で、`workflows: write` が付与されて

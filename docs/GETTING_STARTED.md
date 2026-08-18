@@ -467,10 +467,10 @@ Console.WriteLine($"Avg duration: {snapshot.Metrics.First().Average}ms");
 ### Learn More
 
 1. **[Complete Example](../examples/CompleteAutomationExample.cs)** - Full-featured automation system
-2. **[Practical Patterns](../src/Loco.Core/Practical/README.md)** - 37 lightweight patterns
-3. **[Workflow Templates](../src/Loco.Core/Workflows/WorkflowTemplates.cs)** - 6 pre-built templates
-4. **[Integration Guide](../src/Loco.Core/Integrations/README.md)** - Using connectors
-5. **[AI Integration](../src/Loco.Core/AI/AIIntegrationFramework.cs)** - OpenAI & Claude
+2. **[Practical Patterns](../src/Loco.Core/Practical/SimpleLogger.cs)** - 37 lightweight patterns
+3. **[Example workflows](../examples/)** - runnable JSON workflows
+4. **[Integration Guide](../src/Loco.Core/Integrations/Connectors/)** - Using connectors
+5. **[Connector library](../src/Loco.Core/Integrations/Connectors/)** - all 28 connectors
 
 ### Common Patterns
 
@@ -705,7 +705,7 @@ curl -X POST http://localhost:5000/api/v1/authentication/token \
 ## 📖 Additional Resources
 
 - **[Full Documentation](../README.md)** - Complete feature overview
-- **[Practical Patterns Index](../src/Loco.Core/Practical/INDEX.md)** - All 37 patterns
+- **[Practical Patterns Index](../src/Loco.Core/Practical/SimpleLogger.cs)** - All 37 patterns
 - **[Competitive Analysis](COMPETITIVE_ANALYSIS_2025.md)** - Market positioning
 - **[Examples](../examples/)** - More code samples
 - **[GitHub Issues](https://github.com/loco-automation/loco/issues)** - Report bugs

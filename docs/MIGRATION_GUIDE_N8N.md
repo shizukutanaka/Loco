@@ -331,7 +331,7 @@ var workflow = new VisualWorkflowBuilder()
 
 **Loco Equivalent**:
 
-Use the pre-built template `AIContentModeration` from [WorkflowTemplates.cs](../src/Loco.Core/Workflows/WorkflowTemplates.cs)
+Build this in the visual editor: an HTTP action node calling your model of choice, with the condition node branching on its verdict. Loco ships no AI connector.
 
 ```csharp
 using Loco.Core.Workflows;
@@ -629,7 +629,7 @@ DATABASE_URL=postgresql://...
 ### Documentation
 - [Getting Started](GETTING_STARTED.md)
 - [Workflow Templates](../src/Loco.Core/Workflows/README.md)
-- [Integration Docs](../src/Loco.Core/Integrations/README.md)
+- [Integration Docs](../src/Loco.Core/Integrations/Connectors/)
 - [Advanced Scenarios](../examples/ADVANCED_SCENARIOS.md)
 
 ### Migration Tools

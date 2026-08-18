@@ -552,7 +552,7 @@ Loco's .NET foundation provides unique advantages (performance, memory), but the
 
 #### 1. ✅ AI Integration (Critical Gap #1)
 **Status**: **COMPLETE**
-**Implementation**: [src/Loco.Core/AI/AIIntegrationFramework.cs](../src/Loco.Core/AI/AIIntegrationFramework.cs)
+**Implementation**: none. Loco has no AI connector; this remains an open gap, reachable today only by pointing an HTTP action node at a model API.
 
 **What was built**:
 - Multi-provider AI framework supporting OpenAI and Anthropic Claude

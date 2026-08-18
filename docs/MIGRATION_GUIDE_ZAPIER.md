@@ -552,7 +552,7 @@ dotnet run --project examples -- scenario ecommerce-orders
 ### Documentation
 - [Getting Started](GETTING_STARTED.md)
 - [Workflow Templates](../src/Loco.Core/Workflows/README.md)
-- [Integration Docs](../src/Loco.Core/Integrations/README.md)
+- [Integration Docs](../src/Loco.Core/Integrations/Connectors/)
 - [Advanced Scenarios](../examples/ADVANCED_SCENARIOS.md)
 
 ### Community

@@ -11,7 +11,7 @@ Features:
 - Request correlation tracking
 
 Example:
-    async with LocoClient("https://api.loco.io", api_key="loco_xxx") as client:
+    async with LocoClient("https://api.loco.io", username="u", password="p") as client:
         workflows = await client.workflows.list()
         execution = await client.workflows.execute("workflow-1", params={})
 """
@@ -120,16 +120,14 @@ class LocoClient:
     """
     Async Loco Workflow Automation API client
 
-    Supports multiple authentication methods:
-    - API Key: pass api_key parameter
-    - Username/Password: call authenticate() first
-    - JWT Token: pass jwt_token parameter
+    Two ways to authenticate, both producing the bearer token the API expects:
+    - username and password: a token is fetched, and refreshed before expiry
+    - jwt_token: a token you already hold
     """
 
     def __init__(
         self,
         base_url: str,
-        api_key: Optional[str] = None,
         username: Optional[str] = None,
         password: Optional[str] = None,
         jwt_token: Optional[str] = None,
@@ -142,7 +140,6 @@ class LocoClient:
 
         Args:
             base_url: API base URL (e.g., "https://api.loco.io")
-            api_key: API key for authentication
             username: Username for token-based auth
             password: Password for token-based auth
             jwt_token: Pre-generated JWT token
@@ -151,7 +148,6 @@ class LocoClient:
             verify_ssl: Whether to verify SSL certificates
         """
         self.base_url = base_url.rstrip("/")
-        self.api_key = api_key
         self.username = username
         self.password = password
         self.jwt_token = jwt_token
@@ -213,7 +209,7 @@ class LocoClient:
 
     async def _ensure_authenticated(self) -> None:
         """Ensure client is authenticated"""
-        if not self.jwt_token and not self.api_key:
+        if not self.jwt_token:
             if self.username and self.password:
                 await self.authenticate()
             else:
@@ -262,10 +258,12 @@ class LocoClient:
             "User-Agent": "loco-python-sdk/1.0.0",
         }
 
+        # Bearer only. The API registers exactly one authentication scheme,
+        # JwtBearer (Program.cs), and reads no X-Api-Key header - so the
+        # api_key option this client used to offer sent something the server
+        # ignored, and every call came back 401.
         if self.jwt_token:
             headers["Authorization"] = f"Bearer {self.jwt_token}"
-        elif self.api_key:
-            headers["X-Api-Key"] = self.api_key
 
         # Retry logic with exponential backoff
         last_exception: Optional[Exception] = None
@@ -535,7 +533,6 @@ class LocoClient:
 # Convenience function for synchronous code
 def create_client(
     base_url: str,
-    api_key: Optional[str] = None,
     username: Optional[str] = None,
     password: Optional[str] = None,
     jwt_token: Optional[str] = None,
@@ -544,7 +541,7 @@ def create_client(
     Create a Loco client (for use with asyncio.run)
 
     Example:
-        client = create_client("https://api.loco.io", api_key="loco_xxx")
+        client = create_client("https://api.loco.io", username="u", password="p")
         async def main():
             async with client:
                 workflows = await client.list_workflows()
@@ -553,7 +550,6 @@ def create_client(
     """
     return LocoClient(
         base_url=base_url,
-        api_key=api_key,
         username=username,
         password=password,
         jwt_token=jwt_token,

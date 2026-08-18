@@ -36,7 +36,7 @@ pnpm add loco-client
 import { LocoClient } from "loco-client";
 
 const client = new LocoClient("https://api.loco.io", {
-  apiKey: "loco_sk_xxxxxx",
+  username: "admin", password: "…",
 });
 
 // List workflows
@@ -67,7 +67,7 @@ console.log(`Execution result:`, result);
 const { LocoClient } = require("loco-client");
 
 const client = new LocoClient("https://api.loco.io", {
-  apiKey: "loco_sk_xxxxxx",
+  username: "admin", password: "…",
 });
 
 // Use async/await
@@ -83,7 +83,7 @@ const client = new LocoClient("https://api.loco.io", {
 import LocoClient from "loco-client";
 
 const client = new LocoClient("https://api.loco.io", {
-  apiKey: "loco_sk_xxxxxx",
+  username: "admin", password: "…",
 });
 
 const workflows = await client.workflows.list();
@@ -96,7 +96,7 @@ console.log(workflows);
 
 ```typescript
 const client = new LocoClient("https://api.loco.io", {
-  apiKey: "loco_sk_xxxxxx",
+  username: "admin", password: "…",
 });
 ```
 
@@ -312,7 +312,7 @@ async function executeWithCustomPolling(
 const client = new LocoClient(
   process.env.LOCO_API_URL || "https://api.loco.io",
   {
-    apiKey: process.env.LOCO_API_KEY,
+    jwtToken: process.env.LOCO_TOKEN,
     timeout: parseInt(process.env.LOCO_TIMEOUT || "30000"),
     maxRetries: parseInt(process.env.LOCO_MAX_RETRIES || "3"),
     verifySsl: process.env.NODE_ENV === "production",
@@ -326,11 +326,11 @@ const client = new LocoClient(
 
 ```typescript
 interface LocoClientConfig {
-  // Authentication (choose one)
-  apiKey?: string;           // API key for authentication
+  // Authentication. The API speaks JWT bearer only - it registers no
+  // API-key scheme - so either let the client fetch a token, or supply one.
   username?: string;         // Username for token auth
   password?: string;         // Password for token auth
-  jwtToken?: string;         // Pre-generated JWT token
+  jwtToken?: string;         // A token you already hold
 
   // Client settings
   timeout?: number;          // Request timeout in ms (default: 30000)
@@ -360,7 +360,7 @@ The SDK uses native fetch, which automatically manages connection pooling:
 
 ```typescript
 // Create client once and reuse
-const client = new LocoClient("https://api.loco.io", { apiKey: "..." });
+const client = new LocoClient("https://api.loco.io", { jwtToken: "..." });
 
 // Reuse for multiple requests
 for (const workflowId of workflowIds) {
@@ -385,7 +385,7 @@ The SDK automatically retries on network errors with exponential backoff:
 
 ```typescript
 const client = new LocoClient("https://api.loco.io", {
-  apiKey: "loco_sk_xxx",
+  username: "admin", password: "…",
   maxRetries: 5, // Customize retry count
   timeout: 60000, // 60 second timeout
 });
@@ -399,7 +399,7 @@ import { LocoClient } from "loco-client";
 describe("Loco Client", () => {
   it("should list workflows", async () => {
     const client = new LocoClient("https://api.loco.io", {
-      apiKey: "test-key",
+      jwtToken: "test-token",
     });
 
     // Mock fetch if needed

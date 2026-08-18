@@ -269,23 +269,89 @@ def check_sdks(sources):
         return ["no controller routes found - the route parser needs updating"]
 
     problems = []
-    sdk_dir = os.path.join(REPO, "sdks")
-    if not os.path.isdir(sdk_dir):
-        return problems
 
-    for root, dirs, names in os.walk(sdk_dir):
+    # The SDKs and the documentation are checked together on purpose: the
+    # nested executions route both clients used is exactly what README.md
+    # documented, so a wrong example is where a wrong client comes from.
+    targets = []
+    for scope in ("sdks", "docs"):
+        scope_dir = os.path.join(REPO, scope)
+        if not os.path.isdir(scope_dir):
+            continue
+        for root, dirs, names in os.walk(scope_dir):
+            if any(skip in root.replace(os.sep, "/") for skip in SKIP_DIRS):
+                continue
+            targets += [os.path.join(root, n) for n in names]
+
+    readme = os.path.join(REPO, "README.md")
+    if os.path.exists(readme):
+        targets.append(readme)
+
+    for path in sorted(targets):
+        if not path.endswith((".py", ".ts", ".js", ".md")):
+            continue
+        rel = os.path.relpath(path, REPO).replace(os.sep, "/")
+        text = open(path, encoding="utf-8", errors="ignore").read()
+
+        for called in sorted(set(SDK_PATH.findall(text))):
+            shape = normalize_route(called)
+            if shape in routes:
+                continue
+            # A base URL like "/api/v1" is a prefix of real routes, not a call.
+            if any(route.startswith(shape + "/") for route in routes):
+                continue
+            problems.append(f"{rel}: calls {called}, which the API does not route")
+
+    return problems
+
+
+CITATION = re.compile(r"\b((?:src|tests|benchmarks|tools|scripts|sdks)/[A-Za-z0-9_./-]+\.[A-Za-z]{1,6})\b")
+# A citation is allowed to name a file that is gone when the same line says so.
+CITATION_EXEMPT = re.compile(
+    r"削除済み|削除|存在しない|since removed|no longer|does not exist|never existed"
+    r"|has been deleted|removed|missing",
+    re.I,
+)
+
+
+def check_docs(sources):
+    """
+    Every source file a document points at must exist.
+
+    Documentation rots differently from code: nothing recompiles it, so a
+    guide can describe a framework that was never written and read as
+    authoritative forever. This found five such documents at once - a Serilog
+    guide for a library this project has never used, an error-handling guide
+    for classes that were never written, and three reports claiming completed
+    work whose every cited file was absent, including one headed
+    "Core Features Complete" that inventoried an AI framework that does not
+    exist.
+
+    A line that says outright the file is gone is not a rot - that is a
+    document being accurate about history - so those are exempt.
+    """
+    problems = []
+
+    for root, dirs, names in os.walk(REPO):
         if any(skip in root.replace(os.sep, "/") for skip in SKIP_DIRS):
             continue
         for name in sorted(names):
-            if not name.endswith((".py", ".ts", ".js", ".md")):
+            if not name.endswith(".md"):
                 continue
+
             path = os.path.join(root, name)
             rel = os.path.relpath(path, REPO).replace(os.sep, "/")
-            text = open(path, encoding="utf-8", errors="ignore").read()
+            seen = set()
 
-            for called in sorted(set(SDK_PATH.findall(text))):
-                if normalize_route(called) not in routes:
-                    problems.append(f"{rel}: calls {called}, which the API does not route")
+            for line in open(path, encoding="utf-8", errors="ignore"):
+                if CITATION_EXEMPT.search(line):
+                    continue
+                for cited in CITATION.findall(line):
+                    if cited in seen:
+                        continue
+                    seen.add(cited)
+                    if not os.path.exists(os.path.join(REPO, cited)):
+                        problems.append(f"{rel}: cites {cited}, which does not exist")
 
     return problems
 
@@ -298,6 +364,7 @@ def main():
         ("tests", "every type a test names exists in src", check_test_references(sources)),
         ("reachable", "every Loco.Core file has a path from an entry point", check_reachable(sources)),
         ("sdks", "every API path an SDK calls is a route the API exposes", check_sdks(sources)),
+        ("docs", "every source file a document cites exists", check_docs(sources)),
     ]
 
     failed = False

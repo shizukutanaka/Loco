@@ -13,7 +13,8 @@
  * @example
  * ```typescript
  * const client = new LocoClient("https://api.loco.io", {
- *   apiKey: "loco_sk_xxx"
+ *   username: "u",
+ *   password: "p"
  * });
  *
  * const workflows = await client.workflows.list();
@@ -117,7 +118,6 @@ interface ApiEnvelope<T> {
 }
 
 export interface LocoClientConfig {
-  apiKey?: string;
   username?: string;
   password?: string;
   jwtToken?: string;
@@ -220,7 +220,6 @@ function unwrap<T>(body: unknown): T {
  */
 export class LocoClient {
   private baseUrl: string;
-  private apiKey?: string;
   private username?: string;
   private password?: string;
   private jwtToken?: string;
@@ -236,7 +235,6 @@ export class LocoClient {
 
   constructor(baseUrl: string, config: LocoClientConfig = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, ""); // Remove trailing slash
-    this.apiKey = config.apiKey;
     this.username = config.username;
     this.password = config.password;
     this.jwtToken = config.jwtToken;
@@ -287,7 +285,7 @@ export class LocoClient {
    * Ensure client is authenticated
    */
   private async ensureAuthenticated(): Promise<void> {
-    if (!this.jwtToken && !this.apiKey) {
+    if (!this.jwtToken) {
       if (this.username && this.password) {
         await this.authenticate();
       } else {
@@ -323,10 +321,12 @@ export class LocoClient {
       "X-Correlation-ID": this.correlationId,
     };
 
+    // Bearer only. The API registers exactly one authentication scheme,
+    // JwtBearer (Program.cs), and reads no X-Api-Key header - so the apiKey
+    // option this client used to offer sent something the server ignored,
+    // and every call came back 401.
     if (this.jwtToken) {
       headers["Authorization"] = `Bearer ${this.jwtToken}`;
-    } else if (this.apiKey) {
-      headers["X-Api-Key"] = this.apiKey;
     }
 
     let lastError: Error | null = null;

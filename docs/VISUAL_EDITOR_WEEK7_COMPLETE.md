@@ -92,7 +92,7 @@ Successfully completed Week 7 (Core Features) of the Visual Editor 30-day implem
 ### 3. Undo/Redo System
 
 **Files Created**:
-- [src/Loco.VisualEditor/src/store/historyStore.ts](../../src/Loco.VisualEditor/src/store/historyStore.ts) (~100 lines)
+- undo/redo state, since folded into [workflowStore.ts](../src/Loco.VisualEditor/src/store/workflowStore.ts) - there is no separate historyStore
 
 **Features**:
 - **50-Level History**: Configurable max history size

@@ -17,7 +17,7 @@
   - `vi.useFakeTimers()` 下で `@testing-library/react` の `waitFor` は永久にハングする(実 setTimeout でポーリングするため)。
     代わりに `act(async () => { await Promise.resolve(); })` で microtask を flush し、インターバル駆動は `vi.advanceTimersByTimeAsync` を使う。
   - jsdom の `Blob` に `.text()` は無い → Blob コンストラクタを `vi.stubGlobal` で差し替えて内容をキャプチャ
-    (`src/utils/exportWorkflow.test.ts` 参照)。
+    (`src/Loco.VisualEditor/src/utils/exportWorkflow.test.ts` 参照)。
   - jest-dom は未導入 → `toBeInTheDocument()` 等は使えない。`toBeTruthy()` / `container.childElementCount` / `queryBy* === null` で書く。
   - zustand ストアはモジュールグローバル → 各テストの `beforeEach` で `useWorkflowStore.setState({...})` により明示リセット。
     render 後のストア変更は `act(() => ...)` で包む。
@@ -35,14 +35,14 @@
 
 **未テスト対象(優先度順)** — 各 1 ファイル = 1 コミット:
 
-1. `src/utils/structuralSharing.ts` — undo/redo 履歴スナップショットの核。参照同一性の保存(無変更なら同じ配列参照を返す)を必ず検証。
-2. `src/utils/formValidation.ts`
-3. `src/utils/environmentVariableValidation.ts`
-4. `src/utils/timeFormatting.ts` / `src/utils/dataFormatting.ts` / `src/utils/logFormatting.ts`(3 つで 1 コミット可)
-5. `src/utils/deferHistorySnapshot.ts`(タイマー系 — fake timers の罠に注意)
-6. `src/utils/autoLayout.ts`(dagre 依存 — 決定的な入出力のみ検証)
-7. `src/hooks/useListFiltering.ts` / `src/hooks/useFormInput.ts` / `src/hooks/useSecretVisibility.ts`(renderHook で)
-8. `src/utils/errorLogger.ts` / `src/utils/logger.ts`
+1. `src/Loco.VisualEditor/src/utils/structuralSharing.ts` — undo/redo 履歴スナップショットの核。参照同一性の保存(無変更なら同じ配列参照を返す)を必ず検証。
+2. `src/Loco.VisualEditor/src/utils/formValidation.ts`
+3. `src/Loco.VisualEditor/src/utils/environmentVariableValidation.ts`
+4. `src/Loco.VisualEditor/src/utils/timeFormatting.ts` / `src/Loco.VisualEditor/src/utils/dataFormatting.ts` / `src/Loco.VisualEditor/src/utils/logFormatting.ts`(3 つで 1 コミット可)
+5. `src/Loco.VisualEditor/src/utils/deferHistorySnapshot.ts`(タイマー系 — fake timers の罠に注意)
+6. `src/Loco.VisualEditor/src/utils/autoLayout.ts`(dagre 依存 — 決定的な入出力のみ検証)
+7. `src/Loco.VisualEditor/src/hooks/useListFiltering.ts` / `src/Loco.VisualEditor/src/hooks/useFormInput.ts` / `src/Loco.VisualEditor/src/hooks/useSecretVisibility.ts`(renderHook で)
+8. `src/Loco.VisualEditor/src/utils/errorLogger.ts` / `src/Loco.VisualEditor/src/utils/logger.ts`
 
 **手順(各ファイル共通)**: 対象を全文読み → 公開 API ごとに正常系 + 境界(空入力/null/重複)+ エラー系 →
 mutation-verification 1 回以上 → 品質ゲート → コミット。既存テストの書き味(describe 構成、コメントで「何を守るテストか」明記)に合わせる。
@@ -70,7 +70,7 @@ mutation-verification 1 回以上 → 品質ゲート → コミット。既存�
   SimpleBackgroundTaskRunner, SimpleNotification, SimpleEmail。
 
 **手順**: 削除前に必ず自分で `grep -rn "<クラス名>" src/ tests/ --include=*.cs` を再実行し「ファイル自身と Practical 内以外ヒットなし」を
-確認してから `git rm`。fully dead → dead island の順で 2 コミット。README / `src/Loco.Core/Practical/INDEX.md` 等の参照文書も同期。
+確認してから `git rm`。fully dead → dead island の順で 2 コミット。README / `src/Loco.Core/Practical/（インデックスは削除済み）` 等の参照文書も同期。
 
 **環境条件**: NuGet 到達可能なら削除後に `dotnet build` で確認(必須)。到達不能サンドボックスなら**削除のみ・新規 .cs コード追加禁止**とし、
 コミット本文に VERIFICATION CAVEAT(ビルド未確認、削除対象の非参照は grep で確認済み)を明記。

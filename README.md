@@ -18,7 +18,13 @@ still in progress.
   passwords) and scope-based authorization; rate limiting and input validation
 - **📊 Workflow engine**: node-graph execution with retry/backoff, error-branch
   routing, and cancellation
-- **🤖 AI steps**: connectors for OpenAI and Anthropic Claude
+- **🔑 Stored credentials**: connections are encrypted at rest (AES-256-GCM,
+  PBKDF2 at 600k iterations) and referenced by ID, so an exported workflow
+  never contains a secret. The editor asks for exactly the fields each
+  connector declares
+- **⏰ Scheduling**: give a trigger node a cron expression and a timezone; the
+  scheduler reconciles against the store, so a schedule takes effect within a
+  minute of saving without a restart
 - **🌐 Client SDKs**: Python and TypeScript/JavaScript clients under `sdks/`
 - **🖥️ CLI**: run workflows from the terminal (`Loco.Cli`)
 
@@ -27,8 +33,9 @@ still in progress.
 This repository is a work in progress. Being honest about the state:
 
 - **Works**: the connector library, the workflow engine, the visual editor
-  frontend (builds clean, 196 passing tests), and the HTTP API's CRUD /
-  execute / validate / auth endpoints.
+  frontend (builds clean, 432 passing tests), the credential store and its
+  UI, the cron scheduler, and the HTTP API's CRUD / execute / validate /
+  connections / connectors / auth endpoints.
 - **In progress / limitations**: finished executions are now persisted to disk
   and survive an API restart, but a run that was still in flight when the process
   stopped is lost rather than resumed; the CLI's default engine currently runs a
@@ -41,9 +48,13 @@ This repository is a work in progress. Being honest about the state:
   stub was removed rather than implemented: workflows are JSON files in a data
   directory, so backing them up is a directory copy, and `loco backup-config`
   already covers configuration.
-- **Dead code removed**: the unreachable `Simple*` pattern library, the
-  `AIPlatform` "engines", and ten compile-excluded `Loco.Api` subsystems have
-  been deleted (~33k lines). Every `<Compile Remove>` is gone from the repo.
+- **Dead code removed**: `Loco.Core` went from 89,000 lines to 34,000. Every
+  file that remains is reachable from something a user can do - the API's
+  controllers and hosted services, the CLI's commands, the tests, or
+  reflection-discovered connectors. `scripts/check-structure.py` enforces
+  that, along with three other properties that each hid a real defect: a
+  consistent package set, tests that only name types which exist, and SDK
+  calls that match the API's routes.
 - **Backend verification status**: much of the backend was written where
   `dotnet restore` is impossible (api.nuget.org refused by proxy policy), so
   those commits carry a VERIFICATION CAVEAT. The sources have since been
@@ -51,12 +62,18 @@ This repository is a work in progress. Being honest about the state:
   `scripts/typecheck-offline.sh` reports no unexplained errors, meaning every
   remaining compiler error is a type that lives in a NuGet package. That covers
   syntax, signatures, overrides and nullability, but **not** call sites typed by
-  packages (ILogger, IHostedService, EF Core, …). A full `dotnet build` in CI
-  remains the only complete check; see `docs/ci/`.
-- The aspirational `docs/PHASE_9`–`PHASE_14` design documents, which described
-  distributed-systems / service-mesh / quantum / zero-knowledge material that was
-  never in the codebase, have been **deleted** along with the unreachable code
-  they described.
+  packages (ILogger, IHostedService, JwtBearer, …). A full `dotnet build` in
+  CI remains the only complete check; see `docs/ci/`. Two things that would
+  have stopped that CI run regardless of the network have since been fixed:
+  `dotnet restore` failed on NU1008 because two projects pinned versions
+  inline, and `Loco.Core.Tests` could not compile because three files named
+  types that do not exist.
+- **Documentation removed**: 35,000 lines across 33 documents that described a
+  codebase which does not exist - PHASE_1 through PHASE_33, an AI framework, a
+  governance engine, "quantum-ready autonomy", reports headed "Complete (7 of 7
+  systems implemented)" whose every cited file was absent. They were deleted
+  with the unreachable code they described. `scripts/check-structure.py` now
+  fails when a document cites a source file that is not there.
 
 ## Required configuration
 
@@ -117,13 +134,18 @@ curl http://localhost:5000/health
 
 # List workflows
 curl http://localhost:5000/api/v1/workflows \
-  -H "X-Api-Key: your-api-key"
+  -H "Authorization: Bearer $TOKEN"
 
 # Execute a workflow
 curl -X POST http://localhost:5000/api/v1/workflows/{workflow-id}/execute \
   -H "Content-Type: application/json" \
-  -H "X-Api-Key: your-api-key" \
-  -d '{"parameters": {}}'
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"input": {}, "dryRun": false}'
+
+# Follow the run. Executions are addressed by their own id, not nested
+# under the workflow.
+curl http://localhost:5000/api/v1/executions/{execution-id} \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ### Python SDK
@@ -131,16 +153,15 @@ curl -X POST http://localhost:5000/api/v1/workflows/{workflow-id}/execute \
 ```python
 from loco_client import LocoClient
 
-client = LocoClient("http://localhost:5000", api_key="your-api-key")
+# The client is an async context manager; it authenticates on first use.
+async with LocoClient("http://localhost:5000", username="admin", password="…") as client:
+    workflows = await client.list_workflows()
 
-# List workflows
-workflows = await client.workflows.list()
+    # `input` becomes the run's initial variables, available to every node
+    run = await client.execute_workflow("workflow-id", input={"param": "value"})
 
-# Execute a workflow
-result = await client.workflows.execute("workflow-id", {"param": "value"})
-
-# Wait for completion
-execution = await client.workflows.wait_for_execution("workflow-id", result.execution_id)
+    # Executions are addressed by their own id
+    result = await client.wait_for_execution(run["executionId"])
 ```
 
 ### TypeScript/JavaScript SDK
@@ -149,30 +170,36 @@ execution = await client.workflows.wait_for_execution("workflow-id", result.exec
 import { LocoClient } from "loco-client";
 
 const client = new LocoClient("http://localhost:5000", {
-  apiKey: "your-api-key"
+  username: "admin",
+  password: "…"
 });
 
 // List workflows
 const workflows = await client.workflows.list();
 
-// Execute a workflow
-const result = await client.workflows.execute("workflow-id", { param: "value" });
+// The second argument is the run's initial variables
+const run = await client.workflows.execute("workflow-id", { param: "value" });
 
-// Wait for completion
-const execution = await client.workflows.waitForExecution("workflow-id", result.execution_id);
+// Executions are addressed by their own id
+const result = await client.workflows.waitForExecution(run.executionId);
 ```
 
 ## Architecture
 
 ### Core Components
 
-- **Loco.Core**: Core workflow engine, rule management, and storage abstractions
-  - **Visual Workflow Engine**: JSON-based workflow builder with 10 templates - [Docs](src/Loco.Core/Workflows/README.md)
-  - **AI Integration**: Multi-provider AI framework (OpenAI, Claude) - [Docs](src/Loco.Core/AI/AIIntegrationFramework.cs)
-  - **Pre-built Integrations**: 15 ready-to-use connectors across 3 phases - [Docs](src/Loco.Core/Integrations/README.md)
-    - Phase 1: HTTP, Database, Email, Slack, GitHub
-    - Phase 2: Discord, Twilio, AWS S3, SendGrid, Telegram
-    - Phase 3: Redis, Google Sheets, Stripe, Webhooks, FTP/SFTP
+- **Loco.Core**: the workflow engine, the connector library, the credential
+  store and the cron scheduler
+  - **Visual Workflow Engine**: executes a node graph, with retry/backoff,
+    error-branch routing and cancellation
+  - **28 connectors**, each declaring the credential fields it reads so the
+    editor can ask for exactly those:
+    - Messaging: Slack, Discord, Teams, Twilio, SendGrid, Email (SMTP)
+    - Developer: GitHub, Jira, Linear, HTTP
+    - Data: PostgreSQL, MySQL, MongoDB, Redis, Airtable, Google Sheets
+    - Storage: AWS S3, Azure Blob Storage
+    - Business: Stripe, Shopify, Salesforce, HubSpot, Zendesk, Intercom,
+      Notion, Trello, Calendly, Zoom
 - **Loco.VisualEditor**: React + TypeScript visual workflow builder - [Docs](src/Loco.VisualEditor/README.md)
   - Drag-and-drop canvas with React Flow
   - 5 node types (Trigger, Action, Condition, Transform, Loop)
@@ -220,14 +247,25 @@ loco/
 - `POST /api/v1/workflows` - Create workflow
 - `PUT /api/v1/workflows/{id}` - Update workflow
 - `DELETE /api/v1/workflows/{id}` - Delete workflow
-- `POST /api/v1/workflows/{id}/execute` - Execute workflow
-- `GET /api/v1/workflows/{id}/executions/{execution-id}` - Get execution status
+- `POST /api/v1/workflows/{id}/execute` - Start a run (`{"input": {}, "dryRun": false}`)
+- `POST /api/v1/workflows/validate` - Validate without saving
+- `GET /api/v1/executions/{execution-id}` - Get a run's status, output and logs
+- `POST /api/v1/executions/{execution-id}/cancel` - Stop a run
+- `GET /api/v1/connectors` - Every connector and the credential fields it declares
+- `GET|POST|PUT|DELETE /api/v1/connections` - Stored credentials (write-only secrets)
+- `POST /api/v1/connections/{id}/test` - Verify a credential, server-side
 
 ### Authentication
 
-- **API Key**: Pass `X-Api-Key` header
-- **JWT Token**: Use `Authorization: Bearer {token}` header
-- **Basic Auth**: POST to `/api/v1/authentication/token` for JWT generation
+- **JWT bearer**: `Authorization: Bearer {token}` on every request
+- **Getting a token**: `POST /api/v1/authentication/token` with
+  `{"username": ..., "password": ...}`. Users are defined in configuration
+  (`Auth:Users`) with PBKDF2-hashed passwords; with none configured the
+  endpoint refuses rather than falling back to accept-all.
+
+There is no API-key scheme. The API registers exactly one authentication
+handler, JwtBearer, and reads no `X-Api-Key` header - so a request carrying
+one is simply unauthenticated.
 
 Full OpenAPI documentation available at `http://localhost:5000/swagger/index.html`
 
@@ -326,19 +364,17 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
 - 📖 [Getting Started Guide](docs/GETTING_STARTED.md) - 15-minute quick start
 - 🏗️ [Architecture](#architecture) - System overview
 - 🎨 [Visual Editor Guide](src/Loco.VisualEditor/README.md) - Drag-and-drop workflow builder
-- 📚 [Workflow Documentation](src/Loco.Core/Workflows/README.md) - 10 templates and engine details
-- 🔌 [Integration Documentation](src/Loco.Core/Integrations/README.md) - 15 production connectors
+- 📚 [Workflow Documentation](src/Loco.Core/Workflows/README.md) - engine details
 - 🚀 [Advanced Scenarios](examples/ADVANCED_SCENARIOS.md) - 4 composite workflows with ROI
+- 🔧 [CI setup](docs/ci/) - the consolidated pipeline, and what still blocks it
 
 ### Migration Guides
 - 🔄 [Coming from Zapier](docs/MIGRATION_GUIDE_ZAPIER.md) - concept comparison (no automated importer yet)
 - 🔄 [Coming from n8n](docs/MIGRATION_GUIDE_N8N.md) - concept comparison (no automated importer yet)
 
 ### Project Documentation
-- 📊 [Project Summary](docs/PROJECT_SUMMARY.md) - Complete implementation overview
 - 🎨 [Visual Editor Design](docs/VISUAL_EDITOR_DESIGN.md) - MVP architecture and 30-day plan
 - 🏆 [Competitive Analysis](docs/COMPETITIVE_ANALYSIS_2025.md) - Market positioning
-- ✅ [Phase 1-5 Completion](IMPLEMENTATION_COMPLETE.md) - Detailed achievements
 
 ## Support
 

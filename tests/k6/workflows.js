@@ -93,47 +93,59 @@ function healthCheck() {
 }
 
 // Scenario 2: Create Workflow
+// A workflow is a node graph. The load test used to send
+// { definition: { steps } }, which WorkflowCreateRequest has no property for,
+// so it created empty workflows - and every execution after it then failed
+// validation rather than exercising the engine.
+//
+// Built from engine built-ins only (trigger, transform, log), so a load run
+// invokes no connector and needs no credentials.
+function sampleWorkflow(id = generateId()) {
+  return {
+    name: `Load-Test-Workflow-${id}`,
+    description: 'Load testing workflow',
+    nodes: [
+      {
+        id: 'n1',
+        type: 'trigger',
+        position: { x: 0, y: 0 },
+        data: { label: 'Start', config: {} },
+      },
+      {
+        id: 'n2',
+        type: 'transform',
+        position: { x: 240, y: 0 },
+        data: { label: 'Shape', config: { json: '{"ok":true}' } },
+      },
+      {
+        id: 'n3',
+        type: 'log',
+        position: { x: 480, y: 0 },
+        data: { label: 'Record', config: { message: 'Workflow executed' } },
+      },
+    ],
+    edges: [
+      { id: 'e1', source: 'n1', target: 'n2' },
+      { id: 'e2', source: 'n2', target: 'n3' },
+    ],
+    metadata: {},
+  };
+}
+
 function createWorkflow() {
   group('Create Workflow', () => {
     const workflowId = generateId();
-    const payload = JSON.stringify({
-      name: `Load-Test-Workflow-${workflowId}`,
-      description: 'Load testing workflow',
-      definition: {
-        version: '1.0',
-        trigger: {
-          type: 'manual',
-        },
-        steps: [
-          {
-            id: 'step-1',
-            name: 'Send Email',
-            action: 'send-email',
-            parameters: {
-              to: 'test@example.com',
-              subject: 'Load Test Notification',
-            },
-          },
-          {
-            id: 'step-2',
-            name: 'Log Event',
-            action: 'log-event',
-            parameters: {
-              level: 'info',
-              message: 'Workflow executed',
-            },
-          },
-        ],
-      },
-    });
+    const payload = JSON.stringify(sampleWorkflow(workflowId));
 
     const res = http.post(`${BASE_URL}/api/v1/workflows`, payload, {
       headers: getAuthHeader(),
     });
 
+    // Responses are enveloped: { success, data }. Reading `id` at the top
+    // level always found undefined, so this check could never pass.
     const success = check(res, {
       'create workflow status is 201': (r) => r.status === 201,
-      'response includes workflow ID': (r) => r.json('id') !== undefined,
+      'response includes workflow ID': (r) => r.json('data.id') !== undefined,
     });
 
     if (success) {
@@ -183,17 +195,25 @@ function executeWorkflow(workflowId) {
   });
 }
 
-// Scenario 4: Get Workflow Metrics
-function getMetrics(workflowId) {
-  group('Get Metrics', () => {
-    const res = http.get(`${BASE_URL}/api/v1/workflows/${workflowId}/metrics`, {
-      headers: getAuthHeader(),
-    });
+// Scenario 4: Validate a workflow without saving or running it
+//
+// This used to GET /api/v1/workflows/{id}/metrics, a route the API has never
+// exposed - so the scenario measured the latency of a 404 and its "status is
+// 200" check failed on every iteration. Validation is the real read-heavy
+// endpoint, and it exercises the mapper and validator without touching a
+// connector.
+function validateWorkflow(workflow) {
+  group('Validate Workflow', () => {
+    const res = http.post(
+      `${BASE_URL}/api/v1/workflows/validate`,
+      JSON.stringify(workflow),
+      { headers: getAuthHeader() }
+    );
 
     check(res, {
-      'get metrics status is 200': (r) => r.status === 200,
-      'metrics include success rate': (r) => r.json('successRate') !== undefined,
-      'metrics response time < 500ms': (r) => r.timings.duration < 500,
+      'validate status is 200': (r) => r.status === 200,
+      'validation reports a verdict': (r) => r.json('data.isValid') !== undefined,
+      'validate response time < 500ms': (r) => r.timings.duration < 500,
     });
 
     apiResponseTime.add(res.timings.duration);
@@ -209,7 +229,8 @@ function listWorkflows() {
 
     check(res, {
       'list workflows status is 200': (r) => r.status === 200,
-      'response includes workflows array': (r) => Array.isArray(r.json('data')),
+      'response includes workflows array': (r) =>
+        Array.isArray(r.json('data.workflows')),
     });
 
     apiResponseTime.add(res.timings.duration);
@@ -312,9 +333,9 @@ export default function () {
   executeWorkflow(workflowId);
   sleep(1);
 
-  // Get metrics
+  // Validate
   if (Math.random() < 0.3) {
-    getMetrics(workflowId);
+    validateWorkflow(sampleWorkflow());
     sleep(1);
   }
 
