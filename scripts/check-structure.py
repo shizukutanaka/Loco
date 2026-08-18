@@ -2,9 +2,9 @@
 """
 Structural checks that need no network, no NuGet restore and no build.
 
-Each of the three checks here was written because it caught a real defect that
-had been sitting in the repository unnoticed - and each of those defects was
-invisible to the compiler, to the tests, and to review:
+Each check here was written because it caught a real defect that had been
+sitting in the repository unnoticed - and each of those defects was invisible
+to the compiler, to the tests, and to review:
 
   packages  Two projects carried an inline Version= on a PackageReference,
             which is NU1008 under central package management. A repo-wide
@@ -21,13 +21,22 @@ invisible to the compiler, to the tests, and to review:
 
   reachable 44,000 lines across 36 namespaces - Billing, OCR, MachineLearning,
             DisasterRecovery, Governance - had no path to them from anything a
-            user can do. Dead code does not announce itself; it accumulates
-            quietly and makes every subsequent search noisier.
+            user can do, and Loco.Cli held a second help system and a
+            duplicate version command that nothing dispatched. Dead code does
+            not announce itself; it accumulates quietly and makes every
+            subsequent search noisier.
 
   sdks      Both client SDKs polled /api/v1/workflows/{id}/executions/{id},
             a route that does not exist - executions are addressed globally.
             Nothing connects an SDK to the controllers, so the two drift in
             silence and the only symptom is a 404 in someone else's program.
+
+  docs      Thirty-three documents described systems this repository has never
+            contained - an AI framework, a governance engine, "quantum-ready
+            autonomy", a report headed "Complete (7 of 7 systems implemented)"
+            whose every cited file was absent. Nothing recompiles a document,
+            so it can outlive its subject indefinitely and still read as
+            authoritative.
 
 Run: python3 scripts/check-structure.py
 Exit: 0 when every check passes, 1 otherwise.
@@ -183,14 +192,21 @@ BCL = {
 
 def check_reachable(sources):
     """
-    Every file in Loco.Core must be reachable from something a user can do.
+    Every file under src/ must be reachable from something a user can do.
 
-    Reachability starts at the real entry points - the API's controllers and
-    hosted services, the CLI's commands, the tests - plus every IConnector,
-    because ConnectorStartupService discovers those by reflection and no
-    static analysis would find them otherwise. Seeding the connectors is not
-    optional: without them all 28 look unreachable, which would make this
-    check demand the deletion of the entire product.
+    Reachability starts at the real entry points and nothing else: each
+    project's Program.cs, the API's controllers and hosted services, the
+    tests, and every IConnector - because ConnectorStartupService discovers
+    those by reflection and no static analysis would find them otherwise.
+
+    Seeding the connectors is not optional. Without them all 28 look
+    unreachable, and this check would demand the deletion of the entire
+    product.
+
+    Entry points must be the seed rather than "everything outside
+    Loco.Core", which is what an earlier version used: that version could
+    not see a second help system and a duplicate version command sitting
+    unwired inside Loco.Cli, because it treated all of Loco.Cli as a root.
 
     This over-approximates - it follows every capitalized identifier, so it
     reports reachable more readily than unreachable. That is the safe
@@ -201,8 +217,14 @@ def check_reachable(sources):
         for typename in DECL.findall(text):
             owner[typename].add(path)
 
-    seeds = [p for p in sources if not p.startswith("src/Loco.Core/")]
-    seeds += [p for p, s in sources.items() if CONNECTOR.search(s)]
+    seeds = [
+        p for p, s in sources.items()
+        if p.endswith("Program.cs")
+        or "/Controllers/" in p
+        or p.startswith("tests/")
+        or CONNECTOR.search(s)
+        or "IHostedService" in s
+    ]
 
     reached = set(seeds)
     queue = list(seeds)
@@ -215,10 +237,15 @@ def check_reachable(sources):
                     queue.append(declaring)
 
     problems = []
-    for path in sorted(p for p in sources if p.startswith("src/Loco.Core/")):
-        if path not in reached:
-            lines = sources[path].count("\n")
-            problems.append(f"{path}: {lines} lines, reachable from no entry point")
+    for path in sorted(p for p in sources if p.startswith("src/")):
+        if path in reached:
+            continue
+        # An attribute-only file (InternalsVisibleTo and friends) is consumed
+        # by the compiler, not referenced by name, so it is never "reached".
+        if path.endswith("AssemblyInfo.cs"):
+            continue
+        lines = sources[path].count("\n")
+        problems.append(f"{path}: {lines} lines, reachable from no entry point")
 
     return problems
 
@@ -362,7 +389,7 @@ def main():
     checks = [
         ("packages", "central package management is consistent", check_packages()),
         ("tests", "every type a test names exists in src", check_test_references(sources)),
-        ("reachable", "every Loco.Core file has a path from an entry point", check_reachable(sources)),
+        ("reachable", "every src file has a path from an entry point", check_reachable(sources)),
         ("sdks", "every API path an SDK calls is a route the API exposes", check_sdks(sources)),
         ("docs", "every source file a document cites exists", check_docs(sources)),
     ]
