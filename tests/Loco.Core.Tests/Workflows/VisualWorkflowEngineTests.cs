@@ -297,7 +297,12 @@ public class VisualWorkflowEngineTests
             },
         };
 
-        var result = new WorkflowValidator().Validate(workflow);
+        // VisualWorkflowValidator, not WorkflowValidator: the class was renamed
+        // to stop it colliding with the identically-named one in
+        // Loco.Core.Workflow (singular), and this call site was missed. It
+        // could not resolve against the plural namespace this file imports, so
+        // it was a third file keeping Loco.Core.Tests from compiling at all.
+        var result = new VisualWorkflowValidator().Validate(workflow);
 
         result.IsValid.Should().BeFalse();
     }
