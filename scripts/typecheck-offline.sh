@@ -20,14 +20,14 @@
 # correctly. That catches the overwhelming majority of "written blind" mistakes -
 # wrong method names, wrong argument counts, missing usings, bad overrides.
 #
-# Does NOT prove: anything about code typed by a genuine NuGet package -
-# System.CommandLine, Swashbuckle, Hangfire, System.IdentityModel.Tokens.Jwt.
-# Mistakes in those call sites still get through. A real `dotnet build` remains
-# the only complete check.
+# Does NOT prove: anything typed by Swashbuckle or the JwtBearer authentication
+# handler - the only two package dependencies with no copy anywhere on disk.
+# That is roughly a dozen call sites; everything else is checked.
 #
-# Note that Microsoft.Extensions.* and Microsoft.AspNetCore.* are NOT in that
-# category: they ship in the shared framework, so ILogger, IHostedService,
-# controllers and DI registrations ARE fully checked here.
+# Microsoft.Extensions.* and Microsoft.AspNetCore.* are NOT missing: they ship in
+# the shared framework, so ILogger, IHostedService, controllers and DI
+# registrations are fully checked. System.IdentityModel.Tokens.Jwt and
+# System.CommandLine are borrowed from the SDK's own tooling below.
 #
 # EXPECTED OUTPUT
 # ---------------
@@ -90,6 +90,20 @@ for dll in "$NREF"/*.dll; do REFS+=("-r:$dll"); done
 if [[ -n "$AREF" ]]; then
   for dll in "$AREF"/*.dll; do REFS+=("-r:$dll"); done
 fi
+
+# Some packages the projects reference are already on disk, shipped inside the
+# SDK's own tooling rather than the reference packs. Borrowing them costs
+# nothing and shrinks the unverifiable surface considerably: without these,
+# every JWT and CLI-parsing call site is invisible to this check.
+for name in System.IdentityModel.Tokens.Jwt System.CommandLine; do
+  found="$(find /usr/lib/dotnet -name "$name.dll" 2>/dev/null | head -1)"
+  [[ -n "$found" ]] || continue
+  REFS+=("-r:$found")
+  # Pull in the sibling assemblies it depends on (e.g. Microsoft.IdentityModel.*).
+  for sibling in "$(dirname "$found")"/Microsoft.IdentityModel.*.dll; do
+    [[ -f "$sibling" ]] && REFS+=("-r:$sibling")
+  done
+done
 
 echo "Type-checking $(wc -l < "$WORK/files.txt") files against net8.0 reference assemblies..."
 
