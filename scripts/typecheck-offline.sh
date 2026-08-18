@@ -20,10 +20,14 @@
 # correctly. That catches the overwhelming majority of "written blind" mistakes -
 # wrong method names, wrong argument counts, missing usings, bad overrides.
 #
-# Does NOT prove: anything about package-typed code. Calls against ILogger,
-# IHostedService, System.CommandLine, EF Core, Hangfire and friends are
-# unresolved here, so a mistake in those call sites still gets through. A real
-# `dotnet build` remains the only complete check.
+# Does NOT prove: anything about code typed by a genuine NuGet package -
+# System.CommandLine, Swashbuckle, Hangfire, System.IdentityModel.Tokens.Jwt.
+# Mistakes in those call sites still get through. A real `dotnet build` remains
+# the only complete check.
+#
+# Note that Microsoft.Extensions.* and Microsoft.AspNetCore.* are NOT in that
+# category: they ship in the shared framework, so ILogger, IHostedService,
+# controllers and DI registrations ARE fully checked here.
 #
 # EXPECTED OUTPUT
 # ---------------
@@ -55,7 +59,9 @@ trap 'rm -rf "$WORK"' EXIT
 
 # The SDK injects these; raw csc does not. Without them every use of DateTime,
 # List<>, CancellationToken and friends reports as an unresolved type, drowning
-# out real findings.
+# out real findings. The Microsoft.Extensions.* entries matter most: omitting
+# them made ILogger and IHostedService look like missing packages, which hid
+# whether the controllers and hosted services actually type-check (they do).
 cat > "$WORK/GlobalUsings.cs" <<'CS'
 global using global::System;
 global using global::System.Collections.Generic;
@@ -64,9 +70,14 @@ global using global::System.Linq;
 global using global::System.Net.Http;
 global using global::System.Threading;
 global using global::System.Threading.Tasks;
+global using global::System.Net.Http.Json;
 global using global::Microsoft.AspNetCore.Builder;
 global using global::Microsoft.AspNetCore.Http;
 global using global::Microsoft.AspNetCore.Routing;
+global using global::Microsoft.Extensions.Configuration;
+global using global::Microsoft.Extensions.DependencyInjection;
+global using global::Microsoft.Extensions.Hosting;
+global using global::Microsoft.Extensions.Logging;
 CS
 
 # Compile all three projects in one pass so cross-project types resolve without
