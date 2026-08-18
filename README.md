@@ -58,6 +58,18 @@ This repository is a work in progress. Being honest about the state:
   never in the codebase, have been **deleted** along with the unreachable code
   they described.
 
+## Required configuration
+
+Two secrets must be supplied before running the API outside Development. Both
+fail fast rather than falling back to something insecure:
+
+| Variable | Why |
+|---|---|
+| `Jwt:SecretKey` (config) | Signs API tokens. A missing key would otherwise mean a per-run random key, invalidating every token on restart. |
+| `LOCO_SECRETS_PASSPHRASE` (env) | Derives the key that encrypts stored connector credentials. Without it, the key is generated into a file **next to** the encrypted data, so anyone who can read the credentials can read the key too. That is acceptable for a single-user CLI on a laptop; it protects nothing on a server. |
+
+In Development both fall back with a loud warning so the app still starts.
+
 ## Quick Start
 
 ### Installation

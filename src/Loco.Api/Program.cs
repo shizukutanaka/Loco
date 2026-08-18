@@ -209,6 +209,27 @@ builder.Services.AddSingleton(sp => new ExecutionRegistry(
 // Stored connector credentials. Secrets are encrypted at rest by SecretsManager;
 // WorkflowsController resolves a workflow's connections and initializes each
 // connector immediately before executing it.
+// Connector credentials are encrypted with a key derived from
+// LOCO_SECRETS_PASSPHRASE. Without it SecretsManager falls back to a key file it
+// generates NEXT TO the encrypted data - fine for a single-user CLI, but on a
+// server it means anyone who can read the secrets can read the key, so the
+// encryption protects nothing. Same rule the JWT signing key already follows:
+// fail fast outside Development, warn loudly inside it.
+if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("LOCO_SECRETS_PASSPHRASE")))
+{
+    if (!builder.Environment.IsDevelopment())
+    {
+        throw new InvalidOperationException(
+            "LOCO_SECRETS_PASSPHRASE is not set. Connector credentials would be encrypted " +
+            "with a key stored alongside them, which provides no protection on a server. " +
+            "Set it to a strong passphrase, sourced from your secret manager.");
+    }
+
+    Console.WriteLine(
+        "WARNING: LOCO_SECRETS_PASSPHRASE is not set; connector credentials will be " +
+        "encrypted with a machine-local key file stored next to them (Development only).");
+}
+
 builder.Services.AddSingleton(_ => new JsonFileConnectionStore(dataDirectory));
 // The one path from "a stored workflow" to "a running execution", shared by the
 // HTTP controller and the scheduler so a scheduled run cannot drift from a
