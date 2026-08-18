@@ -162,6 +162,56 @@ public class WorkflowMapperTests
     };
 
     [Fact]
+    public void ToVisualWorkflow_CarriesCredentialIdToTheEngineNode()
+    {
+        // Without this the field arrived from the editor, fell into
+        // ExtensionData and was dropped before execution - so the connector was
+        // never initialized and every action failed on a null HttpClient.
+        var stored = new StoredWorkflow
+        {
+            Id = "wf-1",
+            Name = "test",
+            Nodes = new List<StoredWorkflowNode>
+            {
+                new()
+                {
+                    Id = "n1",
+                    Type = "action",
+                    Position = new StoredPosition { X = 0, Y = 0 },
+                    Data = new StoredNodeData
+                    {
+                        Label = "Send message",
+                        Integration = "slack",
+                        CredentialId = "conn-1",
+                        Config = new Dictionary<string, JsonElement>
+                        {
+                            ["action"] = Json("\"sendMessage\""),
+                        },
+                    },
+                },
+            },
+            Metadata = new StoredWorkflowMetadata(),
+        };
+
+        var node = WorkflowMapper.ToVisualWorkflow(stored).Nodes[0];
+
+        node.CredentialId.Should().Be("conn-1");
+        // A reference, never a secret: the workflow JSON stays safe to share.
+        node.Parameters.Should().NotContainKey("credentialId");
+    }
+
+    [Fact]
+    public void ToVisualWorkflow_NodeWithoutCredential_LeavesCredentialIdNull()
+    {
+        var stored = StoredWithConfig(new Dictionary<string, JsonElement>
+        {
+            ["action"] = Json("\"log\""),
+        });
+
+        WorkflowMapper.ToVisualWorkflow(stored).Nodes[0].CredentialId.Should().BeNull();
+    }
+
+    [Fact]
     public void ToVisualWorkflow_MapsEdgeConditionAndHandles()
     {
         var stored = new StoredWorkflow
