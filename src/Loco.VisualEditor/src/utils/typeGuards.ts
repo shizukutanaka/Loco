@@ -5,7 +5,13 @@
  * These help narrow types and ensure exhaustiveness checking.
  */
 
-import { ApiResponse, WorkflowExecutionResponse } from '@/api/types';
+import {
+  ApiResponse,
+  ApiError,
+  WorkflowExecutionResponse,
+  ExecutionError,
+  ExecutionLog,
+} from '@/api/types';
 
 /**
  * Type guard to check if ApiResponse indicates success
@@ -19,7 +25,7 @@ export function isApiSuccess<T>(response: ApiResponse<T>): response is { success
  * Type guard to check if ApiResponse indicates failure
  * Narrows type to error variant
  */
-export function isApiError<T>(response: ApiResponse<T>): response is { success: false; error: any; message?: string } {
+export function isApiError<T>(response: ApiResponse<T>): response is { success: false; error: ApiError; message?: string } {
   return response.success === false;
 }
 
@@ -28,7 +34,7 @@ export function isApiError<T>(response: ApiResponse<T>): response is { success: 
  */
 export function isExecutionInProgress(
   execution: WorkflowExecutionResponse
-): execution is { executionId: string; status: 'pending' | 'running'; startedAt: string; logs?: any[] } {
+): execution is { executionId: string; status: 'pending' | 'running'; startedAt: string; logs?: ExecutionLog[] } {
   return execution.status === 'pending' || execution.status === 'running';
 }
 
@@ -37,7 +43,7 @@ export function isExecutionInProgress(
  */
 export function isExecutionCompleted(
   execution: WorkflowExecutionResponse
-): execution is { executionId: string; status: 'completed'; startedAt: string; completedAt: string; output: Record<string, unknown>; logs?: any[] } {
+): execution is { executionId: string; status: 'completed'; startedAt: string; completedAt: string; output: Record<string, unknown>; logs?: ExecutionLog[] } {
   return execution.status === 'completed';
 }
 
@@ -46,7 +52,7 @@ export function isExecutionCompleted(
  */
 export function isExecutionTerminated(
   execution: WorkflowExecutionResponse
-): execution is { executionId: string; status: 'failed' | 'cancelled'; startedAt: string; completedAt: string; error: any; logs?: any[] } {
+): execution is { executionId: string; status: 'failed' | 'cancelled'; startedAt: string; completedAt: string; error: ExecutionError; logs?: ExecutionLog[] } {
   return execution.status === 'failed' || execution.status === 'cancelled';
 }
 
@@ -100,7 +106,7 @@ export function getExecutionOutput(execution: WorkflowExecutionResponse): Record
 /**
  * Safely get execution error if available
  */
-export function getExecutionError(execution: WorkflowExecutionResponse): any | null {
+export function getExecutionError(execution: WorkflowExecutionResponse): ExecutionError | null {
   if (isExecutionTerminated(execution)) {
     return execution.error;
   }

@@ -4,12 +4,36 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
 import { useOptimizedForm } from '../../hooks/useOptimizedForm';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+
+/**
+ * The form instance every step receives. `any` here meant a typo in a field
+ * name - the thing this wizard is entirely made of - type-checked fine.
+ */
+type WizardForm = UseFormReturn<FieldValues>;
+
+/**
+ * react-hook-form's `message` is `string | FieldError | Merge<...>` - for nested
+ * fields it is an OBJECT. Rendering it straight into JSX produced
+ * "[object Object]" rather than the validation text, which `any` hid.
+ */
+function errorText(error: unknown): string | null {
+  if (!error) return null;
+  const message = (error as { message?: unknown }).message;
+  return typeof message === 'string' ? message : null;
+}
+
+/** Review-step values arrive as unknown; render them as text or fall back. */
+function displayValue(value: unknown): string {
+  if (value === null || value === undefined || value === '') return 'N/A';
+  return typeof value === 'string' ? value : String(value);
+}
 import { z } from 'zod';
 
 /**
  * Step 1: Basic Information
  */
-const BasicInfoStep: React.FC<{ form: any }> = ({ form }) => {
+const BasicInfoStep: React.FC<{ form: WizardForm }> = ({ form }) => {
   return (
     <div className="space-y-4">
       <div>
@@ -21,7 +45,7 @@ const BasicInfoStep: React.FC<{ form: any }> = ({ form }) => {
           placeholder="e.g., User Onboarding"
         />
         {form.formState.errors.name && (
-          <span className="text-red-500 text-sm">{form.formState.errors.name.message}</span>
+          <span className="text-red-500 text-sm">{errorText(form.formState.errors.name)}</span>
         )}
       </div>
 
@@ -55,7 +79,7 @@ const BasicInfoStep: React.FC<{ form: any }> = ({ form }) => {
 /**
  * Step 2: Trigger Configuration
  */
-const TriggerStep: React.FC<{ form: any }> = ({ form }) => {
+const TriggerStep: React.FC<{ form: WizardForm }> = ({ form }) => {
   const triggerType = form.watch('triggerType');
 
   return (
@@ -107,7 +131,7 @@ const TriggerStep: React.FC<{ form: any }> = ({ form }) => {
 /**
  * Step 3: Actions Selection
  */
-const ActionsStep: React.FC<{ form: any }> = ({ form }) => {
+const ActionsStep: React.FC<{ form: WizardForm }> = ({ form }) => {
   const availableActions = [
     { id: 'send-email', name: 'Send Email', icon: '📧' },
     { id: 'create-record', name: 'Create Record', icon: '📝' },
@@ -144,7 +168,7 @@ const ActionsStep: React.FC<{ form: any }> = ({ form }) => {
 /**
  * Step 4: Conditions
  */
-const ConditionsStep: React.FC<{ form: any }> = ({ form }) => {
+const ConditionsStep: React.FC<{ form: WizardForm }> = ({ form }) => {
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-600">Add conditions that must be met to run this workflow</p>
@@ -193,7 +217,7 @@ const ConditionsStep: React.FC<{ form: any }> = ({ form }) => {
 /**
  * Step 5: Error Handling
  */
-const ErrorHandlingStep: React.FC<{ form: any }> = ({ form }) => {
+const ErrorHandlingStep: React.FC<{ form: WizardForm }> = ({ form }) => {
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-600">Configure how errors should be handled</p>
@@ -242,7 +266,7 @@ const ErrorHandlingStep: React.FC<{ form: any }> = ({ form }) => {
 /**
  * Step 6: Review & Deploy
  */
-const ReviewStep: React.FC<{ form: any; data?: any }> = ({ form, data }) => {
+const ReviewStep: React.FC<{ form: WizardForm; data?: Record<string, unknown> }> = ({ form, data }) => {
   return (
     <div className="space-y-4">
       <h3 className="font-semibold">Workflow Summary</h3>
@@ -250,20 +274,25 @@ const ReviewStep: React.FC<{ form: any; data?: any }> = ({ form, data }) => {
       <div className="bg-gray-50 rounded-lg p-4 space-y-3">
         <div>
           <p className="text-sm text-gray-600">Name</p>
-          <p className="font-medium">{data?.name || 'N/A'}</p>
+          <p className="font-medium">{displayValue(data?.name)}</p>
         </div>
 
         <div>
           <p className="text-sm text-gray-600">Trigger Type</p>
-          <p className="font-medium capitalize">{data?.triggerType || 'N/A'}</p>
+          <p className="font-medium capitalize">{displayValue(data?.triggerType)}</p>
         </div>
 
         <div>
           <p className="text-sm text-gray-600">Actions</p>
           <div className="flex flex-wrap gap-2 mt-1">
-            {data?.actions?.map((action: string) => (
-              <span key={action} className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
-                {action}
+            {/* data.actions is unknown until narrowed; a non-array would have
+                thrown on .map at render time. */}
+            {(Array.isArray(data?.actions) ? data.actions : []).map((action) => (
+              <span
+                key={String(action)}
+                className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs"
+              >
+                {displayValue(action)}
               </span>
             ))}
           </div>
@@ -271,7 +300,7 @@ const ReviewStep: React.FC<{ form: any; data?: any }> = ({ form, data }) => {
 
         <div>
           <p className="text-sm text-gray-600">Error Handling</p>
-          <p className="font-medium capitalize">{data?.errorHandling || 'N/A'}</p>
+          <p className="font-medium capitalize">{displayValue(data?.errorHandling)}</p>
         </div>
       </div>
 

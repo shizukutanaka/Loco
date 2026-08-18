@@ -109,7 +109,8 @@ export interface ActionParameter {
   type: ParameterType;
   required: boolean;
   description: string;
-  defaultValue?: any;
+  /** Passed through to the form, never operated on here - unknown is enough. */
+  defaultValue?: unknown;
   options?: ParameterOption[];
 }
 

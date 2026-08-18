@@ -16,7 +16,9 @@ import { Node, Edge } from 'reactflow';
 // ============================================================================
 
 export interface SimulationData {
-  [key: string]: any;
+  // Mock payloads are produced here and rendered, never computed on, so callers
+  // narrowing at the point of use is the correct contract.
+  [key: string]: unknown;
 }
 
 export type ExecutionResult = 'success' | 'error' | 'skipped' | 'running';
@@ -68,7 +70,7 @@ export interface SimulationResult {
  */
 function generateMockData(
   nodeType: string,
-  config: Record<string, any> = {}
+  config: Record<string, unknown> = {}
 ): SimulationData {
   switch (nodeType) {
     case 'trigger':
