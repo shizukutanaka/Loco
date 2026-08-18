@@ -28,31 +28,23 @@
     <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
+  <!--
+    Every package here is one the code actually uses. Eight were removed once
+    the namespaces that referenced them were deleted: EntityFrameworkCore and
+    its SqlServer and Sqlite providers, Microsoft.Data.Sqlite, System.Management,
+    System.ServiceProcess.ServiceController, Microsoft.AspNetCore.Http, and
+    System.Diagnostics.DiagnosticSource. Grpc.Tools went with the .proto it
+    compiled, which generated server stubs nothing implemented or mapped.
+
+    An unused dependency is not free: it is restored, resolved, audited and
+    shipped, and it is the thing most likely to break a build for a reason that
+    has nothing to do with the product. Loco stores its data in JSON files - it
+    has never opened a database.
+  -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Http" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
-    <PackageReference Include="System.Diagnostics.DiagnosticSource" />
     <PackageReference Include="System.Text.Json" />
-    <PackageReference Include="Microsoft.Data.Sqlite" />
-    <PackageReference Include="System.Management" />
-    <PackageReference Include="System.ServiceProcess.ServiceController" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
-    <!-- Dapper for optimized read operations (Phase 2) -->
-    <!-- gRPC Support -->
-    <PackageReference Include="Grpc.Tools" PrivateAssets="All" />
   </ItemGroup>
-
-  <ItemGroup>
-    <Protobuf Include="Grpc\workflow.proto" GrpcServices="Server" />
-  </ItemGroup>
-
-  <!-- NOTE: All excluded code has been removed from the repository -->
-  <!-- Dead code cleanup completed - see git history for details -->
-  <!-- Target: Production-ready codebase without unused/incomplete features -->
-
-
 
 </Project>

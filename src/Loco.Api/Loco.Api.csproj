@@ -33,19 +33,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!--
-      Excluded-from-build inventory. These files reference namespaces/types
-      deleted in the bb7147f cleanup (Loco.Core.DataAccess, .Execution, .Health,
-      .Bpmn, .ErrorHandling, generated gRPC types), depend on packages this
-      project no longer takes (Serilog, Grpc), or are unwired "pattern gallery"
-      sample code with no callers. SchedulingController has a typo'd attribute
-      ([ProduceResponseType]) and has never compiled. They are excluded rather
-      than deleted so reviewers can inspect and delete them deliberately;
-      none of them are part of the shipped API surface.
-    -->
-  </ItemGroup>
-
-  <ItemGroup>
     <!-- WorkflowSchedulerService.ReadSchedule decides whether a workflow is
          scheduled at all, and a wrong answer is silent - the workflow just never
          fires. Exposed to the test project rather than left untestable. -->

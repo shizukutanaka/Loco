@@ -3,9 +3,25 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
+
+  <!--
+    Every entry here is referenced by a project. Fifteen were removed once the
+    code that would have used them was deleted: EntityFrameworkCore and its
+    SqlServer/Sqlite providers, Microsoft.Data.Sqlite and System.Data.SQLite.Core
+    (Loco has never opened a database - it stores JSON files),
+    System.Diagnostics.DiagnosticSource, System.Management,
+    System.ServiceProcess.ServiceController, Microsoft.AspNetCore.Http,
+    Microsoft.AspNetCore.OpenApi (Swashbuckle does this job), the two
+    AspNetCore.HealthChecks packages and the two Mvc.Versioning packages (never
+    referenced by any project - health checks come from the shared framework),
+    and Microsoft.SourceLink.GitHub.
+
+    A version declared for a package nobody references is not inert: it pins the
+    package transitively, so it still shapes what restore resolves - while
+    reading as a dependency the product has.
+  -->
   <ItemGroup>
-    <!-- Microsoft Extensions - Upgraded to 9.0 for latest features and security -->
-    <PackageVersion Include="Microsoft.AspNetCore.Http" Version="2.3.0" />
+    <!-- Microsoft Extensions -->
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.CommandLine" Version="9.0.10" />
@@ -18,28 +34,21 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="9.0.10" />
-    <!-- Data Access -->
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="9.0.10" />
-    <PackageVersion Include="System.Data.SQLite.Core" Version="1.0.119" />
-    <PackageVersion Include="System.Diagnostics.DiagnosticSource" Version="9.0.10" />
-    <!-- System Libraries - System.IO.Compression uses framework version, others upgraded to 9.0.10 -->
-    <PackageVersion Include="System.Management" Version="9.0.10" />
-    <PackageVersion Include="System.ServiceProcess.ServiceController" Version="9.0.10" />
-    <PackageVersion Include="System.Text.Json" Version="9.0.10" />
+
     <!-- Serialization -->
-    <!-- Command Line - Stable beta4 version is most recent stable release -->
+    <PackageVersion Include="System.Text.Json" Version="9.0.10" />
+
+    <!-- Command line. beta4 is the most recent stable release. -->
     <PackageVersion Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
     <PackageVersion Include="System.CommandLine.Hosting" Version="0.4.0-alpha.22272.1" />
-    <!-- ASP.NET Core - Using .NET 8 compatible versions -->
-    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="8.0.21" />
+
+    <!-- ASP.NET Core. Rate limiting, health checks, ProblemDetails and JSON all
+         come from the .NET 8 shared framework and need no package. -->
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.21" />
     <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.2.1" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.21" />
     <PackageVersion Include="Swashbuckle.AspNetCore" Version="7.2.0" />
-    <PackageVersion Include="AspNetCore.HealthChecks.UI" Version="8.0.2" />
-    <PackageVersion Include="AspNetCore.HealthChecks.System" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Versioning" Version="5.1.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Versioning.ApiExplorer" Version="5.1.0" />
+
     <!-- Testing -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
@@ -47,12 +56,11 @@
     <PackageVersion Include="FluentAssertions" Version="8.8.0" />
     <PackageVersion Include="Moq" Version="4.20.72" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
-    <!-- Source Link -->
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
-    <!-- Entity Framework -->
-    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
-    <!-- Dapper -->
+
+    <!-- Benchmarks. benchmarks/Loco.Benchmarks is outside Loco.sln by design,
+         but this file governs every project in the repo: its version lived
+         inline on the PackageReference, which is NU1008 under central
+         management and failed any repo-wide restore. -->
+    <PackageVersion Include="BenchmarkDotNet" Version="0.13.12" />
   </ItemGroup>
 </Project>
