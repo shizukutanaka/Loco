@@ -18,27 +18,40 @@ namespace Loco.Api.Controllers;
 public class ExecutionsController : ControllerBase
 {
     private readonly ExecutionRegistry _executions;
+    private readonly JsonFileExecutionStore _history;
     private readonly ILogger<ExecutionsController> _logger;
 
-    public ExecutionsController(ExecutionRegistry executions, ILogger<ExecutionsController> logger)
+    public ExecutionsController(
+        ExecutionRegistry executions,
+        JsonFileExecutionStore history,
+        ILogger<ExecutionsController> logger)
     {
         _executions = executions;
+        _history = history;
         _logger = logger;
     }
 
     /// <summary>Get the current status of an execution (poll target).</summary>
     [HttpGet("{executionId}")]
     [Authorize(Policy = "CanViewWorkflows")]
-    public IActionResult GetExecution(string executionId)
+    public async Task<IActionResult> GetExecution(string executionId, CancellationToken cancellationToken)
     {
         var entry = _executions.Get(executionId);
-        if (entry is null)
+        if (entry is not null)
         {
-            return NotFound(Envelope.Fail("NOT_FOUND",
-                $"Execution '{executionId}' was not found (execution history does not survive a server restart)"));
+            return Ok(Envelope.Ok(ExecutionResponseFactory.Create(entry)));
         }
 
-        return Ok(Envelope.Ok(ExecutionResponseFactory.Create(entry)));
+        // Not in memory: either evicted, or this process did not run it. Finished
+        // executions are persisted, so history answers both cases and renders
+        // identically to a live one.
+        var persisted = await _history.GetAsync(executionId, cancellationToken);
+        if (persisted is not null)
+        {
+            return Ok(Envelope.Ok(ExecutionResponseFactory.Create(persisted)));
+        }
+
+        return NotFound(Envelope.Fail("NOT_FOUND", $"Execution '{executionId}' was not found"));
     }
 
     /// <summary>Request cancellation of a running execution (idempotent).</summary>

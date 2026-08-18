@@ -13,11 +13,21 @@ namespace Loco.Api.Execution;
 /// </summary>
 public static class ExecutionResponseFactory
 {
-    public static object Create(ExecutionRegistry.Entry entry)
+    public static object Create(ExecutionRegistry.Entry entry) =>
+        Create(entry.ExecutionId, entry.StartedAt, entry.Context);
+
+    /// <summary>
+    /// Same rendering from a persisted record, so an execution served from
+    /// history after a restart is indistinguishable from a live one.
+    /// </summary>
+    public static object Create(PersistedExecution execution) =>
+        Create(execution.ExecutionId, execution.StartedAt, execution.Context);
+
+    private static object Create(
+        string executionId, DateTime startedAtUtc, WorkflowExecutionContext context)
     {
-        var context = entry.Context;
         var status = ToFrontendStatus(context.Status);
-        var startedAt = entry.StartedAt.ToString("O");
+        var startedAt = startedAtUtc.ToString("O");
         var logs = context.ExecutionLog
             .Select(line => new { timestamp = startedAt, level = "info", message = line })
             .ToList();
@@ -33,7 +43,7 @@ public static class ExecutionResponseFactory
 
                 return new
                 {
-                    executionId = entry.ExecutionId,
+                    executionId,
                     status,
                     startedAt,
                     completedAt = (context.EndTime ?? DateTime.UtcNow).ToString("O"),
@@ -48,7 +58,7 @@ public static class ExecutionResponseFactory
                 var failedNode = context.NodeResults.Values.FirstOrDefault(r => !r.Success);
                 return new
                 {
-                    executionId = entry.ExecutionId,
+                    executionId,
                     status,
                     startedAt,
                     completedAt = (context.EndTime ?? DateTime.UtcNow).ToString("O"),
@@ -64,7 +74,7 @@ public static class ExecutionResponseFactory
             default:
                 return new
                 {
-                    executionId = entry.ExecutionId,
+                    executionId,
                     status,
                     startedAt,
                     logs,

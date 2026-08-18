@@ -200,7 +200,12 @@ builder.Services.AddSingleton<WorkflowConnectorBridge>(sp => new WorkflowConnect
 builder.Services.AddSingleton<IWorkflowStore>(sp => new JsonFileWorkflowStore(
     dataDirectory,
     sp.GetRequiredService<ILogger<JsonFileWorkflowStore>>()));
-builder.Services.AddSingleton<ExecutionRegistry>();
+// Execution history survives restarts and eviction; without it a client
+// polling across a deploy got a 404 for a run that had actually succeeded.
+builder.Services.AddSingleton(sp => new JsonFileExecutionStore(
+    dataDirectory, sp.GetRequiredService<ILogger<JsonFileExecutionStore>>()));
+builder.Services.AddSingleton(sp => new ExecutionRegistry(
+    sp.GetRequiredService<JsonFileExecutionStore>()));
 // Stored connector credentials. Secrets are encrypted at rest by SecretsManager;
 // WorkflowsController resolves a workflow's connections and initializes each
 // connector immediately before executing it.

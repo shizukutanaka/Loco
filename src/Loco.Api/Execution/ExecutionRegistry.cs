@@ -25,6 +25,14 @@ public sealed class ExecutionRegistry
         Task Completion);
 
     private readonly ConcurrentDictionary<string, Entry> _executions = new();
+    private readonly JsonFileExecutionStore? _store;
+
+    /// <summary>
+    /// <paramref name="store"/> keeps finished executions across restarts and
+    /// past eviction. Optional so tests can construct a registry without a
+    /// filesystem.
+    /// </summary>
+    public ExecutionRegistry(JsonFileExecutionStore? store = null) => _store = store;
 
     // Bound memory: keep at most this many finished executions, evicting oldest.
     private const int MaxRetained = 500;
@@ -33,6 +41,17 @@ public sealed class ExecutionRegistry
     {
         _executions[entry.ExecutionId] = entry;
         EvictIfNeeded();
+
+        if (_store is null) return;
+
+        // Persist once the run finishes. Continuation rather than await: Register
+        // is called on the request path and must not block on the execution.
+        _ = entry.Completion.ContinueWith(
+            _ => _store.SaveAsync(new PersistedExecution(
+                entry.ExecutionId, entry.WorkflowId, entry.StartedAt, entry.Context)),
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
 
     public Entry? Get(string executionId) =>
