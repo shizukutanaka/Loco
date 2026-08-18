@@ -122,11 +122,14 @@ dotnet "$CSC" -nologo -nostdlib -langversion:12 -nullable:enable \
 total=$(grep -c 'error CS' "$WORK/errors.txt" || true)
 
 # CS0246/CS0234: type or namespace not found - i.e. it lives in a NuGet package.
-# CS0534 on LocoJsonContext: the System.Text.Json source generator produces the
-# missing partial during a real build.
+#
+# There used to be a second exemption here, for the CS0534 pair on
+# LocoJsonContext that the System.Text.Json source generator would have filled
+# in during a real build. That class was deleted with the unreachable code it
+# served, so every remaining error is now a plain missing package: JwtBearer and
+# OpenApi in Loco.Api, System.CommandLine's Command in Loco.Cli.
 unexplained=$(grep 'error CS' "$WORK/errors.txt" \
-  | grep -vE 'error (CS0246|CS0234)' \
-  | grep -v 'LocoJsonContext' || true)
+  | grep -vE 'error (CS0246|CS0234)' || true)
 
 echo
 echo "Total compiler errors:      $total"
@@ -139,5 +142,5 @@ if [[ -n "$unexplained" ]]; then
   exit 1
 fi
 
-echo "No unexplained errors: every failure is a missing NuGet type or a"
-echo "source-generated partial. The sources are otherwise type-correct."
+echo "No unexplained errors: every failure is a type from a package that could"
+echo "not be restored. The sources are otherwise type-correct."
