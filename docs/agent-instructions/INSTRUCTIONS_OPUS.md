@@ -112,6 +112,32 @@ webhook URL に curl で POST すると実行される。
 > スケジュールを持たせるのが標準([Temporal Schedules](https://temporal.io/product))。
 > 上記 3.(最終発火時刻の永続化)はその最小版にあたる。
 
+## Task O-8: コネクタインスタンスを資格情報ごとに分離する
+
+**背景**: `ConnectorRegistry.GetConnector` は connectorId ごとに**インスタンスを1つ
+キャッシュ**する(`_instances.GetOrAdd`)。`InitializeAsync` は設定を置き換えるため、
+1 つのワークフローが同じコネクタを**異なる接続**で使うと、後勝ちで全ノードが同じ
+資格情報で実行される — 間違った宛先に送信し、実行ログ上は成功に見える。
+
+現状は `WorkflowExecutionService.ConfigureConnectorsAsync` が**実行前に拒否**する
+(コネクタ名と衝突する接続を明示)。近似せず限界を報告する暫定対応であり、
+`ConnectorCredentialConflictTests` が規則を固定している。
+
+**本来の修正**:
+1. `ConnectorRegistry` のインスタンスキャッシュを `(connectorId, credentialId)` で
+   キーイングする。credentialId 無し(組み込み・資格情報不要)は従来どおり単一。
+2. `WorkflowConnectorBridge` のハンドラ登録キー `"{connectorId}:{actionId}"` は
+   ノードの Integration/Action から引かれるため**変更できない**。代わりにハンドラ内で
+   `node.CredentialId` を見て該当インスタンスを選ぶ。
+3. 同時実行の考慮: インスタンスを共有しなくなるので `InitializeAsync` の競合は消えるが、
+   インスタンス数が (コネクタ×接続) に増える。`HttpClient` は `IHttpClientFactory`
+   経由なので (`65e1094`) ソケット枯渇は起きないはずだが、実機で確認すること。
+4. 完了したら `ConfigureConnectorsAsync` の衝突ガードと、それを固定している
+   4 テストを削除する。
+
+**受け入れ条件**: 2 つの異なる Slack 接続を使うワークフローが、**両方とも正しい
+ワークスペース**に送信する。
+
 ## Task O-2: 実行履歴のファイル永続化
 
 **背景**: `src/Loco.Api/Execution/ExecutionRegistry.cs` はインメモリ(完了 500 件上限・最古 evict)。API 再起動で全実行履歴が消える。
