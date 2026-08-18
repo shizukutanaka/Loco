@@ -1,0 +1,77 @@
+name: CI
+
+# Consolidated pipeline, intended to REPLACE the seven workflows currently in
+# .github/workflows (build, ci, ci-cd, code-quality, enhanced-ci-cd, release,
+# test - 1,023 lines). Six of those fire on the same push, and all seven are
+# .NET-only, so the 400 frontend tests - the only verified part of this product
+# - are never run by CI at all.
+#
+# HOW TO APPLY (this could not be committed automatically; see docs/ci/README.md):
+#   git rm .github/workflows/{build,ci-cd,code-quality,enhanced-ci-cd,release,test}.yml
+#   cp docs/ci/ci.yml .github/workflows/ci.yml
+#   git add .github/workflows && git commit && git push
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# A new push supersedes an in-flight run of the same branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The frontend is fully verifiable and must stay green. It does not depend on
+  # the backend, so it runs regardless of whether the .NET side compiles.
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/Loco.VisualEditor
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: src/Loco.VisualEditor/package-lock.json
+
+      - run: npm ci
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npx vitest run
+
+      - name: Build
+        run: npm run build
+
+      # Currently 0 errors / ~102 warnings. Failing on errors only, so the gate
+      # is meaningful today; switch to `lint:strict` once the warnings are gone.
+      - name: Lint
+        run: npm run lint
+
+  # The backend has never been compiled: it was written in an environment with
+  # no NuGet access, and every affected commit says so. This job exists to end
+  # that - the first green run is what retires the VERIFICATION CAVEAT notes.
+  # It is expected to fail until those compile errors are fixed.
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore Loco.sln
+
+      - name: Build
+        run: dotnet build Loco.sln --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test Loco.sln --no-build --configuration Release --verbosity normal
