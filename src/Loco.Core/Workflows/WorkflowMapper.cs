@@ -79,6 +79,7 @@ public static class WorkflowMapper
                 Type = node.Type,
                 Integration = node.Data.Integration ?? "",
                 Action = action,
+                CredentialId = node.Data.CredentialId,
                 Parameters = parameters,
                 Position = new NodePosition
                 {

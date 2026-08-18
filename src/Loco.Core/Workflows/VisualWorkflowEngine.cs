@@ -40,6 +40,13 @@ public class WorkflowNode
     public bool Disabled { get; set; } = false;
     public string Notes { get; set; } = "";
     public RetryConfig? RetryConfig { get; set; }
+
+    /// <summary>
+    /// Id of the connection supplying this node's credentials. The engine never
+    /// reads it - the caller resolves it and initializes the connector before
+    /// execution - but it must survive mapping so the caller can find it.
+    /// </summary>
+    public string? CredentialId { get; set; }
 }
 
 public class NodePosition

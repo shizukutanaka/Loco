@@ -201,6 +201,10 @@ builder.Services.AddSingleton<IWorkflowStore>(sp => new JsonFileWorkflowStore(
     dataDirectory,
     sp.GetRequiredService<ILogger<JsonFileWorkflowStore>>()));
 builder.Services.AddSingleton<ExecutionRegistry>();
+// Stored connector credentials. Secrets are encrypted at rest by SecretsManager;
+// WorkflowsController resolves a workflow's connections and initializes each
+// connector immediately before executing it.
+builder.Services.AddSingleton(_ => new JsonFileConnectionStore(dataDirectory));
 builder.Services.AddHostedService<ConnectorStartupService>();
 
 var app = builder.Build();

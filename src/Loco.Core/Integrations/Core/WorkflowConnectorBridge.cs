@@ -37,6 +37,38 @@ public sealed class WorkflowConnectorBridge : IDisposable
     }
 
     /// <summary>
+    /// Configure a connector's credentials AND initialize it now.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ConfigureConnector"/> only records the configuration; it takes
+    /// effect solely if <see cref="RegisterConnectorAsync"/> runs afterwards.
+    /// Connectors are registered once at startup, before any credential exists,
+    /// so configuring one later had no effect and the connector kept executing
+    /// uninitialized - the reason every connector action failed on a null
+    /// HttpClient.
+    ///
+    /// Callers resolving credentials per execution use this instead. Repeated
+    /// calls are expected (each run re-applies its workflow's connections);
+    /// InitializeAsync implementations dispose any previous HttpClient before
+    /// replacing it, so re-initializing does not leak.
+    /// </remarks>
+    public async Task ConfigureConnectorAsync(
+        string connectorId, ConnectorConfiguration config, CancellationToken ct = default)
+    {
+        _connectorConfigs[connectorId] = config;
+
+        var connector = _registry.GetConnector(connectorId);
+        if (connector is null)
+        {
+            // Not every node is connector-backed (transform/condition/delay/loop
+            // are engine built-ins), so an unknown id is not an error here.
+            return;
+        }
+
+        await connector.InitializeAsync(config, ct);
+    }
+
+    /// <summary>
     /// Register all connectors with the workflow engine
     /// Automatically creates handlers for each connector action
     /// </summary>

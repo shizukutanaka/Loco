@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Loco.Api.Contracts;
 using Loco.Api.Execution;
+using Loco.Core.Integrations.Core;
 using Loco.Core.Interfaces;
+using Loco.Core.Storage;
 using Loco.Core.Workflows;
 using VisualValidator = Loco.Core.Workflows.WorkflowValidator;
 
@@ -28,17 +30,23 @@ public class WorkflowsController : ControllerBase
     private readonly IWorkflowStore _store;
     private readonly VisualWorkflowEngine _engine;
     private readonly ExecutionRegistry _executions;
+    private readonly JsonFileConnectionStore _connections;
+    private readonly WorkflowConnectorBridge _bridge;
     private readonly ILogger<WorkflowsController> _logger;
 
     public WorkflowsController(
         IWorkflowStore store,
         VisualWorkflowEngine engine,
         ExecutionRegistry executions,
+        JsonFileConnectionStore connections,
+        WorkflowConnectorBridge bridge,
         ILogger<WorkflowsController> logger)
     {
         _store = store;
         _engine = engine;
         _executions = executions;
+        _connections = connections;
+        _bridge = bridge;
         _logger = logger;
     }
 
@@ -210,6 +218,42 @@ public class WorkflowsController : ControllerBase
                     },
                 },
             }));
+        }
+
+        // Initialize every connector this workflow uses with its stored
+        // credentials BEFORE execution starts.
+        //
+        // This is the step that was missing entirely: WorkflowConnectorBridge.
+        // ConfigureConnector had no caller anywhere in the codebase, so connectors
+        // were registered as node handlers but never initialized - all 28 of them
+        // failed at execution with a null HttpClient. A node referencing a
+        // connection that no longer exists is reported here rather than failing
+        // opaquely mid-run.
+        var missingCredentials = new List<string>();
+
+        foreach (var group in visual.Nodes
+                     .Where(n => !string.IsNullOrEmpty(n.CredentialId) && !string.IsNullOrEmpty(n.Integration))
+                     .GroupBy(n => (n.Integration, n.CredentialId!)))
+        {
+            var (integration, credentialId) = group.Key;
+            var config = await _connections.BuildConfigurationAsync(credentialId, cancellationToken);
+
+            if (config is null)
+            {
+                missingCredentials.Add(
+                    $"node '{group.First().Name}' references connection '{credentialId}', which does not exist");
+                continue;
+            }
+
+            await _bridge.ConfigureConnectorAsync(integration, config, cancellationToken);
+        }
+
+        if (missingCredentials.Count > 0)
+        {
+            return BadRequest(Envelope.Fail(
+                "MISSING_CREDENTIALS",
+                "One or more nodes reference a connection that is not available",
+                new Dictionary<string, object> { ["errors"] = missingCredentials }));
         }
 
         var initialVariables = request?.Input?

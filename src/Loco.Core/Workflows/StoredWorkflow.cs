@@ -68,6 +68,18 @@ public class StoredNodeData
     /// </summary>
     public Dictionary<string, JsonElement> Config { get; set; } = new();
 
+    /// <summary>
+    /// Id of the stored connection supplying this node's credentials (frontend:
+    /// NodeData.credentialId). A reference, never a secret, so an exported
+    /// workflow is safe to share and a credential can be rotated without editing
+    /// the workflow.
+    ///
+    /// Without this property the field arrived from the editor, fell into
+    /// ExtensionData and was dropped before execution, leaving the connector
+    /// uninitialized.
+    /// </summary>
+    public string? CredentialId { get; set; }
+
     public string? Description { get; set; }
 
     [JsonExtensionData]
