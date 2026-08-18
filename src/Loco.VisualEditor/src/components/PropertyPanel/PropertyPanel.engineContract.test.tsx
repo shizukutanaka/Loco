@@ -1,7 +1,30 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PropertyPanel } from './PropertyPanel';
 import { useWorkflowStore } from '@/store/workflowStore';
+
+// The credential selector loads connections from the API. Stub it so these are
+// unit tests of the panel rather than of the network, and so the <select> has
+// real options - firing a change to a value with no matching option is a no-op.
+vi.mock('@/api/connections', () => ({
+  listConnections: vi.fn(async () => ({
+    success: true as const,
+    data: {
+      connections: [
+        {
+          id: 'conn-1',
+          connectorId: 'slack',
+          name: 'Acme workspace',
+          configuredFields: ['botToken'],
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 50,
+    },
+  })),
+}));
 
 /**
  * Pins the PropertyPanel's built-in node configuration to the parameter names
@@ -142,6 +165,127 @@ describe('PropertyPanel <-> engine parameter contract', () => {
       expect(screen.getByText(/not valid json/i)).toBeTruthy();
       // Invalid values must not reach the store
       expect(configOf().json).toBeUndefined();
+    });
+  });
+});
+
+/**
+ * The user-facing halves of the credential (O-6) and trigger (O-7) work.
+ * Both engine sides exist; until these inputs did, neither was reachable from
+ * the editor.
+ */
+describe('PropertyPanel credential and schedule configuration', () => {
+  beforeEach(() => {
+    useWorkflowStore.setState({ nodes: [], edges: [], selectedNodeId: null, selectedEdgeId: null });
+  });
+
+  describe('trigger node scheduling', () => {
+    beforeEach(() => selectNode('trigger'));
+
+    it('exposes a cron field, which did not exist before', () => {
+      render(<PropertyPanel />);
+      expect(screen.getByLabelText(/schedule \(cron\)/i)).toBeTruthy();
+    });
+
+    it('writes config.cron, the key WorkflowSchedulerService reads', () => {
+      render(<PropertyPanel />);
+      fireEvent.change(screen.getByLabelText(/schedule \(cron\)/i), {
+        target: { value: '0 9 * * 1-5' },
+      });
+      expect(configOf().cron).toBe('0 9 * * 1-5');
+    });
+
+    it('rejects a malformed expression instead of letting the scheduler skip it silently', () => {
+      render(<PropertyPanel />);
+      const input = screen.getByLabelText(/schedule \(cron\)/i);
+
+      fireEvent.change(input, { target: { value: '0 9 * *' } }); // 4 fields
+      expect(screen.getByText(/expected 5 fields/i)).toBeTruthy();
+      expect(configOf().cron).toBeUndefined();
+    });
+
+    it('only asks for a timezone once a schedule is set', () => {
+      render(<PropertyPanel />);
+      expect(screen.queryByLabelText(/timezone/i)).toBeNull();
+
+      fireEvent.change(screen.getByLabelText(/schedule \(cron\)/i), {
+        target: { value: '0 0 * * *' },
+      });
+      expect(screen.getByLabelText(/timezone/i)).toBeTruthy();
+    });
+  });
+
+  describe('connector node credentials', () => {
+    const selectConnectorNode = (integration: string) => {
+      useWorkflowStore.setState({
+        nodes: [
+          {
+            id: 'n1',
+            type: 'action',
+            position: { x: 0, y: 0 },
+            data: { type: 'action', label: 'Node', integration, config: {} },
+          },
+        ],
+        edges: [],
+        selectedNodeId: 'n1',
+        selectedEdgeId: null,
+      });
+    };
+
+    it('offers a connection selector for a connector-backed node', () => {
+      selectConnectorNode('slack');
+      render(<PropertyPanel />);
+      expect(screen.getByLabelText(/connection/i)).toBeTruthy();
+    });
+
+    it('does not ask an engine built-in for credentials', () => {
+      // 'variable' runs in-process and calls nothing external.
+      selectConnectorNode('variable');
+      render(<PropertyPanel />);
+      expect(screen.queryByLabelText(/connection/i)).toBeNull();
+    });
+
+    it('stores the connection id on the node, never a secret', async () => {
+      selectConnectorNode('slack');
+      render(<PropertyPanel />);
+
+      const select = await waitFor(() => {
+        const el = screen.getByLabelText(/connection/i) as HTMLSelectElement;
+        // Wait for the loaded option to exist; a change to an absent value is a no-op.
+        expect(Array.from(el.options).some((o) => o.value === 'conn-1')).toBe(true);
+        return el;
+      });
+
+      fireEvent.change(select, { target: { value: 'conn-1' } });
+
+      const node = useWorkflowStore.getState().nodes[0];
+      expect(node.data.credentialId).toBe('conn-1');
+      // The node must carry a reference only - nothing secret-shaped.
+      expect(JSON.stringify(node.data)).not.toMatch(/secret|token|apiKey/i);
+    });
+
+    it('clears the reference rather than storing an empty string', async () => {
+      selectConnectorNode('slack');
+      render(<PropertyPanel />);
+
+      const select = await waitFor(() => {
+        const el = screen.getByLabelText(/connection/i) as HTMLSelectElement;
+        expect(Array.from(el.options).some((o) => o.value === 'conn-1')).toBe(true);
+        return el;
+      });
+
+      fireEvent.change(select, { target: { value: 'conn-1' } });
+      expect(useWorkflowStore.getState().nodes[0].data.credentialId).toBe('conn-1');
+
+      fireEvent.change(select, { target: { value: '' } });
+      expect(useWorkflowStore.getState().nodes[0].data.credentialId).toBeUndefined();
+    });
+
+    it('shows the connection names the API returned', async () => {
+      selectConnectorNode('slack');
+      render(<PropertyPanel />);
+
+      await waitFor(() => expect(screen.getByText('Acme workspace')).toBeTruthy());
     });
   });
 });

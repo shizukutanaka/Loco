@@ -7,6 +7,8 @@ import {
   usePropertyPanelFormState,
   usePropertyPanelActions,
 } from '@/hooks';
+import { useConnections } from '@/hooks/useConnections';
+import { useWorkflowStore } from '@/store/workflowStore';
 
 // ============================================================================
 // Constants
@@ -20,6 +22,13 @@ const TRANSFORM_TYPES = [
   { value: 'json', label: 'JSON literal' },
   { value: 'passthrough', label: 'Passthrough (input unchanged)' },
 ];
+
+/**
+ * Integrations the engine handles itself. They call nothing external, so a
+ * credential selector on them would be meaningless. 'variable' is dispatched as
+ * variable:set / variable:get but is still a built-in.
+ */
+const ENGINE_BUILTIN_INTEGRATIONS = new Set(['variable']);
 
 /**
  * The comparisons the engine's built-in condition handler implements. Keep in
@@ -49,6 +58,7 @@ function PropertyPanelComponent() {
   const { localData, errors, handleLabelChange, handleConfigChange } =
     usePropertyPanelFormState(selectedNodeId);
   const { handleDelete, handleClose } = usePropertyPanelActions(selectedNodeId);
+  const updateNode = useWorkflowStore((state) => state.updateNode);
 
   // Memoize event handler for action selection to prevent FormSelect re-renders
   const handleActionChange = useCallback(
@@ -79,6 +89,31 @@ function PropertyPanelComponent() {
       label: action.name,
     })) || [],
     [finalIntegration?.actions]
+  );
+
+  // Engine built-ins invoke nothing external, so they never need a credential.
+  const isConnectorBacked = useMemo(
+    () => !!finalIntegration && !ENGINE_BUILTIN_INTEGRATIONS.has(finalIntegration.id),
+    [finalIntegration]
+  );
+
+  const {
+    connections,
+    loading: connectionsLoading,
+    error: connectionsError,
+  } = useConnections(isConnectorBacked ? finalIntegration?.id : undefined);
+
+  const connectionOptions = useMemo(
+    () => connections.map((c) => ({ value: c.id, label: c.name })),
+    [connections]
+  );
+
+  const handleCredentialChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      // Empty selection clears the reference rather than storing "".
+      updateNode(selectedNodeId!, { credentialId: e.target.value || undefined });
+    },
+    [selectedNodeId, updateNode]
   );
 
   if (!selectedNode) {
@@ -237,6 +272,37 @@ function PropertyPanelComponent() {
           )}
 
           {/*
+            A trigger node had no configuration UI at all, so there was no way to
+            schedule a workflow from the editor even though the engine side runs
+            them. WorkflowSchedulerService reads `cron` and `timezone` from a
+            trigger node's config; leaving cron empty simply means the workflow
+            only runs on demand.
+          */}
+          {selectedNode.type === 'trigger' && (
+            <>
+              <FormInput
+                id="trigger-cron"
+                label="Schedule (cron)"
+                value={String(localData.config?.cron ?? '')}
+                onChange={(e) => handleConfigChange('cron', e.target.value)}
+                placeholder="0 9 * * 1-5"
+                error={errors.cron}
+                helpText="minute hour day month day-of-week. Leave empty to run on demand only."
+              />
+              {String(localData.config?.cron ?? '').trim() !== '' && (
+                <FormInput
+                  id="trigger-timezone"
+                  label="Timezone"
+                  value={String(localData.config?.timezone ?? 'UTC')}
+                  onChange={(e) => handleConfigChange('timezone', e.target.value)}
+                  placeholder="UTC"
+                  helpText="IANA zone, e.g. Asia/Tokyo. The schedule follows this zone across DST."
+                />
+              )}
+            </>
+          )}
+
+          {/*
             The engine's delay handler reads `seconds` and awaits it against the
             execution's cancellation token, so a running delay is interruptible
             by POST /executions/{id}/cancel.
@@ -271,6 +337,40 @@ function PropertyPanelComponent() {
               isCode={true}
               helpText="JSON array to iterate. Each element is exposed as the currentItem variable."
             />
+          )}
+
+          {/*
+            Which stored credentials this node authenticates with. The node
+            carries the connection's ID, never the secret, so an exported
+            workflow is safe to share and a credential can be rotated without
+            touching the workflow.
+
+            Only shown for connector-backed integrations: engine built-ins
+            (transform/condition/delay/loop/variable) call nothing external and
+            need no credentials.
+          */}
+          {finalIntegration && isConnectorBacked && (
+            <div>
+              <FormSelect
+                id="node-credential"
+                label="Connection"
+                value={selectedNode.data.credentialId ?? ''}
+                onChange={handleCredentialChange}
+                options={connectionOptions}
+                placeholder={
+                  connectionsLoading
+                    ? 'Loading connections…'
+                    : connectionOptions.length > 0
+                    ? 'Select a connection'
+                    : `No ${finalIntegration.name} connections yet`
+                }
+                helpText={
+                  connectionsError
+                    ? `Could not load connections: ${connectionsError}`
+                    : 'Credentials are stored separately and referenced by ID.'
+                }
+              />
+            </div>
           )}
 
           {finalIntegration && actionOptions.length > 0 && (

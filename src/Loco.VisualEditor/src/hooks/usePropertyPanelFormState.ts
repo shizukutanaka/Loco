@@ -36,6 +36,8 @@ export interface ValidationError {
   json?: string;
   // Loop nodes carry a JSON array the engine iterates.
   items?: string;
+  // Trigger nodes carry a cron expression the scheduler registers.
+  cron?: string;
 }
 
 type ConfigValue = string | number | Record<string, unknown> | undefined;
@@ -103,6 +105,19 @@ export function usePropertyPanelFormState(selectedNodeId: string | null) {
         error = validateCondition(String(value || ''));
       } else if (key === 'code') {
         error = validateCode(String(value || ''));
+      } else if (key === 'cron') {
+        // WorkflowSchedulerService logs and SKIPS a workflow whose cron
+        // expression will not parse, so an invalid one means the workflow
+        // silently never runs. Catch the shape here instead.
+        const raw = String(value ?? '').trim();
+        if (raw !== '') {
+          const fields = raw.split(/\s+/);
+          if (fields.length !== 5) {
+            error = 'Expected 5 fields: minute hour day month day-of-week';
+          } else if (!fields.every((f) => /^[*\d/,\-]+$/.test(f))) {
+            error = 'Only digits and * , - / are allowed in each field';
+          }
+        }
       } else if (key === 'json' || key === 'items') {
         // The engine deserializes this literal at run time, so malformed JSON
         // would fail mid-execution. Catch it while the user is still editing.
