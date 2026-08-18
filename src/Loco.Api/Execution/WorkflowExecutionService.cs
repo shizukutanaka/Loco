@@ -106,17 +106,45 @@ public sealed class WorkflowExecutionService
     public async Task<List<string>> ConfigureConnectorsAsync(
         VisualWorkflow visual, CancellationToken cancellationToken)
     {
-        var missing = new List<string>();
+        var problems = new List<string>();
 
-        foreach (var group in visual.Nodes
-                     .Where(n => !string.IsNullOrEmpty(n.CredentialId) && !string.IsNullOrEmpty(n.Integration))
+        var credentialed = visual.Nodes
+            .Where(n => !string.IsNullOrEmpty(n.CredentialId) && !string.IsNullOrEmpty(n.Integration))
+            .ToList();
+
+        // ConnectorRegistry caches ONE instance per connectorId, and initializing
+        // it replaces its configuration. So a workflow using two different
+        // connections for the same connector - two Slack workspaces, say - would
+        // have both nodes run against whichever credential was applied last,
+        // silently posting to the wrong account. Refuse rather than guess.
+        //
+        // Supporting it properly means keying connector instances and their node
+        // handlers by (connectorId, credentialId) rather than connectorId alone,
+        // which is an engine-level change; until then this is reported, not
+        // approximated.
+        foreach (var conflict in credentialed
+                     .GroupBy(n => n.Integration)
+                     .Where(g => g.Select(n => n.CredentialId).Distinct().Count() > 1))
+        {
+            var connections = string.Join(", ",
+                conflict.Select(n => n.CredentialId).Distinct().OrderBy(id => id));
+
+            problems.Add(
+                $"connector '{conflict.Key}' is used with more than one connection " +
+                $"({connections}); a workflow can currently use only one connection " +
+                $"per connector, because all its nodes share a single connector instance");
+        }
+
+        if (problems.Count > 0) return problems;
+
+        foreach (var group in credentialed
                      .GroupBy(n => (n.Integration, CredentialId: n.CredentialId!)))
         {
             var config = await _connections.BuildConfigurationAsync(group.Key.CredentialId, cancellationToken);
 
             if (config is null)
             {
-                missing.Add(
+                problems.Add(
                     $"node '{group.First().Name}' references connection " +
                     $"'{group.Key.CredentialId}', which does not exist");
                 continue;
@@ -125,7 +153,7 @@ public sealed class WorkflowExecutionService
             await _bridge.ConfigureConnectorAsync(group.Key.Integration, config, cancellationToken);
         }
 
-        return missing;
+        return problems;
     }
 
     /// <summary>

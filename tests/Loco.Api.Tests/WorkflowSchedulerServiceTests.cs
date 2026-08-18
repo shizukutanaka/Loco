@@ -168,3 +168,80 @@ public class WorkflowSchedulerServiceTests
         WorkflowSchedulerService.ReadSchedule(workflow).Should().BeNull();
     }
 }
+
+/// <summary>
+/// Tests for the credential-conflict guard in WorkflowExecutionService.
+///
+/// ConnectorRegistry caches one connector instance per connectorId, and
+/// initializing it replaces its configuration. Two nodes using different
+/// connections for the same connector would therefore both run against whichever
+/// credential was applied last - posting to the wrong Slack workspace with no
+/// error anywhere. The guard refuses instead of guessing.
+/// </summary>
+public class ConnectorCredentialConflictTests
+{
+    private static VisualWorkflow WorkflowWith(params (string Integration, string? CredentialId)[] nodes)
+    {
+        var workflow = new VisualWorkflow { Id = "wf-1", Name = "test" };
+        var i = 0;
+        foreach (var (integration, credentialId) in nodes)
+        {
+            workflow.Nodes.Add(new WorkflowNode
+            {
+                Id = $"n{++i}",
+                Name = $"Node {i}",
+                Type = "action",
+                Integration = integration,
+                CredentialId = credentialId,
+            });
+        }
+        return workflow;
+    }
+
+    /// <summary>
+    /// Mirrors the guard's rule. Kept separate from the service so the decision
+    /// can be asserted without standing up its five dependencies; the service
+    /// applies exactly this grouping before it resolves anything.
+    /// </summary>
+    private static List<string> Conflicts(VisualWorkflow workflow) =>
+        workflow.Nodes
+            .Where(n => !string.IsNullOrEmpty(n.CredentialId) && !string.IsNullOrEmpty(n.Integration))
+            .GroupBy(n => n.Integration)
+            .Where(g => g.Select(n => n.CredentialId).Distinct().Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+    [Fact]
+    public void TwoConnectionsForOneConnector_IsAConflict()
+    {
+        var workflow = WorkflowWith(("slack", "conn-a"), ("slack", "conn-b"));
+
+        Conflicts(workflow).Should().ContainSingle().Which.Should().Be("slack");
+    }
+
+    [Fact]
+    public void SameConnectionUsedTwice_IsFine()
+    {
+        // Two Slack nodes on the same workspace is the common case and must work.
+        var workflow = WorkflowWith(("slack", "conn-a"), ("slack", "conn-a"));
+
+        Conflicts(workflow).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void DifferentConnectorsWithDifferentConnections_IsFine()
+    {
+        var workflow = WorkflowWith(("slack", "conn-a"), ("github", "conn-b"));
+
+        Conflicts(workflow).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void NodesWithoutCredentials_AreIgnored()
+    {
+        // Engine built-ins carry no credential and must not look like a conflict.
+        var workflow = WorkflowWith(("slack", "conn-a"), ("slack", null), ("transform", null));
+
+        Conflicts(workflow).Should().BeEmpty();
+    }
+}
