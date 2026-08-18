@@ -54,10 +54,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
-  # The backend has never been compiled: it was written in an environment with
-  # no NuGet access, and every affected commit says so. This job exists to end
-  # that - the first green run is what retires the VERIFICATION CAVEAT notes.
-  # It is expected to fail until those compile errors are fixed.
+  # The backend was written in an environment where api.nuget.org is refused by
+  # proxy policy, so it could never be restored or built there. It HAS since been
+  # type-checked offline (scripts/typecheck-offline.sh reports no unexplained
+  # errors), but that cannot see package-typed call sites. This job is the real
+  # check, and the first green run is what retires the VERIFICATION CAVEAT notes
+  # on the backend commits.
   backend:
     runs-on: ubuntu-latest
     steps:
@@ -75,3 +77,17 @@ jobs:
 
       - name: Test
         run: dotnet test Loco.sln --no-build --configuration Release --verbosity normal
+
+  # Runs the same offline check a restore-less environment can run, so a
+  # regression it WOULD catch is caught even if the restore above breaks.
+  typecheck-offline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Type-check without NuGet
+        run: scripts/typecheck-offline.sh

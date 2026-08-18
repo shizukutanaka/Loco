@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# Type-check the C# sources without NuGet.
+#
+# WHY THIS EXISTS
+# ---------------
+# Large parts of this codebase were written in environments where `dotnet
+# restore` is impossible: api.nuget.org is refused by organization proxy policy
+# (HTTP 403). The result was a backend that had never been compiled at all, and
+# a long series of commits carrying "VERIFICATION CAVEAT" notes.
+#
+# The .NET SDK itself, however, is installable from the Ubuntu archive, and it
+# ships the Roslyn compiler plus the framework reference assemblies. That is
+# enough to run the compiler's full syntax and semantic analysis over every
+# source file - everything except the types that live in NuGet packages.
+#
+# WHAT IT PROVES, AND WHAT IT DOES NOT
+# ------------------------------------
+# Proves: the sources parse, and every type, member, signature, override and
+# nullability annotation that does NOT come from a NuGet package resolves
+# correctly. That catches the overwhelming majority of "written blind" mistakes -
+# wrong method names, wrong argument counts, missing usings, bad overrides.
+#
+# Does NOT prove: anything about package-typed code. Calls against ILogger,
+# IHostedService, System.CommandLine, EF Core, Hangfire and friends are
+# unresolved here, so a mistake in those call sites still gets through. A real
+# `dotnet build` remains the only complete check.
+#
+# EXPECTED OUTPUT
+# ---------------
+# A non-zero error count is normal. Every error should be CS0246/CS0234 (a type
+# or namespace from a NuGet package) or CS0534 on LocoJsonContext (a
+# source-generated partial that raw csc does not produce). The script separates
+# those from anything else, and only the "unexplained" count matters.
+#
+# Usage:  scripts/typecheck-offline.sh
+# Setup:  sudo apt-get install -y dotnet-sdk-8.0
+
+set -uo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
+CSC="$(ls /usr/lib/dotnet/sdk/*/Roslyn/bincore/csc.dll 2>/dev/null | head -1)"
+NREF="$(ls -d /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/*/ref/net8.0 2>/dev/null | head -1)"
+AREF="$(ls -d /usr/lib/dotnet/packs/Microsoft.AspNetCore.App.Ref/*/ref/net8.0 2>/dev/null | head -1)"
+
+if [[ -z "$CSC" || -z "$NREF" ]]; then
+  echo "error: .NET SDK 8 not found. Install it with:" >&2
+  echo "  sudo apt-get install -y dotnet-sdk-8.0" >&2
+  exit 2
+fi
+
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+
+# The SDK injects these; raw csc does not. Without them every use of DateTime,
+# List<>, CancellationToken and friends reports as an unresolved type, drowning
+# out real findings.
+cat > "$WORK/GlobalUsings.cs" <<'CS'
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.IO;
+global using global::System.Linq;
+global using global::System.Net.Http;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+global using global::Microsoft.AspNetCore.Builder;
+global using global::Microsoft.AspNetCore.Http;
+global using global::Microsoft.AspNetCore.Routing;
+CS
+
+# Compile all three projects in one pass so cross-project types resolve without
+# needing to build and reference intermediate assemblies.
+find src/Loco.Core src/Loco.Api src/Loco.Cli -name '*.cs' > "$WORK/files.txt"
+echo "$WORK/GlobalUsings.cs" >> "$WORK/files.txt"
+
+REFS=()
+for dll in "$NREF"/*.dll; do REFS+=("-r:$dll"); done
+if [[ -n "$AREF" ]]; then
+  for dll in "$AREF"/*.dll; do REFS+=("-r:$dll"); done
+fi
+
+echo "Type-checking $(wc -l < "$WORK/files.txt") files against net8.0 reference assemblies..."
+
+dotnet "$CSC" -nologo -nostdlib -langversion:12 -nullable:enable \
+  -t:library -out:"$WORK/out.dll" "${REFS[@]}" "@$WORK/files.txt" \
+  > "$WORK/errors.txt" 2>&1
+
+total=$(grep -c 'error CS' "$WORK/errors.txt" || true)
+
+# CS0246/CS0234: type or namespace not found - i.e. it lives in a NuGet package.
+# CS0534 on LocoJsonContext: the System.Text.Json source generator produces the
+# missing partial during a real build.
+unexplained=$(grep 'error CS' "$WORK/errors.txt" \
+  | grep -vE 'error (CS0246|CS0234)' \
+  | grep -v 'LocoJsonContext' || true)
+
+echo
+echo "Total compiler errors:      $total"
+echo "Expected (NuGet/generated): $(( total - $(printf '%s' "$unexplained" | grep -c . || true) ))"
+echo
+
+if [[ -n "$unexplained" ]]; then
+  echo "UNEXPLAINED errors - these are real defects:"
+  echo "$unexplained"
+  exit 1
+fi
+
+echo "No unexplained errors: every failure is a missing NuGet type or a"
+echo "source-generated partial. The sources are otherwise type-correct."

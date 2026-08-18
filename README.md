@@ -41,6 +41,15 @@ This repository is a work in progress. Being honest about the state:
 - **Dead code removed**: the unreachable `Simple*` pattern library, the
   `AIPlatform` "engines", and ten compile-excluded `Loco.Api` subsystems have
   been deleted (~33k lines). Every `<Compile Remove>` is gone from the repo.
+- **Backend verification status**: much of the backend was written where
+  `dotnet restore` is impossible (api.nuget.org refused by proxy policy), so
+  those commits carry a VERIFICATION CAVEAT. The sources have since been
+  type-checked offline against the .NET 8 reference assemblies —
+  `scripts/typecheck-offline.sh` reports no unexplained errors, meaning every
+  remaining compiler error is a type that lives in a NuGet package. That covers
+  syntax, signatures, overrides and nullability, but **not** call sites typed by
+  packages (ILogger, IHostedService, EF Core, …). A full `dotnet build` in CI
+  remains the only complete check; see `docs/ci/`.
 - The aspirational `docs/PHASE_9`–`PHASE_14` design documents, which described
   distributed-systems / service-mesh / quantum / zero-knowledge material that was
   never in the codebase, have been **deleted** along with the unreachable code
