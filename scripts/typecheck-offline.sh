@@ -20,14 +20,18 @@
 # correctly. That catches the overwhelming majority of "written blind" mistakes -
 # wrong method names, wrong argument counts, missing usings, bad overrides.
 #
-# Does NOT prove: anything typed by Swashbuckle or the JwtBearer authentication
-# handler - the only two package dependencies with no copy anywhere on disk.
-# That is roughly a dozen call sites; everything else is checked.
+# Does NOT prove: three things, ~15 symbols in total.
+#   - Swashbuckle and the JwtBearer handler: no copy exists anywhere on disk.
+#   - The `Command` base class that CLI command classes derive from. The SDK
+#     ships System.CommandLine, and borrowing it resolves the NAMESPACE, but
+#     that build has its public types internalized, so the type itself stays
+#     unresolved. Each CLI command file reports exactly one error for its base
+#     class; their bodies are otherwise checked.
 #
 # Microsoft.Extensions.* and Microsoft.AspNetCore.* are NOT missing: they ship in
 # the shared framework, so ILogger, IHostedService, controllers and DI
-# registrations are fully checked. System.IdentityModel.Tokens.Jwt and
-# System.CommandLine are borrowed from the SDK's own tooling below.
+# registrations are fully checked. System.IdentityModel.Tokens.Jwt is borrowed
+# from the SDK's tooling below and IS fully usable.
 #
 # EXPECTED OUTPUT
 # ---------------
@@ -96,7 +100,11 @@ fi
 # nothing and shrinks the unverifiable surface considerably: without these,
 # every JWT and CLI-parsing call site is invisible to this check.
 for name in System.IdentityModel.Tokens.Jwt System.CommandLine; do
-  found="$(find /usr/lib/dotnet -name "$name.dll" 2>/dev/null | head -1)"
+  # Prefer the LARGEST copy: the SDK ships trimmed builds of some of these
+  # alongside the full ones, and a trimmed System.CommandLine omits the public
+  # Command type that every CLI command derives from.
+  found="$(find /usr/lib/dotnet -name "$name.dll" -printf '%s\t%p\n' 2>/dev/null \
+           | sort -rn | head -1 | cut -f2)"
   [[ -n "$found" ]] || continue
   REFS+=("-r:$found")
   # Pull in the sibling assemblies it depends on (e.g. Microsoft.IdentityModel.*).
