@@ -1,6 +1,7 @@
 // John Carmack: "Simple interfaces enable complex systems"
 // Rob Pike: "Data dominates. If you've chosen the right data structures, the algorithms will flow"
 
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -356,13 +357,77 @@ public sealed class ConnectorConfiguration
     public Dictionary<string, object?> Settings { get; init; } = new();
 
     public T? GetCredential<T>(string name) =>
-        Credentials.TryGetValue(name, out var value) ? (T?)value : default;
+        Credentials.TryGetValue(name, out var value) ? Coerce<T>(value) : default;
 
     public T? GetSetting<T>(string name) =>
-        Settings.TryGetValue(name, out var value) ? (T?)value : default;
+        Settings.TryGetValue(name, out var value) ? Coerce<T>(value) : default;
 
     public string? GetCredentialString(string name) => GetCredential<string>(name);
     public string? GetSettingString(string name) => GetSetting<string>(name);
+
+    /// <summary>
+    /// Converts a stored value to the type the connector asked for.
+    ///
+    /// Every value in these dictionaries arrives as a string: the only writer is
+    /// JsonFileConnectionStore, which reads them back out of the secrets store,
+    /// and a secrets store holds text. Connectors, meanwhile, ask for the type
+    /// the field really is - <c>GetCredential&lt;int?&gt;("port")</c> in the
+    /// Postgres, MySQL, Redis and SMTP connectors.
+    ///
+    /// A plain cast made that combination throw. Unboxing an <c>object</c> that
+    /// holds "5432" to <c>int?</c> is an InvalidCastException, so *supplying* the
+    /// port - a field the connector declares and the UI asks for - crashed the
+    /// connection, while leaving it blank worked fine through the default. The
+    /// failure needed a real credential to appear, which is why nothing caught
+    /// it: it cannot happen in a test that stores an int directly.
+    ///
+    /// Converting here rather than at each call site keeps the rule in one
+    /// place: the store's job is to preserve the value, the connector's job is
+    /// to say what it means, and neither has to know the other's representation.
+    /// A value that cannot be converted yields default rather than throwing, so
+    /// a mistyped port falls back to 5432 instead of taking the workflow down.
+    /// </summary>
+    private static T? Coerce<T>(object? value)
+    {
+        if (value is null) return default;
+        if (value is T typed) return typed;
+
+        var target = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
+
+        try
+        {
+            if (target.IsEnum)
+            {
+                return value is string name
+                    ? (T)Enum.Parse(target, name, ignoreCase: true)
+                    : (T)Enum.ToObject(target, value);
+            }
+
+            if (target == typeof(string))
+            {
+                return (T)(object)Convert.ToString(value, CultureInfo.InvariantCulture)!;
+            }
+
+            if (target == typeof(Guid))
+            {
+                return value is string text ? (T)(object)Guid.Parse(text) : default;
+            }
+
+            if (target == typeof(TimeSpan))
+            {
+                return value is string span
+                    ? (T)(object)TimeSpan.Parse(span, CultureInfo.InvariantCulture)
+                    : default;
+            }
+
+            return (T)Convert.ChangeType(value, target, CultureInfo.InvariantCulture);
+        }
+        catch (Exception ex) when (
+            ex is InvalidCastException or FormatException or OverflowException or ArgumentException)
+        {
+            return default;
+        }
+    }
 }
 
 /// <summary>
