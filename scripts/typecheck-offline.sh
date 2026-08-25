@@ -1,44 +1,55 @@
 #!/usr/bin/env bash
-# Type-check the C# sources without NuGet.
+# Type-check the C# sources - and the tests - without NuGet.
 #
 # WHY THIS EXISTS
 # ---------------
 # Large parts of this codebase were written in environments where `dotnet
 # restore` is impossible: api.nuget.org is refused by organization proxy policy
-# (HTTP 403). The result was a backend that had never been compiled at all, and
-# a long series of commits carrying "VERIFICATION CAVEAT" notes.
+# (HTTP 403). The result was a backend that had never been compiled at all.
 #
-# The .NET SDK itself, however, is installable from the Ubuntu archive, and it
-# ships the Roslyn compiler plus the framework reference assemblies. That is
-# enough to run the compiler's full syntax and semantic analysis over every
-# source file - everything except the types that live in NuGet packages.
+# The .NET SDK is installable from the Ubuntu archive, and it ships Roslyn plus
+# the framework reference assemblies. Everything else - the four packages this
+# repository actually needs types from - is declared in scripts/offline-test-stubs/.
 #
-# WHAT IT PROVES, AND WHAT IT DOES NOT
-# ------------------------------------
-# Proves: the sources parse, and every type, member, signature, override and
-# nullability annotation that does NOT come from a NuGet package resolves
-# correctly. That catches the overwhelming majority of "written blind" mistakes -
-# wrong method names, wrong argument counts, missing usings, bad overrides.
+# THE BUG THIS SCRIPT USED TO HAVE
+# --------------------------------
+# csc binds a compilation in phases: parse, declarations, then method bodies.
+# If ANY declaration-level error exists, it reports that and never binds a
+# single method body.
 #
-# Does NOT prove: three things, ~15 symbols in total.
-#   - Swashbuckle and the JwtBearer handler: no copy exists anywhere on disk.
-#   - The `Command` base class that CLI command classes derive from. The SDK
-#     ships System.CommandLine, and borrowing it resolves the NAMESPACE, but
-#     that build has its public types internalized, so the type itself stays
-#     unresolved. Each CLI command file reports exactly one error for its base
-#     class; their bodies are otherwise checked.
+#     echo 'public class B { public void M() { int x = "no"; } }' > body.cs
+#     echo 'using Missing.Namespace;'                             > decl.cs
+#     csc body.cs           -> 1 error
+#     csc body.cs decl.cs   -> 1 error, and it is decl.cs's
 #
-# Microsoft.Extensions.* and Microsoft.AspNetCore.* are NOT missing: they ship in
-# the shared framework, so ILogger, IHostedService, controllers and DI
-# registrations are fully checked. System.IdentityModel.Tokens.Jwt is borrowed
-# from the SDK's tooling below and IS fully usable.
+# This script always had 12 such errors, from the JwtBearer handler, Swashbuckle
+# and System.CommandLine. So it checked DECLARATIONS ONLY, while its own header
+# claimed it caught "wrong method names, wrong argument counts" - both of which
+# are method-body errors. Every "0 unexplained errors" it ever printed was a
+# statement about declarations.
+#
+# Stubbing those four packages brought the declaration-error count to zero,
+# which is what lets the compiler reach the bodies. It immediately found real
+# defects that had been invisible for the life of the repository: an
+# `ActionParameters.Has` that does not exist, called from 13 places in four
+# connectors; `Name =="action"` in ZoomConnector; a TestConnectionAsync call
+# missing its configuration argument; and a CLI still calling a class that had
+# been renamed.
+#
+# WHAT IT PROVES NOW, AND WHAT IT DOES NOT
+# ----------------------------------------
+# Proves: every source file in src/ and tests/ compiles - types, members,
+# signatures, overrides, nullability, and every expression in every method body.
+#
+# Does NOT prove: that the code RUNS. No test executes here; `dotnet test` needs
+# the packages that cannot be restored. It also does not check the stubbed
+# frameworks themselves - if a Swashbuckle or xunit call is wrong in a way the
+# stub happens to accept, only a real build catches it. That is what the backend
+# job in docs/ci/ci.yml is for.
 #
 # EXPECTED OUTPUT
 # ---------------
-# A non-zero error count is normal. Every error should be CS0246/CS0234 (a type
-# or namespace from a NuGet package) or CS0534 on LocoJsonContext (a
-# source-generated partial that raw csc does not produce). The script separates
-# those from anything else, and only the "unexplained" count matters.
+# Zero errors, on both phases. Anything else is a defect.
 #
 # Usage:  scripts/typecheck-offline.sh
 # Setup:  sudo apt-get install -y dotnet-sdk-8.0
@@ -87,6 +98,7 @@ CS
 # Compile all three projects in one pass so cross-project types resolve without
 # needing to build and reference intermediate assemblies.
 find src/Loco.Core src/Loco.Api src/Loco.Cli -name '*.cs' > "$WORK/files.txt"
+find scripts/offline-test-stubs -name 'NuGetPackageStubs.cs' >> "$WORK/files.txt"
 echo "$WORK/GlobalUsings.cs" >> "$WORK/files.txt"
 
 REFS=()
@@ -99,7 +111,7 @@ fi
 # SDK's own tooling rather than the reference packs. Borrowing them costs
 # nothing and shrinks the unverifiable surface considerably: without these,
 # every JWT and CLI-parsing call site is invisible to this check.
-for name in System.IdentityModel.Tokens.Jwt System.CommandLine; do
+for name in System.IdentityModel.Tokens.Jwt; do
   # Prefer the LARGEST copy: the SDK ships trimmed builds of some of these
   # alongside the full ones, and a trimmed System.CommandLine omits the public
   # Command type that every CLI command derives from.
@@ -116,31 +128,64 @@ done
 echo "Type-checking $(wc -l < "$WORK/files.txt") files against net8.0 reference assemblies..."
 
 dotnet "$CSC" -nologo -nostdlib -langversion:12 -nullable:enable \
-  -t:library -out:"$WORK/out.dll" "${REFS[@]}" "@$WORK/files.txt" \
+  -t:exe -out:"$WORK/out.exe" "${REFS[@]}" "@$WORK/files.txt" \
   > "$WORK/errors.txt" 2>&1
 
-total=$(grep -c 'error CS' "$WORK/errors.txt" || true)
-
-# CS0246/CS0234: type or namespace not found - i.e. it lives in a NuGet package.
+# ── Phase 2: the tests ───────────────────────────────────────────────────────
 #
-# There used to be a second exemption here, for the CS0534 pair on
-# LocoJsonContext that the System.Text.Json source generator would have filled
-# in during a real build. That class was deleted with the unreachable code it
-# served, so every remaining error is now a plain missing package: JwtBearer and
-# OpenApi in Loco.Api, System.CommandLine's Command in Loco.Cli.
-unexplained=$(grep 'error CS' "$WORK/errors.txt" \
-  | grep -vE 'error (CS0246|CS0234)' || true)
+# The test assembly is the one nobody could see. dotnet test needs xunit and
+# FluentAssertions, which are exactly what cannot be restored - so the test
+# sources were never compiled by anything, and three files naming types that do
+# not exist sat there taking the whole assembly down with them.
+#
+# scripts/offline-test-stubs/ stands in for the test packages only. The src
+# types are real, so a test reaching for a property Loco.Core does not have
+# still fails here, which is the class of breakage that actually happened.
+# The test projects declare <Using Include="Xunit" />, so most test files have
+# no `using Xunit;` of their own. Without this the attributes resolve nowhere
+# and every [Fact] reports as a missing type - 190 errors that say nothing.
+cat > "$WORK/TestGlobalUsings.cs" <<'CS'
+global using global::Xunit;
+CS
+
+find tests -name '*.cs' > "$WORK/test-files.txt"
+find scripts/offline-test-stubs -name 'TestFrameworkStubs.cs' >> "$WORK/test-files.txt"
+echo "$WORK/TestGlobalUsings.cs" >> "$WORK/test-files.txt"
+cat "$WORK/files.txt" >> "$WORK/test-files.txt"
+
+echo "Type-checking $(find tests -name '*.cs' | wc -l) test files against stubbed test packages..."
+
+dotnet "$CSC" -nologo -nostdlib -langversion:12 -nullable:enable \
+  -t:exe -out:"$WORK/tests.exe" "${REFS[@]}" "@$WORK/test-files.txt" \
+  > "$WORK/test-errors.txt" 2>&1
+
+# Only errors in tests/ count: the src ones are already reported by phase 1, and
+# a stub's own shortcomings are this script's problem, not the repository's.
+test_errors="$(grep 'error CS' "$WORK/test-errors.txt" | grep -E '(^|/)tests/' || true)"
+
+src_errors="$(grep 'error CS' "$WORK/errors.txt" || true)"
+
+# Only errors in tests/ count for phase 2: any src error is already reported
+# above, and a shortcoming in the stubs is this script's problem rather than
+# the repository's.
+test_errors="$(grep 'error CS' "$WORK/test-errors.txt" | grep -E '(^|/)tests/' || true)"
+
+count() { printf '%s' "$1" | grep -c . || true; }
 
 echo
-echo "Total compiler errors:      $total"
-echo "Expected (NuGet/generated): $(( total - $(printf '%s' "$unexplained" | grep -c . || true) ))"
+echo "src   errors: $(count "$src_errors")"
+echo "tests errors: $(count "$test_errors")"
 echo
 
-if [[ -n "$unexplained" ]]; then
-  echo "UNEXPLAINED errors - these are real defects:"
-  echo "$unexplained"
+if [[ -n "$src_errors" || -n "$test_errors" ]]; then
+  echo "These are defects - the declaration-error floor that used to hide method"
+  echo "bodies from this check is gone, so nothing here is expected noise:"
+  echo
+  [[ -n "$src_errors" ]] && echo "$src_errors"
+  [[ -n "$test_errors" ]] && echo "$test_errors"
   exit 1
 fi
 
-echo "No unexplained errors: every failure is a type from a package that could"
-echo "not be restored. The sources are otherwise type-correct."
+echo "Clean: every file in src/ and tests/ compiles, method bodies included."
+echo "Not proven here: that any of it RUNS. dotnet test needs the packages that"
+echo "cannot be restored; docs/ci/ci.yml is what executes the suite."

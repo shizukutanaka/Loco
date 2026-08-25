@@ -60,13 +60,18 @@ This repository is a work in progress. Being honest about the state:
   calls that match the API's routes.
 - **Backend verification status**: much of the backend was written where
   `dotnet restore` is impossible (api.nuget.org refused by proxy policy), so
-  those commits carry a VERIFICATION CAVEAT. The sources have since been
-  type-checked offline against the .NET 8 reference assemblies —
-  `scripts/typecheck-offline.sh` reports no unexplained errors, meaning every
-  remaining compiler error is a type that lives in a NuGet package. That covers
-  syntax, signatures, overrides and nullability, but **not** call sites typed by
-  packages (ILogger, IHostedService, JwtBearer, …). A full `dotnet build` in
-  CI remains the only complete check; see `docs/ci/`. Two things that would
+  those commits carry a VERIFICATION CAVEAT. `scripts/typecheck-offline.sh` now
+  compiles every file in `src/` and `tests/` clean — **method bodies included**.
+  It did not always: the C# compiler skips body binding entirely when any
+  declaration-level error exists, and this script always had twelve of those
+  (JwtBearer, Swashbuckle, System.CommandLine), so for most of its life it
+  checked declarations only while claiming more. Stubbing those four packages
+  dropped the count to zero and immediately surfaced real defects that had been
+  invisible since the repository began — a method that does not exist called
+  from 13 places, a `==` where a `=` belonged, a call missing an argument.
+  What it still does not prove is that any of it RUNS: no test executes without
+  a restore. A full `dotnet build && dotnet test` in CI remains the only
+  complete check; see `docs/ci/`. Two things that would
   have stopped that CI run regardless of the network have since been fixed:
   `dotnet restore` failed on NU1008 because two projects pinned versions
   inline, and `Loco.Core.Tests` could not compile because three files named

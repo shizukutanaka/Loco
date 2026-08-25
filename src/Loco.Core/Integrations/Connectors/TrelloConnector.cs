@@ -447,7 +447,7 @@ public sealed class TrelloConnector : ConnectorBase
         if (!string.IsNullOrEmpty(desc))
             queryParams.Add($"desc={Uri.EscapeDataString(desc)}");
 
-        if (parameters.Has("closed"))
+        if (parameters.Contains("closed"))
             queryParams.Add($"closed={parameters.GetBool("closed", false).ToString().ToLower()}");
 
         var query = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
@@ -476,7 +476,7 @@ public sealed class TrelloConnector : ConnectorBase
         if (!string.IsNullOrEmpty(name))
             queryParams.Add($"name={Uri.EscapeDataString(name)}");
 
-        if (parameters.Has("closed"))
+        if (parameters.Contains("closed"))
             queryParams.Add($"closed={parameters.GetBool("closed", false).ToString().ToLower()}");
 
         var pos = parameters.GetString("pos");
@@ -529,7 +529,7 @@ public sealed class TrelloConnector : ConnectorBase
         if (!string.IsNullOrEmpty(desc))
             queryParams.Add($"desc={Uri.EscapeDataString(desc)}");
 
-        if (parameters.Has("closed"))
+        if (parameters.Contains("closed"))
             queryParams.Add($"closed={parameters.GetBool("closed", false).ToString().ToLower()}");
 
         var idList = parameters.GetString("idList");

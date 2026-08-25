@@ -194,7 +194,11 @@ public class ConnectionsController : ControllerBase
         try
         {
             await connector.InitializeAsync(config, cancellationToken);
-            var result = await connector.TestConnectionAsync(cancellationToken);
+            // TestConnectionAsync takes the configuration too - it is the
+            // "does this credential work" probe, not a method on already-live
+            // state. Passing only the token silently read as passing the token
+            // AS the config, and never compiled.
+            var result = await connector.TestConnectionAsync(config, cancellationToken);
 
             return Ok(Envelope.Ok(new
             {

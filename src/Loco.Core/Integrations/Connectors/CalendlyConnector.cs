@@ -336,7 +336,7 @@ public sealed class CalendlyConnector : ConnectorBase
         if (!string.IsNullOrEmpty(userUri))
             queryParams.Add($"user={Uri.EscapeDataString(userUri)}");
 
-        if (parameters.Has("active"))
+        if (parameters.Contains("active"))
             queryParams.Add($"active={parameters.GetBool("active", true).ToString().ToLower()}");
 
         var query = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";

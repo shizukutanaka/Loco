@@ -440,7 +440,7 @@ public sealed class LinearConnector : ConnectorBase
         if (!string.IsNullOrEmpty(description))
             inputs.Add($"description: \"{EscapeGraphQL(description)}\"");
 
-        if (parameters.Has("priority"))
+        if (parameters.Contains("priority"))
             inputs.Add($"priority: {parameters.GetInt("priority", 0)}");
 
         var assigneeId = parameters.GetString("assigneeId");
@@ -458,7 +458,7 @@ public sealed class LinearConnector : ConnectorBase
             inputs.Add($"labelIds: [\"{ids}\"]");
         }
 
-        if (parameters.Has("estimate"))
+        if (parameters.Contains("estimate"))
             inputs.Add($"estimate: {parameters.GetInt("estimate", 0)}");
 
         var dueDate = parameters.GetString("dueDate");
@@ -495,7 +495,7 @@ public sealed class LinearConnector : ConnectorBase
         if (!string.IsNullOrEmpty(description))
             inputs.Add($"description: \"{EscapeGraphQL(description)}\"");
 
-        if (parameters.Has("priority"))
+        if (parameters.Contains("priority"))
             inputs.Add($"priority: {parameters.GetInt("priority", 0)}");
 
         var assigneeId = parameters.GetString("assigneeId");
@@ -506,7 +506,7 @@ public sealed class LinearConnector : ConnectorBase
         if (!string.IsNullOrEmpty(stateId))
             inputs.Add($"stateId: \"{stateId}\"");
 
-        if (parameters.Has("estimate"))
+        if (parameters.Contains("estimate"))
             inputs.Add($"estimate: {parameters.GetInt("estimate", 0)}");
 
         var dueDate = parameters.GetString("dueDate");

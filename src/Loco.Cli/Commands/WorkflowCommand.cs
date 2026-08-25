@@ -338,7 +338,12 @@ namespace Loco.Cli.Commands
 
                 var visual = WorkflowMapper.ToVisualWorkflow(stored);
 
-                var validation = new WorkflowValidator().Validate(visual);
+                // VisualWorkflowValidator, not WorkflowValidator: the class was
+                // renamed to stop it colliding with the identically-named one in
+                // Loco.Core.Workflow, and this call site was missed. Nothing
+                // caught it because the offline type-check could not reach method
+                // bodies while any declaration error existed.
+                var validation = new VisualWorkflowValidator().Validate(visual);
                 if (!validation.IsValid)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;

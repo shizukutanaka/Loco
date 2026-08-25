@@ -244,7 +244,7 @@ public sealed class ZoomConnector : ConnectorBase
             Parameters = new ActionParameter[]
             {
                 new() { Name = "meetingId", Type = ParameterType.String, Required = true },
-                new() { Name =="action", Type = ParameterType.String, DefaultValue = "trash", Description = "trash, delete" }
+                new() { Name = "action", Type = ParameterType.String, DefaultValue = "trash", Description = "trash, delete" }
             }
         },
 
@@ -422,10 +422,10 @@ public sealed class ZoomConnector : ConnectorBase
         if (!string.IsNullOrEmpty(lastName))
             updates["last_name"] = lastName;
 
-        if (parameters.Has("type"))
+        if (parameters.Contains("type"))
             updates["type"] = parameters.GetInt("type", 1);
 
-        if (parameters.Has("pmi"))
+        if (parameters.Contains("pmi"))
             updates["pmi"] = parameters.GetInt("pmi", 0);
 
         return await PatchAsync($"users/{userId}", updates, ct);
@@ -445,7 +445,7 @@ public sealed class ZoomConnector : ConnectorBase
         if (!string.IsNullOrEmpty(startTime))
             meeting["start_time"] = startTime;
 
-        if (parameters.Has("duration"))
+        if (parameters.Contains("duration"))
             meeting["duration"] = parameters.GetInt("duration", 0);
 
         var password = parameters.GetString("password");
@@ -481,7 +481,7 @@ public sealed class ZoomConnector : ConnectorBase
         if (!string.IsNullOrEmpty(startTime))
             updates["start_time"] = startTime;
 
-        if (parameters.Has("duration"))
+        if (parameters.Contains("duration"))
             updates["duration"] = parameters.GetInt("duration", 0);
 
         var agenda = parameters.GetString("agenda");
@@ -505,7 +505,7 @@ public sealed class ZoomConnector : ConnectorBase
         if (!string.IsNullOrEmpty(startTime))
             webinar["start_time"] = startTime;
 
-        if (parameters.Has("duration"))
+        if (parameters.Contains("duration"))
             webinar["duration"] = parameters.GetInt("duration", 0);
 
         var agenda = parameters.GetString("agenda");

@@ -56,10 +56,10 @@ jobs:
 
   # The backend was written in an environment where api.nuget.org is refused by
   # proxy policy, so it could never be restored or built there. It HAS since been
-  # type-checked offline (scripts/typecheck-offline.sh reports no unexplained
-  # errors), but that cannot see package-typed call sites. This job is the real
-  # check, and the first green run is what retires the VERIFICATION CAVEAT notes
-  # on the backend commits.
+  # type-checked offline (scripts/typecheck-offline.sh compiles src/ and tests/
+  # clean, method bodies included), but a type-check is not an execution. This
+  # job is the real check, and the first green run is what retires the
+  # VERIFICATION CAVEAT notes on the backend commits.
   backend:
     runs-on: ubuntu-latest
     steps:
