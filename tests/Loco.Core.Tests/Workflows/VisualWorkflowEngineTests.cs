@@ -307,3 +307,117 @@ public class VisualWorkflowEngineTests
         result.IsValid.Should().BeFalse();
     }
 }
+
+/// <summary>
+/// Tests that a cancelled execution reaches work already running inside a node.
+///
+/// POST /api/v1/executions/{id}/cancel was wired end to end - registry, token
+/// source, engine - but the engine only observed the token BETWEEN nodes, and
+/// the connector bridge passed its handlers the token captured when connectors
+/// were registered at startup. That token belongs to the host: it is cancelled
+/// when the server shuts down, never when a run is cancelled. So an HTTP call
+/// already in flight inside a connector ran to completion, and a slow one kept
+/// the execution alive long after the user asked it to stop.
+///
+/// The engine puts the execution's own token on the context for exactly this
+/// reason (WorkflowExecutionContext.CancellationToken). These pin that it is
+/// really the execution's token, and that a handler observing it produces a
+/// Cancelled workflow rather than a Failed one.
+///
+/// NOTE: authored in an environment where dotnet test could not run (NuGet
+/// egress blocked by organization policy); the first CI run executes these.
+/// </summary>
+public class VisualWorkflowEngineCancellationTests
+{
+    private static VisualWorkflow OneNode(string integration, string action) =>
+        new()
+        {
+            Name = "one-node",
+            Nodes = new List<WorkflowNode>
+            {
+                new() { Name = "only", Type = "action", Integration = integration, Action = action },
+            },
+        };
+
+    [Fact]
+    public async Task The_context_carries_the_executions_own_token()
+    {
+        // The property the bridge depends on: what a handler reads off the
+        // context must be the token the caller can cancel, not some default.
+        var engine = new VisualWorkflowEngine();
+        using var cts = new CancellationTokenSource();
+
+        CancellationToken observed = default;
+        engine.RegisterNodeHandler("t:peek", (_, context) =>
+        {
+            observed = context.CancellationToken;
+            return Task.FromResult<object?>("ok");
+        });
+
+        await engine.ExecuteAsync(OneNode("t", "peek"), null, cts.Token);
+
+        observed.Should().Be(cts.Token);
+    }
+
+    [Fact]
+    public async Task Cancelling_mid_node_stops_the_workflow_as_cancelled()
+    {
+        // The regression itself: work already running inside a node must end,
+        // and the run must report Cancelled rather than Failed - a failed run
+        // reads as the workflow being broken.
+        var engine = new VisualWorkflowEngine();
+        using var cts = new CancellationTokenSource();
+
+        engine.RegisterNodeHandler("t:hang", async (_, context) =>
+        {
+            cts.Cancel();
+            await Task.Delay(Timeout.Infinite, context.CancellationToken);
+            return "never reached";
+        });
+
+        var result = await engine.ExecuteAsync(OneNode("t", "hang"), null, cts.Token);
+
+        result.Status.Should().Be(WorkflowExecutionStatus.Cancelled);
+    }
+
+    [Fact]
+    public async Task A_handler_ignoring_the_token_still_finishes_its_node()
+    {
+        // Cancellation is cooperative. A handler that never looks at the token
+        // runs to completion, and the engine stops at the next node boundary -
+        // worth pinning so nobody reads the fix as a hard kill.
+        var engine = new VisualWorkflowEngine();
+        using var cts = new CancellationTokenSource();
+
+        var completed = false;
+        engine.RegisterNodeHandler("t:stubborn", (_, _) =>
+        {
+            cts.Cancel();
+            completed = true;
+            return Task.FromResult<object?>("done anyway");
+        });
+
+        var result = await engine.ExecuteAsync(OneNode("t", "stubborn"), null, cts.Token);
+
+        completed.Should().BeTrue();
+        result.Status.Should().Be(WorkflowExecutionStatus.Cancelled);
+    }
+
+    [Fact]
+    public async Task An_uncancelled_run_leaves_the_token_uncancelled()
+    {
+        var engine = new VisualWorkflowEngine();
+
+        var wasCancelled = true;
+        engine.RegisterNodeHandler("t:quiet", (_, context) =>
+        {
+            wasCancelled = context.CancellationToken.IsCancellationRequested;
+            return Task.FromResult<object?>("ok");
+        });
+
+        var result = await engine.ExecuteAsync(OneNode("t", "quiet"));
+
+        wasCancelled.Should().BeFalse();
+        result.Status.Should().Be(WorkflowExecutionStatus.Success);
+    }
+}

@@ -232,12 +232,23 @@ public sealed class WorkflowConnectorBridge : IDisposable
                 // Resolved per node, not captured: a node naming a connection
                 // must run against that connection's own instance, and which
                 // connection that is only becomes known at execution time.
+                //
+                // context.CancellationToken, NOT the `ct` this method was
+                // called with. Connectors are registered once at startup, so
+                // that token is ConnectorStartupService's host-startup token -
+                // it is cancelled when the SERVER shuts down, never when a run
+                // is cancelled. POST /executions/{id}/cancel therefore stopped
+                // a workflow only between nodes: an HTTP call already in flight
+                // inside a connector ran to completion, and a slow one kept the
+                // execution alive long after the user cancelled it. The engine
+                // puts the execution's own token on the context precisely so a
+                // handler can reach it (VisualWorkflowEngine.CancellationToken).
                 return await ExecuteConnectorActionAsync(
                     ResolveConnector(connector, node),
                     action,
                     node,
                     context,
-                    ct);
+                    context.CancellationToken);
             });
         }
 
@@ -251,12 +262,23 @@ public sealed class WorkflowConnectorBridge : IDisposable
                 // Resolved per node, not captured: a node naming a connection
                 // must run against that connection's own instance, and which
                 // connection that is only becomes known at execution time.
+                //
+                // context.CancellationToken, NOT the `ct` this method was
+                // called with. Connectors are registered once at startup, so
+                // that token is ConnectorStartupService's host-startup token -
+                // it is cancelled when the SERVER shuts down, never when a run
+                // is cancelled. POST /executions/{id}/cancel therefore stopped
+                // a workflow only between nodes: an HTTP call already in flight
+                // inside a connector ran to completion, and a slow one kept the
+                // execution alive long after the user cancelled it. The engine
+                // puts the execution's own token on the context precisely so a
+                // handler can reach it (VisualWorkflowEngine.CancellationToken).
                 return await ExecuteConnectorActionAsync(
                     ResolveConnector(connector, node),
                     action,
                     node,
                     context,
-                    ct);
+                    context.CancellationToken);
             });
         }
     }
