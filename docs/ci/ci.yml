@@ -100,3 +100,10 @@ jobs:
 
       - name: Structural checks
         run: python3 scripts/check-structure.py
+
+      # The same 321 tests the backend job runs, but without a restore. If
+      # nuget.org is ever unreachable from the runner - the condition this
+      # repository was written under - this job still says whether the
+      # assertions hold.
+      - name: Backend tests without NuGet
+        run: scripts/run-tests-offline.sh
