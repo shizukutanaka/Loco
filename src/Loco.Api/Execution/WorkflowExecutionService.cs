@@ -99,48 +99,12 @@ public sealed class WorkflowExecutionService
     /// Initializes every connector this workflow references with its stored
     /// credentials, returning a description of each unresolvable reference.
     ///
-    /// This is the step that was missing entirely: ConfigureConnector had no
-    /// caller, so connectors executed uninitialized and every action failed on a
-    /// null HttpClient.
+    /// The work lives in Loco.Core because the CLI needs exactly the same
+    /// thing; keeping a second copy here is how the two would drift.
     /// </summary>
-    public async Task<List<string>> ConfigureConnectorsAsync(
-        VisualWorkflow visual, CancellationToken cancellationToken)
-    {
-        var problems = new List<string>();
-
-        var credentialed = visual.Nodes
-            .Where(n => !string.IsNullOrEmpty(n.CredentialId) && !string.IsNullOrEmpty(n.Integration))
-            .ToList();
-
-        // One connector instance per (connector, connection), so two Slack nodes
-        // on different workspaces stay independent.
-        //
-        // This used to be refused outright. ConnectorRegistry caches a single
-        // instance per connector id and InitializeAsync replaces its
-        // configuration, so both nodes ran against whichever credential was
-        // applied last - posting to the wrong workspace with nothing reporting
-        // it. Refusing was the honest stopgap; WorkflowConnectorBridge now keys
-        // instances by connection, and the node handler resolves which one to
-        // use from the node's own CredentialId at execution time.
-        foreach (var group in credentialed
-                     .GroupBy(n => (n.Integration, CredentialId: n.CredentialId!)))
-        {
-            var config = await _connections.BuildConfigurationAsync(group.Key.CredentialId, cancellationToken);
-
-            if (config is null)
-            {
-                problems.Add(
-                    $"node '{group.First().Name}' references connection " +
-                    $"'{group.Key.CredentialId}', which does not exist");
-                continue;
-            }
-
-            await _bridge.ConfigureConnectionAsync(
-                group.Key.Integration, group.Key.CredentialId, config, cancellationToken);
-        }
-
-        return problems;
-    }
+    public Task<List<string>> ConfigureConnectorsAsync(
+        VisualWorkflow visual, CancellationToken cancellationToken) =>
+        WorkflowCredentialResolver.ConfigureAsync(visual, _connections, _bridge, cancellationToken);
 
     /// <summary>
     /// Starts the run and registers it. The execution outlives the request that

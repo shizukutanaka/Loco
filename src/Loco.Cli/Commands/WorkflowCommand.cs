@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Loco.Core;
 using Loco.Core.Configuration;
 using Loco.Core.Integrations.Core;
+using Loco.Core.Storage;
 using Loco.Core.Workflows;
 using Microsoft.Extensions.Logging;
 
@@ -69,8 +70,17 @@ namespace Loco.Cli.Commands
             var runVisualFileArgument = new Argument<string>(
                 name: "file",
                 description: "Path to a Visual Editor workflow JSON file (StoredWorkflow shape: nodes/edges/metadata)");
+            // Where the stored connections live. The API defaults this to
+            // AppContext.BaseDirectory/data/workflows, which is relative to the
+            // API binary and so cannot be guessed from here - point the CLI at
+            // the same directory to reuse connections created in the editor.
+            var runVisualDataDirOption = new Option<string?>(
+                name: "--data-dir",
+                description: "Directory holding connections.json and secrets/ (default: $LOCO_DATA_DIR)");
             runVisualCommand.AddArgument(runVisualFileArgument);
-            runVisualCommand.SetHandler(ExecuteVisualWorkflowAsync, runVisualFileArgument);
+            runVisualCommand.AddOption(runVisualDataDirOption);
+            runVisualCommand.SetHandler(
+                ExecuteVisualWorkflowAsync, runVisualFileArgument, runVisualDataDirOption);
             AddCommand(runVisualCommand);
         }
 
@@ -293,7 +303,7 @@ namespace Loco.Cli.Commands
             }
         }
 
-        private async Task<int> ExecuteVisualWorkflowAsync(string filePath)
+        private async Task<int> ExecuteVisualWorkflowAsync(string filePath, string? dataDirectory)
         {
             try
             {
@@ -355,6 +365,51 @@ namespace Loco.Cli.Commands
                 var engine = new VisualWorkflowEngine(message => logger.LogDebug("{EngineMessage}", message));
                 using var bridge = new WorkflowConnectorBridge(registry, engine);
                 await bridge.RegisterAllConnectorsAsync();
+
+                // Resolve stored credentials, exactly as the API does before it
+                // starts a run. Without this every connector executed
+                // uninitialized and failed on a null HttpClient - the CLI kept
+                // the bug the API had already fixed, because it never looked at
+                // the connection store at all.
+                var required = WorkflowCredentialResolver.PlanConnections(visual);
+                if (required.Count > 0)
+                {
+                    var resolvedDataDirectory = dataDirectory
+                        ?? Environment.GetEnvironmentVariable("LOCO_DATA_DIR");
+
+                    if (string.IsNullOrWhiteSpace(resolvedDataDirectory))
+                    {
+                        // Running these uninitialized is guaranteed to fail, so
+                        // say what is missing instead of failing per node.
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine(
+                            $"Error: this workflow uses {required.Count} stored connection(s), " +
+                            "but no data directory was given.");
+                        Console.WriteLine(
+                            "  Pass --data-dir <path> or set LOCO_DATA_DIR to the directory the " +
+                            "API uses (it holds connections.json and secrets/).");
+                        Console.ResetColor();
+                        return 1;
+                    }
+
+                    var connections = new JsonFileConnectionStore(resolvedDataDirectory);
+                    var problems = await WorkflowCredentialResolver.ConfigureAsync(
+                        visual, connections, bridge);
+
+                    if (problems.Count > 0)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("Error: unresolved connections:");
+                        foreach (var problem in problems)
+                        {
+                            Console.WriteLine($"  - {problem}");
+                        }
+                        Console.ResetColor();
+                        return 1;
+                    }
+
+                    Console.WriteLine($"Resolved {required.Count} connection(s)");
+                }
 
                 Console.WriteLine("Executing workflow...");
                 Console.WriteLine(new string('-', 60));

@@ -26,7 +26,9 @@ still in progress.
   scheduler reconciles against the store, so a schedule takes effect within a
   minute of saving without a restart
 - **🌐 Client SDKs**: Python and TypeScript/JavaScript clients under `sdks/`
-- **🖥️ CLI**: run workflows from the terminal (`Loco.Cli`)
+- **🖥️ CLI**: run workflows from the terminal (`Loco.Cli`). `loco workflow
+  run-visual <file> --data-dir <path>` executes an editor workflow with the same
+  connectors and the same stored connections the API uses
 
 ## Project status
 

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FluentAssertions;
 using Loco.Api.Execution;
+using Loco.Core.Integrations.Core;
 using Loco.Core.Triggers;
 using Loco.Core.Workflows;
 
@@ -313,7 +314,8 @@ public class WorkflowScheduleReconciliationTests
 }
 
 /// <summary>
-/// Tests for how a workflow's connections are grouped before they are applied.
+/// Tests for how a workflow's connections are grouped before they are applied
+/// (WorkflowCredentialResolver.PlanConnections, shared by the API and the CLI).
 ///
 /// This decides which connector instance each node runs against. It used to be
 /// a refusal: ConnectorRegistry caches one instance per connector id and
@@ -352,15 +354,15 @@ public class ConnectorConnectionGroupingTests
     }
 
     /// <summary>
-    /// Mirrors the grouping ConfigureConnectorsAsync applies. Kept separate from
-    /// the service so the decision can be asserted without standing up its five
-    /// dependencies; the service groups exactly this way before resolving.
+    /// Calls the real grouping. This used to be a copy of it, which is worth
+    /// naming: a test that mirrors the logic it checks passes whatever the
+    /// logic does, and would have gone on passing had the two diverged. The
+    /// decision now lives in Loco.Core so the API and the CLI share one
+    /// implementation, and this asserts against that one.
     /// </summary>
     private static List<(string Integration, string CredentialId)> Groups(VisualWorkflow workflow) =>
-        workflow.Nodes
-            .Where(n => !string.IsNullOrEmpty(n.CredentialId) && !string.IsNullOrEmpty(n.Integration))
-            .GroupBy(n => (n.Integration, CredentialId: n.CredentialId!))
-            .Select(g => g.Key)
+        WorkflowCredentialResolver.PlanConnections(workflow)
+            .Select(r => (r.Integration, r.CredentialId))
             .OrderBy(k => k.Integration)
             .ThenBy(k => k.CredentialId)
             .ToList();
