@@ -9,10 +9,11 @@ namespace Loco.Api.Execution;
 /// Runs scheduled workflows without anyone pressing a button.
 ///
 /// This is the difference between a workflow RUNNER and workflow AUTOMATION.
-/// CronScheduler, EventTrigger, FileWatcherTrigger and TriggerManager have all
-/// existed in Loco.Core, but nothing in Loco.Api or Loco.Cli referenced any of
-/// them, so a saved workflow only ever ran when a human clicked execute or
-/// invoked the CLI.
+/// CronScheduler existed in Loco.Core with nothing in Loco.Api or Loco.Cli
+/// referencing it, so a saved workflow only ever ran when a human clicked
+/// execute or invoked the CLI. Its unreferenced siblings - EventTrigger,
+/// FileWatcherTrigger and TriggerManager - were deleted rather than wired,
+/// along with two other webhook implementations that nothing could reach.
 ///
 /// A workflow is scheduled by giving a trigger node a `cron` config value:
 ///
