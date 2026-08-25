@@ -19,8 +19,10 @@ namespace Loco.Api.Tests;
 /// the names it publishes are the names the connectors read, and that nothing
 /// in the process starts returning secrets.
 ///
-/// NOTE: authored in an environment where dotnet test could not run (NuGet
-/// egress blocked by organization policy); the first CI run executes these.
+/// NOTE: these are the tests that still have never executed. They need a live
+/// ASP.NET host, which scripts/run-tests-offline.sh cannot provide - it skips
+/// this class by name rather than faking a host and reporting a pass. The rest
+/// of the suite does run there; these wait for CI (docs/ci/ci.yml).
 /// </summary>
 public class ConnectorsApiTests : IClassFixture<LocoApiFactory>
 {

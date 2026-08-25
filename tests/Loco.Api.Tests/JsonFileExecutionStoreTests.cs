@@ -13,8 +13,9 @@ namespace Loco.Api.Tests;
 /// pinning are that a finished run round-trips with its outcome intact, and that
 /// a store failure degrades to "no history" rather than taking a request down.
 ///
-/// NOTE: authored in an environment where dotnet test could not run (NuGet
-/// egress blocked by organization policy); the first CI run executes these.
+/// NOTE: authored where dotnet test cannot run (NuGet egress blocked by
+/// organization policy). They DO run - scripts/run-tests-offline.sh executes
+/// them against the harness in scripts/offline-test-harness/.
 /// </summary>
 public class JsonFileExecutionStoreTests : IDisposable
 {

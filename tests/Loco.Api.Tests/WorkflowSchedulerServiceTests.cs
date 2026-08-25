@@ -15,8 +15,9 @@ namespace Loco.Api.Tests;
 /// distinguish "not scheduled" from "scheduled but misread". That is exactly
 /// the failure mode worth pinning.
 ///
-/// NOTE: authored in an environment where dotnet test could not run (NuGet
-/// egress blocked by organization policy); the first CI run executes these.
+/// NOTE: authored where dotnet test cannot run (NuGet egress blocked by
+/// organization policy). They DO run - scripts/run-tests-offline.sh executes
+/// them against the harness in scripts/offline-test-harness/.
 /// </summary>
 public class WorkflowSchedulerServiceTests
 {
@@ -184,8 +185,9 @@ public class WorkflowSchedulerServiceTests
 /// log line and no execution to look at, so the diff below is the only place the
 /// mistake can be caught.
 ///
-/// NOTE: authored in an environment where dotnet test could not run (NuGet
-/// egress blocked by organization policy); the first CI run executes these.
+/// NOTE: authored where dotnet test cannot run (NuGet egress blocked by
+/// organization policy). They DO run - scripts/run-tests-offline.sh executes
+/// them against the harness in scripts/offline-test-harness/.
 /// </summary>
 public class WorkflowScheduleReconciliationTests
 {
@@ -330,8 +332,9 @@ public class WorkflowScheduleReconciliationTests
 /// resolve and initialize, and two connections for one connector is an ordinary
 /// case that must produce two groups.
 ///
-/// NOTE: authored in an environment where dotnet test could not run (NuGet
-/// egress blocked by organization policy); the first CI run executes these.
+/// NOTE: authored where dotnet test cannot run (NuGet egress blocked by
+/// organization policy). They DO run - scripts/run-tests-offline.sh executes
+/// them against the harness in scripts/offline-test-harness/.
 /// </summary>
 public class ConnectorConnectionGroupingTests
 {

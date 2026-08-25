@@ -2,13 +2,13 @@
 #
 # Everything this repository can verify without a network.
 #
-# One command, because the alternative is remembering four and running three.
-# The backend cannot be built or tested here - api.nuget.org is refused by proxy
-# policy, so no package restores - which makes the checks below the whole of
-# what a developer can know locally. They are not a formality: between them they
-# have caught a restore that failed before it reached a package, a test assembly
-# that could not compile, 44,000 lines of unreachable code, and a rename that
-# missed a call site.
+# One command, because the alternative is remembering five and running three.
+# api.nuget.org is refused by proxy policy here, so there is no package restore
+# and no `dotnet test` - but the tests themselves DO run, against the harness in
+# scripts/offline-test-harness/. Between them these checks have caught a restore
+# that failed before it reached a package, a test assembly that could not
+# compile, 47,000 lines of unreachable code, a rename that missed a call site,
+# and a condition node that never branched.
 #
 # Run: scripts/verify.sh
 # Exit: 0 when everything passes, 1 on the first failure.
@@ -24,6 +24,9 @@ scripts/typecheck-offline.sh
 
 step "Structural checks"
 python3 scripts/check-structure.py
+
+step "Backend tests"
+scripts/run-tests-offline.sh
 
 EDITOR_DIR="src/Loco.VisualEditor"
 
@@ -49,5 +52,6 @@ step "Editor lint"
 npm run lint
 
 printf '\n\033[1mAll offline checks passed.\033[0m\n'
-echo "Still unverified here: the backend build and its test suite, which need"
-echo "a package restore. The CI definition in docs/ci/ci.yml runs those."
+echo "Still unverified here: a real build against the real packages, and the four"
+echo "controller test classes that need a live ASP.NET host. The CI definition in"
+echo "docs/ci/ci.yml runs those."

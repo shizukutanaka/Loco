@@ -61,18 +61,23 @@ This repository is a work in progress. Being honest about the state:
   and documents that cite files which exist.
 - **Backend verification status**: much of the backend was written where
   `dotnet restore` is impossible (api.nuget.org refused by proxy policy), so
-  those commits carry a VERIFICATION CAVEAT. `scripts/typecheck-offline.sh` now
-  compiles every file in `src/` and `tests/` clean — **method bodies included**.
-  It did not always: the C# compiler skips body binding entirely when any
-  declaration-level error exists, and this script always had twelve of those
-  (JwtBearer, Swashbuckle, System.CommandLine), so for most of its life it
-  checked declarations only while claiming more. Stubbing those four packages
-  dropped the count to zero and immediately surfaced real defects that had been
-  invisible since the repository began — a method that does not exist called
-  from 13 places, a `==` where a `=` belonged, a call missing an argument.
-  What it still does not prove is that any of it RUNS: no test executes without
-  a restore. A full `dotnet build && dotnet test` in CI remains the only
-  complete check; see `docs/ci/`. Two things that would
+  those commits carry a VERIFICATION CAVEAT. Two things changed that:
+
+  `scripts/typecheck-offline.sh` compiles every file in `src/` and `tests/`
+  clean, **method bodies included**. It did not always — the C# compiler skips
+  body binding entirely when any declaration-level error exists, and this script
+  always had twelve of those, so for most of its life it checked declarations
+  only while claiming more. Stubbing those packages dropped the count to zero
+  and surfaced defects that had been invisible since the repository began.
+
+  `scripts/run-tests-offline.sh` **runs the backend tests** — 285 of them, in
+  about 7 seconds — against a working subset of xunit and FluentAssertions in
+  `scripts/offline-test-harness/`. `dotnet test` needs packages that cannot be
+  restored here; running the tests turned out not to need `dotnet test`.
+
+  What is still not covered: a real build against the real packages, and the
+  four controller test classes that need a live ASP.NET host, which the harness
+  excludes by name rather than faking. `docs/ci/` runs those. Two things that would
   have stopped that CI run regardless of the network have since been fixed:
   `dotnet restore` failed on NU1008 because two projects pinned versions
   inline, and `Loco.Core.Tests` could not compile because three files named

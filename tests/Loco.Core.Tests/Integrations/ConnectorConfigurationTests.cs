@@ -22,8 +22,9 @@ namespace Loco.Core.Tests.Integrations;
 /// reproduce it, which is why the cases below store strings - the way the real
 /// store does.
 ///
-/// NOTE: authored where dotnet test could not run (NuGet egress blocked by
-/// organization policy); the first CI run is what executes these.
+/// NOTE: authored where dotnet test cannot run (NuGet egress blocked by
+/// organization policy). They DO run - scripts/run-tests-offline.sh executes
+/// them against the harness in scripts/offline-test-harness/.
 /// </summary>
 public class ConnectorConfigurationTests
 {

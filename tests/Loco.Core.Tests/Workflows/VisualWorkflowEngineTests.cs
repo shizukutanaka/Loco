@@ -13,8 +13,9 @@ namespace Loco.Core.Tests.Workflows;
 /// Characterization tests for VisualWorkflowEngine - the canonical execution
 /// engine behind POST /api/v1/workflows/{id}/execute. The engine previously had
 /// zero tests despite being the best-implemented engine in the repo.
-/// NOTE: authored in an environment where dotnet test could not run (NuGet
-/// egress blocked); execution status is recorded in the commit message.
+/// NOTE: authored where dotnet test cannot run (NuGet egress blocked by
+/// organization policy). They DO run - scripts/run-tests-offline.sh executes
+/// them against the harness in scripts/offline-test-harness/.
 /// </summary>
 public class VisualWorkflowEngineTests
 {
@@ -324,8 +325,9 @@ public class VisualWorkflowEngineTests
 /// really the execution's token, and that a handler observing it produces a
 /// Cancelled workflow rather than a Failed one.
 ///
-/// NOTE: authored in an environment where dotnet test could not run (NuGet
-/// egress blocked by organization policy); the first CI run executes these.
+/// NOTE: authored where dotnet test cannot run (NuGet egress blocked by
+/// organization policy). They DO run - scripts/run-tests-offline.sh executes
+/// them against the harness in scripts/offline-test-harness/.
 /// </summary>
 public class VisualWorkflowEngineCancellationTests
 {
@@ -384,23 +386,66 @@ public class VisualWorkflowEngineCancellationTests
     public async Task A_handler_ignoring_the_token_still_finishes_its_node()
     {
         // Cancellation is cooperative. A handler that never looks at the token
-        // runs to completion, and the engine stops at the next node boundary -
+        // runs to completion, and the engine stops at the NEXT node boundary -
         // worth pinning so nobody reads the fix as a hard kill.
+        //
+        // Two nodes, deliberately: the first version of this test used one, and
+        // asserted Cancelled. Running it showed why that was wrong - with a
+        // single node there is no next boundary, every node has finished, and
+        // the run is a Success. Reporting Cancelled for a run that completed all
+        // of its work would be the misleading answer.
         var engine = new VisualWorkflowEngine();
         using var cts = new CancellationTokenSource();
 
-        var completed = false;
-        engine.RegisterNodeHandler("t:stubborn", (_, _) =>
+        var ran = new List<string>();
+        engine.RegisterNodeHandler("t:stubborn", (node, _) =>
         {
+            ran.Add(node.Name);
             cts.Cancel();
-            completed = true;
             return Task.FromResult<object?>("done anyway");
         });
+        engine.RegisterNodeHandler("t:after", (node, _) =>
+        {
+            ran.Add(node.Name);
+            return Task.FromResult<object?>("should not run");
+        });
 
-        var result = await engine.ExecuteAsync(OneNode("t", "stubborn"), null, cts.Token);
+        var first = new WorkflowNode { Name = "first", Type = "action", Integration = "t", Action = "stubborn" };
+        var second = new WorkflowNode { Name = "second", Type = "action", Integration = "t", Action = "after" };
+        var workflow = new VisualWorkflow
+        {
+            Name = "cooperative",
+            Nodes = new List<WorkflowNode> { first, second },
+            Connections = new List<WorkflowConnection>
+            {
+                new() { SourceNodeId = first.Id, TargetNodeId = second.Id },
+            },
+        };
 
-        completed.Should().BeTrue();
+        var result = await engine.ExecuteAsync(workflow, null, cts.Token);
+
+        // The node that ignored the token finished; the one after it never started.
+        ran.Should().Equal("first");
         result.Status.Should().Be(WorkflowExecutionStatus.Cancelled);
+    }
+
+    [Fact]
+    public async Task Cancelling_during_the_last_node_still_reports_success()
+    {
+        // The other half of the same rule, stated so it is not mistaken for a
+        // bug later: all the work finished, so the run succeeded.
+        var engine = new VisualWorkflowEngine();
+        using var cts = new CancellationTokenSource();
+
+        engine.RegisterNodeHandler("t:last", (_, _) =>
+        {
+            cts.Cancel();
+            return Task.FromResult<object?>("done");
+        });
+
+        var result = await engine.ExecuteAsync(OneNode("t", "last"), null, cts.Token);
+
+        result.Status.Should().Be(WorkflowExecutionStatus.Success);
     }
 
     [Fact]
@@ -438,8 +483,9 @@ public class VisualWorkflowEngineCancellationTests
 /// both paths, and nothing reported it: no error, no warning, just two branches
 /// of work where one was asked for.
 ///
-/// NOTE: authored in an environment where dotnet test could not run (NuGet
-/// egress blocked by organization policy); the first CI run executes these.
+/// NOTE: authored where dotnet test cannot run (NuGet egress blocked by
+/// organization policy). They DO run - scripts/run-tests-offline.sh executes
+/// them against the harness in scripts/offline-test-harness/.
 /// </summary>
 public class VisualWorkflowEngineBranchingTests
 {

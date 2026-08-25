@@ -14,8 +14,10 @@ namespace Loco.Api.Tests;
 /// values out of its own return types still leaks if a controller serializes
 /// something else, so this asserts against the raw response body.
 ///
-/// NOTE: authored in an environment where dotnet test could not run (NuGet
-/// egress blocked by organization policy); the first CI run executes these.
+/// NOTE: these are the tests that still have never executed. They need a live
+/// ASP.NET host, which scripts/run-tests-offline.sh cannot provide - it skips
+/// this class by name rather than faking a host and reporting a pass. The rest
+/// of the suite does run there; these wait for CI (docs/ci/ci.yml).
 /// </summary>
 public class ConnectionsApiTests : IClassFixture<LocoApiFactory>
 {

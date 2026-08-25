@@ -16,8 +16,9 @@ namespace Loco.Core.Tests.Storage;
 /// values go in and only come back out through BuildConfigurationAsync, which
 /// hands them to a connector. Everything a caller can read is metadata.
 ///
-/// NOTE: authored where dotnet test could not run (NuGet egress blocked by
-/// organization policy); the first CI run is what executes these.
+/// NOTE: authored where dotnet test cannot run (NuGet egress blocked by
+/// organization policy). They DO run - scripts/run-tests-offline.sh executes
+/// them against the harness in scripts/offline-test-harness/.
 /// </summary>
 public class JsonFileConnectionStoreTests : IDisposable
 {

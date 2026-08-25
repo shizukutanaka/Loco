@@ -13,8 +13,9 @@ namespace Loco.Api.Tests;
 /// separate a failure from a status line. That is the kind of defect no
 /// compiler and no end-to-end test notices, so it is pinned here.
 ///
-/// NOTE: authored in an environment where dotnet test could not run (NuGet
-/// egress blocked by organization policy); the first CI run executes these.
+/// NOTE: authored where dotnet test cannot run (NuGet egress blocked by
+/// organization policy). They DO run - scripts/run-tests-offline.sh executes
+/// them against the harness in scripts/offline-test-harness/.
 /// </summary>
 public class ExecutionResponseFactoryTests
 {

@@ -16,8 +16,9 @@ namespace Loco.Core.Tests.Triggers;
 /// stable offset. Timezone-database ids differ between Windows and Linux, so the
 /// zone is resolved defensively and the test no-ops if the runner lacks it.
 ///
-/// NOTE: authored where dotnet test could not run (NuGet egress blocked);
-/// execution status is recorded in the commit message.
+/// NOTE: authored where dotnet test cannot run (NuGet egress blocked by
+/// organization policy). They DO run - scripts/run-tests-offline.sh executes
+/// them against the harness in scripts/offline-test-harness/.
 /// </summary>
 public class CronSchedulerTimezoneTests
 {

@@ -12,8 +12,9 @@ namespace Loco.Core.Tests.Storage;
 
 /// <summary>
 /// Tests for JsonFileWorkflowStore - file-per-workflow JSON persistence.
-/// NOTE: authored in an environment where dotnet test could not run (NuGet
-/// egress blocked); execution status is recorded in the commit message.
+/// NOTE: authored where dotnet test cannot run (NuGet egress blocked by
+/// organization policy). They DO run - scripts/run-tests-offline.sh executes
+/// them against the harness in scripts/offline-test-harness/.
 /// </summary>
 public class JsonFileWorkflowStoreTests : IDisposable
 {

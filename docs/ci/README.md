@@ -68,9 +68,15 @@
   `Name =="action"` のタイプミス、引数が足りない `TestConnectionAsync` 呼び出し、
   改名済みクラスを呼ぶ CLI）が表面化しました。
 
-  ただし**型検査は実行ではありません**。テストは 1 件も走っておらず、
-  スタブ化した 4 パッケージ自体の使い方の誤りも見えません。
-  `dotnet build && dotnet test` の代替にはならず、backend ジョブが必要です。
+- **backend テストはローカルで実行できます**。`scripts/run-tests-offline.sh` が
+  `scripts/offline-test-harness/`（xunit と FluentAssertions の実働サブセット
+  ＋リフレクションによるランナー）を使って **285 件を約 7 秒で実行**します。
+  `dotnet test` には restore できないパッケージが要りますが、
+  「テストを走らせること」自体には要りませんでした。
+
+  残る未検証は 2 点だけです: 実パッケージに対する本物のビルドと、
+  live な ASP.NET ホストを要する 4 つのコントローラテストクラス
+  （ハーネスは偽装せず名指しでスキップします）。どちらも backend ジョブが担います。
 
 ローカルでは `scripts/verify.sh` がこれらをまとめて実行します。
 

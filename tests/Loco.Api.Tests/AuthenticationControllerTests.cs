@@ -16,8 +16,10 @@ namespace Loco.Api.Tests;
 /// compiled: this project's csproj failed restore under Central Package
 /// Management (NU1008).
 ///
-/// NOTE: authored in an environment where dotnet test could not run (NuGet
-/// egress blocked); execution status is recorded in the commit message.
+/// NOTE: these are the tests that still have never executed. They need a live
+/// ASP.NET host, which scripts/run-tests-offline.sh cannot provide - it skips
+/// this class by name rather than faking a host and reporting a pass. The rest
+/// of the suite does run there; these wait for CI (docs/ci/ci.yml).
 /// </summary>
 public class AuthenticationTests : IClassFixture<LocoApiFactory>
 {

@@ -9,7 +9,7 @@
 #
 # The .NET SDK is installable from the Ubuntu archive, and it ships Roslyn plus
 # the framework reference assemblies. Everything else - the four packages this
-# repository actually needs types from - is declared in scripts/offline-test-stubs/.
+# repository actually needs types from - is declared in scripts/offline-test-harness/.
 #
 # THE BUG THIS SCRIPT USED TO HAVE
 # --------------------------------
@@ -98,7 +98,7 @@ CS
 # Compile all three projects in one pass so cross-project types resolve without
 # needing to build and reference intermediate assemblies.
 find src/Loco.Core src/Loco.Api src/Loco.Cli -name '*.cs' > "$WORK/files.txt"
-find scripts/offline-test-stubs -name 'NuGetPackageStubs.cs' >> "$WORK/files.txt"
+find scripts/offline-test-harness -name 'NuGetPackageStubs.cs' >> "$WORK/files.txt"
 echo "$WORK/GlobalUsings.cs" >> "$WORK/files.txt"
 
 REFS=()
@@ -138,9 +138,11 @@ dotnet "$CSC" -nologo -nostdlib -langversion:12 -nullable:enable \
 # sources were never compiled by anything, and three files naming types that do
 # not exist sat there taking the whole assembly down with them.
 #
-# scripts/offline-test-stubs/ stands in for the test packages only. The src
-# types are real, so a test reaching for a property Loco.Core does not have
-# still fails here, which is the class of breakage that actually happened.
+# scripts/offline-test-harness/ supplies the test packages. Runner.cs is left
+# out: it declares the entry point, which Loco.Api's top-level Program.cs also
+# claims. This phase covers ALL the tests, including the four controller classes
+# that scripts/run-tests-offline.sh has to skip for want of an ASP.NET host - so
+# those at least stay compiling even though nothing can execute them here.
 # The test projects declare <Using Include="Xunit" />, so most test files have
 # no `using Xunit;` of their own. Without this the attributes resolve nowhere
 # and every [Fact] reports as a missing type - 190 errors that say nothing.
@@ -149,7 +151,8 @@ global using global::Xunit;
 CS
 
 find tests -name '*.cs' > "$WORK/test-files.txt"
-find scripts/offline-test-stubs -name 'TestFrameworkStubs.cs' >> "$WORK/test-files.txt"
+find scripts/offline-test-harness -name '*.cs' ! -name 'Runner.cs' \
+  ! -name 'NuGetPackageStubs.cs' >> "$WORK/test-files.txt"
 echo "$WORK/TestGlobalUsings.cs" >> "$WORK/test-files.txt"
 cat "$WORK/files.txt" >> "$WORK/test-files.txt"
 
@@ -187,5 +190,4 @@ if [[ -n "$src_errors" || -n "$test_errors" ]]; then
 fi
 
 echo "Clean: every file in src/ and tests/ compiles, method bodies included."
-echo "Not proven here: that any of it RUNS. dotnet test needs the packages that"
-echo "cannot be restored; docs/ci/ci.yml is what executes the suite."
+echo "To run them: scripts/run-tests-offline.sh"
