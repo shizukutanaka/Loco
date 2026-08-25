@@ -10,7 +10,6 @@ import {
   LayoutTemplate,
   Loader2,
   List,
-  Users,
   Keyboard,
   Shuffle,
   FolderOpen,
@@ -20,7 +19,6 @@ import {
 import { useToolbarKeyboardShortcuts, useWorkflowOperations, useWorkflowExecution, useToolbarModals } from '@/hooks';
 import { WorkflowList } from '@/components/WorkflowList/WorkflowList';
 import { TagEditor } from '@/components/TagEditor/TagEditor';
-import { CollaborationPanel } from '@/components/CollaborationPanel/CollaborationPanel';
 import { WorkflowTester } from '@/components/WorkflowTester/WorkflowTester';
 import { KeyboardShortcuts } from '@/components/KeyboardShortcuts/KeyboardShortcuts';
 
@@ -67,7 +65,6 @@ function ToolbarComponent() {
     onOpenTemplateGallery: modals.openTemplateGallery,
     onOpenWorkflowTester: modals.openWorkflowTester,
     onOpenSettings: modals.openSettingsPanel,
-    onOpenCollaboration: modals.openCollaborationPanel,
     onOpenKeyboardShortcuts: modals.openKeyboardShortcuts,
     onRun: execution.handleRunWorkflow,
   }), [handleNewWorkflow, operations, modals, execution]);
@@ -183,16 +180,6 @@ function ToolbarComponent() {
           >
             <List className="w-4 h-4" aria-hidden="true" />
             <span className="text-sm font-medium">My Workflows</span>
-          </button>
-
-          <button
-            onClick={modals.openCollaborationPanel}
-            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Collaboration"
-            aria-label="Open collaboration panel (Ctrl+Shift+C)"
-          >
-            <Users className="w-4 h-4" aria-hidden="true" />
-            <span className="text-sm font-medium">Collaborate</span>
           </button>
 
           <div className="h-8 w-px bg-gray-300"></div>
@@ -334,12 +321,6 @@ function ToolbarComponent() {
           />
         </Suspense>
       )}
-
-      <CollaborationPanel
-        workflowId={workflow?.id || ''}
-        isOpen={modals.isCollaborationPanelOpen}
-        onClose={modals.closeCollaborationPanel}
-      />
 
       <WorkflowTester
         workflowId={workflow?.id || ''}

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, memo, useEffect } from 'react';
+import { useCallback, useRef, useState, memo } from 'react';
 import ReactFlow, {
   Background,
   MiniMap,
@@ -28,8 +28,6 @@ import {
 } from '@/components/NodeTypes';
 import { CanvasControls } from '@/components/CanvasControls/CanvasControls';
 import { QuickActionsMenu } from '@/components/QuickActionsMenu/QuickActionsMenu';
-import { CollaborationOverlay } from '@/components/CollaborationOverlay/CollaborationOverlay';
-import { useCollaborationStore } from '@/store/collaborationStore';
 import {
   useCanvasZoomControls,
   useCanvasKeyboardShortcuts,
@@ -77,21 +75,6 @@ function WorkflowCanvasComponent() {
   // Get canvas event handlers from store
   // (onNodesChange, onEdgesChange, onConnect are callback handlers, not included in granular selectors)
   const { onNodesChange, onEdgesChange, onConnect, setSelectedEdgeId } = useWorkflowStore();
-
-  const { isConnected, updateSelection } = useCollaborationStore();
-
-  // Store collaboration state in refs to avoid callback recreation when these values change
-  const isConnectedRef = useRef(isConnected);
-  const updateSelectionRef = useRef(updateSelection);
-
-  // Update refs with current values without recreating the callback
-  useEffect(() => {
-    isConnectedRef.current = isConnected;
-  }, [isConnected]);
-
-  useEffect(() => {
-    updateSelectionRef.current = updateSelection;
-  }, [updateSelection]);
 
   // Setup canvas control event listeners (zoom in/out, fit view, etc)
   useCanvasZoomControls();
@@ -235,20 +218,13 @@ function WorkflowCanvasComponent() {
         setSelectedNodeId(null);
         setSelectedEdgeId(null);
       }
-
-      // Send selection to collaboration service using refs
-      if (isConnectedRef.current) {
-        updateSelectionRef.current(selectedNodeIds);
-      }
     },
-    [setSelectedNodeId, setSelectedEdgeId]  // Collaboration state accessed via refs
+    [setSelectedNodeId, setSelectedEdgeId]
   );
 
 
   return (
     <div ref={reactFlowWrapper} className="flex-1 h-full relative">
-      {/* Collaboration overlay for real-time cursors and presence */}
-      <CollaborationOverlay />
 
       {selectedNodes.length > 1 && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-white rounded-lg shadow-lg border border-gray-200 px-4 py-2 flex items-center gap-3">

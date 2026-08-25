@@ -10,14 +10,13 @@ interface KeyboardShortcutHandlers {
   onOpenTemplateGallery: () => void;
   onOpenWorkflowTester: () => void;
   onOpenSettings: () => void;
-  onOpenCollaboration: () => void;
   onOpenKeyboardShortcuts: () => void;
   onRun: () => void;
 }
 
 /**
  * Custom hook for managing global keyboard shortcuts in the toolbar
- * Handles: Ctrl+S, Ctrl+N, Ctrl+O, Ctrl+E, Ctrl+K, Ctrl+T, Ctrl+,, Ctrl+Shift+C, Ctrl+Shift+F, ?, Ctrl+/
+ * Handles: Ctrl+S, Ctrl+N, Ctrl+O, Ctrl+E, Ctrl+K, Ctrl+T, Ctrl+,, Ctrl+Shift+F, ?, Ctrl+/
  */
 export function useToolbarKeyboardShortcuts(handlers: KeyboardShortcutHandlers) {
   const { undo, redo, canUndo, canRedo } = useWorkflowStore();
@@ -33,7 +32,6 @@ export function useToolbarKeyboardShortcuts(handlers: KeyboardShortcutHandlers) 
     onOpenTemplateGallery,
     onOpenWorkflowTester,
     onOpenSettings,
-    onOpenCollaboration,
     onOpenKeyboardShortcuts,
     onRun,
   } = handlers;
@@ -118,10 +116,6 @@ export function useToolbarKeyboardShortcuts(handlers: KeyboardShortcutHandlers) 
         // Ctrl+Shift shortcuts
         if (e.shiftKey) {
           switch (e.key.toLowerCase()) {
-            case 'c':
-              e.preventDefault();
-              onOpenCollaboration();
-              break;
             case 'f':
               e.preventDefault();
               window.dispatchEvent(new CustomEvent('canvas:fit-view'));
@@ -170,7 +164,6 @@ export function useToolbarKeyboardShortcuts(handlers: KeyboardShortcutHandlers) 
     onOpenTemplateGallery,
     onOpenWorkflowTester,
     onOpenSettings,
-    onOpenCollaboration,
     onOpenKeyboardShortcuts,
     onRun,
   ]);

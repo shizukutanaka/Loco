@@ -5,7 +5,6 @@ interface ToolbarModalsState {
   isConnectionsManagerOpen: boolean;
   isWorkflowListOpen: boolean;
   isSettingsPanelOpen: boolean;
-  isCollaborationPanelOpen: boolean;
   isWorkflowTesterOpen: boolean;
   isKeyboardShortcutsOpen: boolean;
   isEditingName: boolean;
@@ -20,8 +19,6 @@ interface ToolbarModalsActions {
   closeWorkflowList: () => void;
   openSettingsPanel: () => void;
   closeSettingsPanel: () => void;
-  openCollaborationPanel: () => void;
-  closeCollaborationPanel: () => void;
   openWorkflowTester: () => void;
   closeWorkflowTester: () => void;
   openKeyboardShortcuts: () => void;
@@ -38,7 +35,6 @@ export function useToolbarModals(): ToolbarModalsState & ToolbarModalsActions {
   const [isConnectionsManagerOpen, setIsConnectionsManagerOpen] = useState(false);
   const [isWorkflowListOpen, setIsWorkflowListOpen] = useState(false);
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
-  const [isCollaborationPanelOpen, setIsCollaborationPanelOpen] = useState(false);
   const [isWorkflowTesterOpen, setIsWorkflowTesterOpen] = useState(false);
   const [isKeyboardShortcutsOpen, setIsKeyboardShortcutsOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -49,7 +45,6 @@ export function useToolbarModals(): ToolbarModalsState & ToolbarModalsActions {
     isConnectionsManagerOpen,
     isWorkflowListOpen,
     isSettingsPanelOpen,
-    isCollaborationPanelOpen,
     isWorkflowTesterOpen,
     isKeyboardShortcutsOpen,
     isEditingName,
@@ -68,9 +63,6 @@ export function useToolbarModals(): ToolbarModalsState & ToolbarModalsActions {
     openSettingsPanel: () => setIsSettingsPanelOpen(true),
     closeSettingsPanel: () => setIsSettingsPanelOpen(false),
 
-    // Collaboration Panel actions
-    openCollaborationPanel: () => setIsCollaborationPanelOpen(true),
-    closeCollaborationPanel: () => setIsCollaborationPanelOpen(false),
 
     // Workflow Tester actions
     openWorkflowTester: () => setIsWorkflowTesterOpen(true),

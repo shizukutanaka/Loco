@@ -2,7 +2,6 @@ import { useCallback, useRef, useEffect } from 'react';
 import { Node } from 'reactflow';
 import { useReactFlow } from 'reactflow';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { useCollaborationStore } from '@/store/collaborationStore';
 import { useToast } from '@/contexts/ToastContext';
 import { ActionType } from '@/components/QuickActionsMenu/QuickActionsMenu';
 
@@ -16,7 +15,6 @@ interface UseCanvasQuickActionsOptions {
 /**
  * Custom hook for handling canvas quick action menu items
  * Handles: duplicate, delete, rename, group, properties, info, add-nodes
- * Integrates with collaboration store for real-time updates
  */
 export function useCanvasQuickActions({
   nodes,
@@ -27,7 +25,6 @@ export function useCanvasQuickActions({
   const reactFlowInstance = useReactFlow();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { addNode, deleteNode, updateNode } = useWorkflowStore();
-  const { isConnected, sendNodeAdded, sendNodeDeleted, sendNodeUpdated } = useCollaborationStore();
   const toast = useToast();
 
   // Store nodes in ref to avoid callback recreation when nodes change
@@ -56,10 +53,6 @@ export function useCanvasQuickActions({
             };
             addNode(newNode);
 
-            // Send to collaboration service
-            if (isConnected) {
-              sendNodeAdded(newNode);
-            }
 
             toast.success('Node duplicated');
           }
@@ -69,10 +62,6 @@ export function useCanvasQuickActions({
           if (contextMenuNodeId) {
             deleteNode(contextMenuNodeId);
 
-            // Send to collaboration service
-            if (isConnected) {
-              sendNodeDeleted(contextMenuNodeId);
-            }
 
             toast.info('Node deleted');
           }
@@ -84,10 +73,6 @@ export function useCanvasQuickActions({
             if (newName) {
               updateNode(contextMenuNodeId, { label: newName });
 
-              // Send to collaboration service
-              if (isConnected) {
-                sendNodeUpdated(contextMenuNodeId, { label: newName });
-              }
 
               toast.success('Node renamed');
             }
@@ -156,11 +141,11 @@ export function useCanvasQuickActions({
           break;
       }
     },
-    // Only include dependencies that actually change: contextMenuNodeId, contextMenuPosition, onSelectNode, isConnected
+    // Only include dependencies that actually change.
     // Removed: nodes - now using ref to avoid callback recreation when nodes change
     // Store methods (addNode, deleteNode, updateNode, sendNodeAdded, etc.) are stable in Zustand and don't need to be included
     // reactFlowInstance and toast are also stable context/hook values
-    [contextMenuNodeId, contextMenuPosition, onSelectNode, isConnected]
+    [contextMenuNodeId, contextMenuPosition, onSelectNode]
   );
 
   return { handleQuickAction };

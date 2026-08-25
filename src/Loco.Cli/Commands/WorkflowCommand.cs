@@ -39,10 +39,6 @@ namespace Loco.Cli.Commands
                 aliases: new[] { "--lint", "-l" },
                 description: "Run linter on the workflow");
 
-            var testOption = new Option<bool>(
-                aliases: new[] { "--test", "-t" },
-                description: "Run tests on the workflow");
-
             var parallelOption = new Option<int>(
                 aliases: new[] { "--parallel", "-p" },
                 getDefaultValue: () => 0,
@@ -53,10 +49,9 @@ namespace Loco.Cli.Commands
             AddOption(dryRunOption);
             AddOption(healthOption);
             AddOption(lintOption);
-            AddOption(testOption);
             AddOption(parallelOption);
 
-            this.SetHandler(ExecuteWorkflowAsync, fileArgument, visualizeOption, dryRunOption, healthOption, lintOption, testOption, parallelOption);
+            this.SetHandler(ExecuteWorkflowAsync, fileArgument, visualizeOption, dryRunOption, healthOption, lintOption, parallelOption);
 
             // `loco workflow run-visual <file>`: executes the Visual Editor's own
             // workflow JSON shape (StoredWorkflow, saved by "Export" in the editor or
@@ -84,7 +79,7 @@ namespace Loco.Cli.Commands
             AddCommand(runVisualCommand);
         }
 
-        private async Task<int> ExecuteWorkflowAsync(string filePath, string? visualize, bool dryRun, bool health, bool lint, bool test, int maxParallelism)
+        private async Task<int> ExecuteWorkflowAsync(string filePath, string? visualize, bool dryRun, bool health, bool lint, int maxParallelism)
         {
             try
             {
@@ -164,15 +159,6 @@ namespace Loco.Cli.Commands
                     var reportText = WorkflowLinter.GenerateLintReport(lintReport);
                     Console.WriteLine(reportText);
                     return lintReport.HasCriticalViolations ? 1 : 0;
-                }
-
-                // Handle testing (--test flag currently disabled, use --lint or --health)
-                if (test)
-                {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("Testing feature is currently under maintenance. Use --lint or --health instead.");
-                    Console.ResetColor();
-                    return 1;
                 }
 
                 if (dryRun)
