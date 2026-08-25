@@ -274,7 +274,8 @@ loco/
 
 ### Authentication
 
-- **JWT bearer**: `Authorization: Bearer {token}` on every request
+- **JWT bearer**: `Authorization: Bearer {token}` on every request. The visual
+  editor signs in on startup and holds the token for the rest of the session
 - **Getting a token**: `POST /api/v1/authentication/token` with
   `{"username": ..., "password": ...}`. Users are defined in configuration
   (`Auth:Users`) with PBKDF2-hashed passwords; with none configured the

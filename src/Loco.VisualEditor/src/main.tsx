@@ -6,8 +6,9 @@ import { ErrorBoundary } from '@/components/ErrorBoundary/ErrorBoundary'
 import { bootstrapSettings } from '@/config/appSettings'
 import '@/styles/index.css'
 
-// Restore the persisted API credential before the first request is made,
-// so a reload does not silently drop authentication.
+// Re-apply a stored bearer token before the first request is made, so a
+// reload does not drop the session. App shows the sign-in dialog when there
+// is no usable token.
 bootstrapSettings()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

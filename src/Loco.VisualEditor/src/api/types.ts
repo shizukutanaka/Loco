@@ -118,8 +118,8 @@ export interface ExecutionLog {
 // Authentication Types
 // ============================================================================
 
+/** The API speaks JWT bearer and nothing else; see api/auth.ts. */
 export interface AuthConfig {
-  apiKey?: string;
   token?: string;
 }
 

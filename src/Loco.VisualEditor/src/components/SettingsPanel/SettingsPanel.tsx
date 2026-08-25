@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback, useEffect, memo } from 'react';
+import { signOut } from '@/api/auth';
 import {
   Settings,
   Key,
@@ -15,8 +16,6 @@ import {
   Shield,
   Save,
   X,
-  Eye,
-  EyeOff,
   Plus,
   Trash2,
 } from 'lucide-react';
@@ -70,9 +69,10 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
   const [envVars, setEnvVars] = useState<EnvironmentVariable[]>([
     { key: 'API_BASE_URL', value: 'http://localhost:5000', isSecret: false },
   ]);
+  // Masks secret environment variables in the list below.
+  const [showSecrets, setShowSecrets] = useState(false);
   const [newEnvKey, setNewEnvKey] = useState('');
   const [newEnvValue, setNewEnvValue] = useState('');
-  const [showSecrets, setShowSecrets] = useState(false);
 
   // General settings
   const [autoSaveInterval, setAutoSaveInterval] = useState(30);
@@ -80,7 +80,6 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
   const [showValidationPanel, setShowValidationPanel] = useState(true);
 
   // API settings
-  const [apiKey, setApiKey] = useState('');
   const [apiBaseUrl, setApiBaseUrl] = useState('http://localhost:5000');
 
   // Appearance settings
@@ -101,7 +100,6 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
     if (!isOpen) return;
     const settings = loadSettings();
     if (!settings) return;
-    if (settings.api?.apiKey !== undefined) setApiKey(settings.api.apiKey);
     if (settings.api?.apiBaseUrl) setApiBaseUrl(settings.api.apiBaseUrl);
   }, [isOpen]);
 
@@ -131,7 +129,7 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
   const handleSave = useCallback(() => {
     const settings = {
       general: { autoSaveInterval, enableAutoSave, showValidationPanel },
-      api: { apiKey, apiBaseUrl },
+      api: { apiBaseUrl },
       appearance: { theme, gridSize, showMinimap },
       notifications: { enableNotifications, notifyOnSuccess, notifyOnError },
       environment: envVars,
@@ -143,7 +141,7 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
     saveSettings(settings);
     toast.success('Settings saved successfully');
     onClose();
-  }, [autoSaveInterval, enableAutoSave, showValidationPanel, apiKey, apiBaseUrl, theme, gridSize, showMinimap, enableNotifications, notifyOnSuccess, notifyOnError, envVars, toast, onClose]);
+  }, [autoSaveInterval, enableAutoSave, showValidationPanel, apiBaseUrl, theme, gridSize, showMinimap, enableNotifications, notifyOnSuccess, notifyOnError, envVars, toast, onClose]);
 
   const handleTabChange = useCallback((tab: SettingsTab) => {
     setActiveTab(tab);
@@ -166,13 +164,6 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
     setApiBaseUrl(e.target.value);
   }, []);
 
-  const handleApiKeyChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setApiKey(e.target.value);
-  }, []);
-
-  const handleShowSecretsChange = useCallback(() => {
-    setShowSecrets(!showSecrets);
-  }, [showSecrets]);
 
   const handleNewEnvKeyChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setNewEnvKey(e.target.value);
@@ -330,38 +321,30 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
                       helpText="Base URL for the Loco API server"
                     />
 
-                    {/* API Key */}
-                    <FormInput
-                      id="api-key"
-                      type={showSecrets ? 'text' : 'password'}
-                      label="API Key (Optional)"
-                      value={apiKey}
-                      onChange={handleApiKeyChange}
-                      placeholder="Enter your API key"
-                      helpText="API key for authenticated requests"
-                      suffix={
-                        <button
-                          onClick={handleShowSecretsChange}
-                          className="hover:bg-gray-100 rounded p-1"
-                          tabIndex={-1}
-                        >
-                          {showSecrets ? (
-                            <EyeOff className="w-4 h-4 text-gray-500" />
-                          ) : (
-                            <Eye className="w-4 h-4 text-gray-500" />
-                          )}
-                        </button>
-                      }
-                    />
-
-                    {/* Security Notice */}
-                    <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <Shield className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    {/* Session. The API speaks JWT bearer only - it registers
+                        no API-key scheme - so what used to be an "API Key"
+                        field here authenticated nothing, and the client sent
+                        it INSTEAD of the bearer token. Signing in is handled
+                        by the dialog on startup; this reports and ends it. */}
+                    <div className="flex items-start gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                      <Shield className="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5" />
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-yellow-900">Security Notice</p>
-                        <p className="text-xs text-yellow-700 mt-1">
-                          API keys are stored in browser localStorage. Never commit API keys to version control.
+                        <p className="text-sm font-medium text-gray-900">Session</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Signed in as a user defined in the server&apos;s
+                          configuration. The bearer token is held in browser
+                          localStorage until it expires.
                         </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            signOut();
+                            window.location.reload();
+                          }}
+                          className="mt-2 text-xs text-blue-600 hover:underline"
+                        >
+                          Sign out
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -373,7 +356,19 @@ function SettingsPanelComponent({ isOpen, onClose }: SettingsPanelProps) {
             {activeTab === 'environment' && (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Environment Variables</h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Environment Variables</h3>
+                    {/* The reveal toggle used to live on the API Key field,
+                        which is gone; the masked values below are the only
+                        secrets this panel still shows. */}
+                    <button
+                      type="button"
+                      onClick={() => setShowSecrets((shown) => !shown)}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      {showSecrets ? 'Hide secret values' : 'Show secret values'}
+                    </button>
+                  </div>
 
                   {/* Add New Variable */}
                   <div className="mb-6 p-4 bg-gray-50 rounded-lg">

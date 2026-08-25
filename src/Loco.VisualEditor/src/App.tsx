@@ -17,6 +17,8 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { useExecutionStore } from '@/store/executionStore';
 import { useToast } from '@/contexts/ToastContext';
 import { exportWorkflowAsJson } from '@/utils/exportWorkflow';
+import { SignInDialog } from '@/components/SignIn/SignInDialog';
+import { isSignedIn } from '@/api/auth';
 
 // Lazy load ValidationPanel (heavy validation logic)
 const ValidationPanel = lazy(() => import('@/components/ValidationPanel/ValidationPanel').then(module => ({
@@ -24,6 +26,9 @@ const ValidationPanel = lazy(() => import('@/components/ValidationPanel/Validati
 })));
 
 function App() {
+  // Every API controller carries [Authorize], so an unauthenticated editor can
+  // do nothing but 401. The dialog blocks until there is a token.
+  const [signedIn, setSignedIn] = useState(isSignedIn);
   const [isNodeSearchOpen, setIsNodeSearchOpen] = useState(false);
   const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
   const { exportWorkflow, loadWorkflow } = useWorkflowStore();
@@ -67,6 +72,7 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col">
+      <SignInDialog isOpen={!signedIn} onSignedIn={() => setSignedIn(true)} />
       {/* Header: Contains toolbar and application controls */}
       <header className="bg-white border-b border-gray-200" role="banner">
         <Toolbar />

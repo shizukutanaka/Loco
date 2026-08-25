@@ -42,10 +42,12 @@ export class LocoApiClient {
     // Request interceptor - Add authentication
     this.client.interceptors.request.use(
       (config) => {
-        // Add API key or Bearer token if available
-        if (this.authConfig.apiKey) {
-          config.headers['X-API-Key'] = this.authConfig.apiKey;
-        } else if (this.authConfig.token) {
+        // Bearer only. The API registers exactly one authentication scheme,
+        // JwtBearer, and reads no X-API-Key header - so the apiKey branch that
+        // used to sit here sent something the server ignored, and because it
+        // ran INSTEAD of this one, setting an API key replaced a working token
+        // with a header that authenticates nothing.
+        if (this.authConfig.token) {
           config.headers['Authorization'] = `Bearer ${this.authConfig.token}`;
         }
 
@@ -198,10 +200,6 @@ export class LocoApiClient {
   // ==========================================================================
   // Authentication
   // ==========================================================================
-
-  setApiKey(apiKey: string): void {
-    this.authConfig.apiKey = apiKey;
-  }
 
   setToken(token: string): void {
     this.authConfig.token = token;

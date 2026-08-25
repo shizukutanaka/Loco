@@ -1,21 +1,21 @@
 /**
- * Centralized access to persisted app settings and the wiring that applies
- * them to the API client.
+ * Centralized access to persisted app settings.
  *
- * Two bugs this fixes:
- *  - SettingsPanel saved the API key to localStorage but never called
- *    apiClient.setApiKey(), so every request went out unauthenticated and the
- *    (now [Authorize]'d) backend returned 401 for everything.
- *  - There was no restore-on-startup, so even a correctly-applied key was lost
- *    on reload.
+ * Authentication used to live here, as an "API key" applied to the client on
+ * startup. That was built on a wrong premise: the API registers exactly one
+ * authentication scheme, JWT bearer, and reads no X-API-Key header - so the
+ * key authenticated nothing, and because the client sent it INSTEAD of the
+ * Authorization header, setting one could only make things worse.
+ *
+ * Sessions now belong to api/auth.ts, which exchanges a username and password
+ * for a real bearer token. What is left here is what it says: settings.
  */
 
-import { apiClient } from '@/api/client';
+import { restoreSession } from '@/api/auth';
 
 const STORAGE_KEY = 'loco_settings';
 
 export interface ApiSettings {
-  apiKey: string;
   apiBaseUrl: string;
 }
 
@@ -38,28 +38,14 @@ export function loadSettings(): PersistedSettings | null {
 
 export function saveSettings(settings: PersistedSettings): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  applyApiAuth(settings.api);
 }
 
 /**
- * Apply the persisted API credential to the shared client. An empty/absent key
- * clears any previously-applied credential so switching to "no auth" actually
- * takes effect.
+ * Called once at startup (main.tsx), before the first request is made.
+ *
+ * Returns whether a usable session was restored, so the app can decide
+ * between showing the canvas and asking the user to sign in.
  */
-export function applyApiAuth(api?: ApiSettings): void {
-  const key = api?.apiKey?.trim();
-  if (key) {
-    apiClient.setApiKey(key);
-  } else {
-    apiClient.clearAuth();
-  }
-}
-
-/**
- * Called once at startup (main.tsx) to restore the API credential from the
- * previous session before the first request is made.
- */
-export function bootstrapSettings(): void {
-  const settings = loadSettings();
-  applyApiAuth(settings?.api);
+export function bootstrapSettings(): boolean {
+  return restoreSession();
 }
