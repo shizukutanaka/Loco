@@ -4,8 +4,9 @@
 #
 # One command, because the alternative is remembering five and running three.
 # api.nuget.org is refused by proxy policy here, so there is no package restore
-# and no `dotnet test` - but the tests themselves DO run, against the harness in
-# scripts/offline-test-harness/. Between them these checks have caught a restore
+# and no `dotnet test` - but all 321 backend tests DO run, against the harness in
+# scripts/offline-test-harness/, including the controller tests, which get a real
+# API process on a loopback port. Between them these checks have caught a restore
 # that failed before it reached a package, a test assembly that could not
 # compile, 47,000 lines of unreachable code, a rename that missed a call site,
 # and a condition node that never branched.
@@ -52,6 +53,7 @@ step "Editor lint"
 npm run lint
 
 printf '\n\033[1mAll offline checks passed.\033[0m\n'
-echo "Still unverified here: a real build against the real packages, and the four"
-echo "controller test classes that need a live ASP.NET host. The CI definition in"
-echo "docs/ci/ci.yml runs those."
+echo "Still unverified here: a real build against the real packages. The harness"
+echo "hosts the API for the controller tests, but its JwtBearer plumbing is"
+echo "hand-written and its Swashbuckle stubs are inert. docs/ci/ci.yml runs the"
+echo "real suite."

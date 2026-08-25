@@ -70,14 +70,17 @@ This repository is a work in progress. Being honest about the state:
   only while claiming more. Stubbing those packages dropped the count to zero
   and surfaced defects that had been invisible since the repository began.
 
-  `scripts/run-tests-offline.sh` **runs the backend tests** — 285 of them, in
+  `scripts/run-tests-offline.sh` **runs the backend tests** — all 321 of them, in
   about 7 seconds — against a working subset of xunit and FluentAssertions in
   `scripts/offline-test-harness/`. `dotnet test` needs packages that cannot be
   restored here; running the tests turned out not to need `dotnet test`.
 
-  What is still not covered: a real build against the real packages, and the
-  four controller test classes that need a live ASP.NET host, which the harness
-  excludes by name rather than faking. `docs/ci/` runs those. Two things that would
+  The controller tests run too: the harness builds the API as a real executable
+  and launches it on a loopback port, so they talk to actual Kestrel over actual
+  HTTP. What is still not covered: a real build against the real packages - the
+  JwtBearer plumbing in the harness is hand-written (the token validation itself
+  is Microsoft's, shipped inside the SDK) and its Swashbuckle stubs are inert.
+  `docs/ci/` runs the real suite. Two things that would
   have stopped that CI run regardless of the network have since been fixed:
   `dotnet restore` failed on NU1008 because two projects pinned versions
   inline, and `Loco.Core.Tests` could not compile because three files named

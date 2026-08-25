@@ -16,13 +16,19 @@
 # assertion library that quietly returns `this` would turn a green run into a
 # lie, which is worse than not running at all.
 #
+# The controller tests need a live ASP.NET host, and they get one: this builds
+# the API as a real executable and the harness's WebApplicationFactory launches
+# it on a loopback port, so those tests talk to actual Kestrel over actual HTTP.
+# The ASP.NET Core shared runtime is installed, and the real JWT libraries ship
+# inside the SDK's own dotnet-user-jwts tool - so tokens are signed and
+# validated by Microsoft's code, not by anything in this directory.
+#
 # WHAT IT DOES NOT DO
 # -------------------
-# It cannot host an ASP.NET application. The four controller test classes that
-# need WebApplicationFactory are excluded and named below, rather than being
-# faked into passing. It is also not a replacement for `dotnet test`: the real
-# xunit and FluentAssertions are cleverer than this harness, and only a real
-# build exercises the actual packages. docs/ci/ci.yml runs the real suite.
+# It is not a replacement for `dotnet test`: the real xunit and FluentAssertions
+# are cleverer than this harness, the JwtBearer *plumbing* (not the validation)
+# is written here, and the Swashbuckle stubs are inert. Only a real build
+# exercises the actual packages. docs/ci/ci.yml runs the real suite.
 #
 # Usage:  scripts/run-tests-offline.sh [--verbose]
 set -uo pipefail
@@ -43,15 +49,6 @@ fi
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-# Tests that need a live ASP.NET host. Excluded rather than faked; reported at
-# the end so their absence is stated rather than implied.
-SKIPPED=(
-  "tests/Loco.Api.Tests/LocoApiFactory.cs"
-  "tests/Loco.Api.Tests/AuthenticationControllerTests.cs"
-  "tests/Loco.Api.Tests/ConnectionsControllerTests.cs"
-  "tests/Loco.Api.Tests/ConnectorsControllerTests.cs"
-  "tests/Loco.Api.Tests/WorkflowsControllerTests.cs"
-)
 
 cat > "$WORK/GlobalUsings.cs" <<'CS'
 global using global::System;
@@ -72,19 +69,16 @@ global using global::Microsoft.Extensions.Logging;
 global using global::Xunit;
 CS
 
-# Loco.Api/Program.cs is top-level statements, which claims the entry point the
-# runner needs. Nothing else references it: it declares only the empty partial
-# Program that WebApplicationFactory binds to, and those tests are excluded too.
+# Program.cs stays out of the test assembly: its top-level statements are an
+# entry point, and csc refuses -main: in any compilation that has one. The empty
+# partial Program it also declares - the type LocoApiFactory names as its type
+# parameter - is supplied by the harness instead. That parameter is only a
+# marker here; the API is launched by path, not by type.
 find src/Loco.Core src/Loco.Api src/Loco.Cli -name '*.cs' \
   ! -path 'src/Loco.Api/Program.cs' > "$WORK/files.txt"
 find tests -name '*.cs' >> "$WORK/files.txt"
-find scripts/offline-test-harness -name '*.cs' \
-  ! -name 'WebApplicationFactory.cs' >> "$WORK/files.txt"
+find scripts/offline-test-harness -name '*.cs' >> "$WORK/files.txt"
 echo "$WORK/GlobalUsings.cs" >> "$WORK/files.txt"
-
-for excluded in "${SKIPPED[@]}"; do
-  grep -vxF "$excluded" "$WORK/files.txt" > "$WORK/files.tmp" && mv "$WORK/files.tmp" "$WORK/files.txt"
-done
 
 REFS=()
 for dll in "$NREF"/*.dll; do REFS+=("-r:$dll"); done
@@ -113,7 +107,8 @@ fi
 
 # A framework-dependent app needs a runtimeconfig telling it which shared
 # framework to load; csc emits the assembly but not that.
-cat > "$WORK/tests.runtimeconfig.json" <<'JSON'
+write_runtimeconfig() {
+  cat > "$1" <<'JSON'
 {
   "runtimeOptions": {
     "tfm": "net8.0",
@@ -124,21 +119,55 @@ cat > "$WORK/tests.runtimeconfig.json" <<'JSON'
   }
 }
 JSON
+}
+
+write_runtimeconfig "$WORK/tests.runtimeconfig.json"
+
+# The API as a real executable, for the controller tests to talk to over HTTP.
+# Same sources, same stubs; the only difference from tests.dll is that this one
+# keeps Program.cs's own entry point and carries no test code.
+mkdir -p "$WORK/api"
+find src/Loco.Core src/Loco.Api -name '*.cs' > "$WORK/api-files.txt"
+find scripts/offline-test-harness -name 'NuGetPackageStubs.cs' >> "$WORK/api-files.txt"
+
+# The same implicit usings the SDK would inject, minus Xunit - the API host
+# carries no test code and there is no Xunit namespace in its compilation.
+grep -v 'global::Xunit' "$WORK/GlobalUsings.cs" > "$WORK/ApiGlobalUsings.cs"
+echo "$WORK/ApiGlobalUsings.cs" >> "$WORK/api-files.txt"
+
+echo "Compiling the API host ($(wc -l < "$WORK/api-files.txt") files)..."
+dotnet "$CSC" -nologo -nostdlib -langversion:12 -nullable:enable \
+  -t:exe -out:"$WORK/api/api.dll" \
+  "${REFS[@]}" "@$WORK/api-files.txt" > "$WORK/api-build.txt" 2>&1
+
+if grep -q 'error CS' "$WORK/api-build.txt"; then
+  echo "API host compilation failed:"
+  grep 'error CS' "$WORK/api-build.txt" | head -30
+  exit 1
+fi
+
+write_runtimeconfig "$WORK/api/api.runtimeconfig.json"
+
+# Microsoft.IdentityModel.* and System.IdentityModel.Tokens.Jwt are NOT in the
+# shared framework - they were borrowed from the SDK's dotnet-user-jwts tool -
+# so the runtime can only find them next to the assembly that needs them.
+for ref in "${REFS[@]}"; do
+  dll="${ref#-r:}"
+  case "$(basename "$dll")" in
+    Microsoft.IdentityModel.*.dll|System.IdentityModel.Tokens.Jwt.dll)
+      cp -f "$dll" "$WORK/api/" ;;
+  esac
+done
 
 echo "Running..."
 echo
-dotnet "$WORK/tests.dll" "$@"
+LOCO_TEST_API_DLL="$WORK/api/api.dll" dotnet "$WORK/tests.dll" "$@"
 status=$?
 
 echo
-echo "Skipped (need a live ASP.NET host, which this harness cannot provide):"
-for excluded in "${SKIPPED[@]}"; do
-  [[ "$excluded" == *LocoApiFactory.cs ]] && continue
-  echo "  $excluded"
-done
-echo
 echo "This is not dotnet test. The real xunit and FluentAssertions are cleverer"
-echo "than scripts/offline-test-harness/, and only a real build exercises the"
-echo "actual packages - docs/ci/ci.yml runs the real suite."
+echo "than scripts/offline-test-harness/, the JwtBearer plumbing there is hand"
+echo "-written (the validation itself is Microsoft's), and the Swashbuckle stubs"
+echo "are inert - docs/ci/ci.yml runs the real suite against the real packages."
 
 exit $status

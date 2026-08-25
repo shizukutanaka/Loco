@@ -19,10 +19,12 @@ namespace Loco.Api.Tests;
 /// the names it publishes are the names the connectors read, and that nothing
 /// in the process starts returning secrets.
 ///
-/// NOTE: these are the tests that still have never executed. They need a live
-/// ASP.NET host, which scripts/run-tests-offline.sh cannot provide - it skips
-/// this class by name rather than faking a host and reporting a pass. The rest
-/// of the suite does run there; these wait for CI (docs/ci/ci.yml).
+/// NOTE: these run. scripts/run-tests-offline.sh builds the API as a real
+/// executable and the harness launches it on a loopback port, so these talk to
+/// actual Kestrel over actual HTTP - the response bodies asserted against here
+/// genuinely crossed a socket. What is hand-written is the JwtBearer plumbing
+/// that pulls the token off the request; the validation itself is Microsoft's
+/// own library, shipped inside the SDK. docs/ci/ci.yml runs the real packages.
 /// </summary>
 public class ConnectorsApiTests : IClassFixture<LocoApiFactory>
 {

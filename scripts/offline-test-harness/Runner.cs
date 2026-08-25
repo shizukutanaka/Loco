@@ -36,6 +36,12 @@ namespace Loco.OfflineTestRunner
 
             foreach (var testClass in classes)
             {
+                // xunit's IClassFixture<T>: one fixture per class, shared by
+                // every test in it and disposed after the last one. The
+                // controller tests use it to hold a running API host - creating
+                // one per test would start and stop a process each time.
+                var fixtures = CreateFixtures(testClass, out var fixtureError);
+
                 foreach (var method in testClass.GetMethods().Where(HasTestAttribute)
                              .OrderBy(m => m.Name, StringComparer.Ordinal))
                 {
@@ -45,7 +51,8 @@ namespace Loco.OfflineTestRunner
                         object? instance = null;
                         try
                         {
-                            instance = Activator.CreateInstance(testClass);
+                            if (fixtureError is not null) throw fixtureError;
+                            instance = Activator.CreateInstance(testClass, fixtures);
                             var result = method.Invoke(instance, arguments);
                             if (result is Task task) await task;
 
@@ -77,6 +84,14 @@ namespace Loco.OfflineTestRunner
                         }
                     }
                 }
+
+                foreach (var fixture in fixtures)
+                {
+                    if (fixture is IDisposable disposableFixture)
+                    {
+                        try { disposableFixture.Dispose(); } catch { }
+                    }
+                }
             }
 
             stopwatch.Stop();
@@ -98,6 +113,58 @@ namespace Loco.OfflineTestRunner
             Console.WriteLine($"passed: {passed}   failed: {failures.Count}   ({stopwatch.ElapsedMilliseconds} ms)");
 
             return failures.Count == 0 ? 0 : 1;
+        }
+
+
+        /// <summary>
+        /// The IClassFixture&lt;T&gt; instances a test class asks for, in the
+        /// order its constructor takes them.
+        /// </summary>
+        /// <remarks>
+        /// A fixture whose constructor throws is reported against every test in
+        /// the class rather than swallowed: a host that failed to start must not
+        /// look like a class with no tests.
+        /// </remarks>
+        private static object[] CreateFixtures(Type testClass, out Exception? error)
+        {
+            error = null;
+
+            var fixtureTypes = testClass.GetInterfaces()
+                .Where(i => i.IsGenericType
+                            && i.GetGenericTypeDefinition().Name.StartsWith("IClassFixture", StringComparison.Ordinal))
+                .Select(i => i.GetGenericArguments()[0])
+                .ToArray();
+
+            if (fixtureTypes.Length == 0) return Array.Empty<object>();
+
+            // Match the constructor's parameter order, which is what xunit does
+            // and what the test classes are written against.
+            var constructor = testClass.GetConstructors().FirstOrDefault();
+            if (constructor is not null)
+            {
+                var wanted = constructor.GetParameters().Select(p => p.ParameterType).ToArray();
+                if (wanted.Length == fixtureTypes.Length && wanted.All(fixtureTypes.Contains))
+                {
+                    fixtureTypes = wanted;
+                }
+            }
+
+            var created = new List<object>();
+            try
+            {
+                foreach (var type in fixtureTypes)
+                {
+                    created.Add(Activator.CreateInstance(type)!);
+                }
+            }
+            catch (Exception ex)
+            {
+                error = ex is TargetInvocationException wrapper && wrapper.InnerException is not null
+                    ? wrapper.InnerException
+                    : ex;
+            }
+
+            return created.ToArray();
         }
 
         private static bool HasTestAttribute(MethodInfo method) =>

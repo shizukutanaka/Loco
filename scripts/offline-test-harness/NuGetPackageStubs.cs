@@ -162,16 +162,46 @@ namespace System.CommandLine.Invocation
     }
 }
 
+// ---------------------------------------------------------------------------
+// Microsoft.AspNetCore.Authentication.JwtBearer
+//
+// This one is NOT inert. The real JWT implementation is on disk - the SDK ships
+// System.IdentityModel.Tokens.Jwt and Microsoft.IdentityModel.* inside its
+// dotnet-user-jwts tool - so tokens are created, signed and validated by
+// Microsoft's own code, not by anything written here.
+//
+// What IS written here is the ASP.NET plumbing the package would otherwise
+// provide: pull the bearer token off the request, hand it to
+// JwtSecurityTokenHandler.ValidateToken with the TokenValidationParameters the
+// application itself configured, and turn the result into an
+// AuthenticationTicket. AuthenticationHandler, AuthenticationTicket and the
+// authorization policies that consume the resulting claims are all the real
+// types from the ASP.NET Core shared framework.
+//
+// So a test that gets a 401 here gets it because a token failed Microsoft's
+// validation, and a test that reaches a controller reached it because the
+// framework's own policy evaluation let it through. The seam is narrow and
+// worth naming: the real package also handles OIDC discovery, JWKS refresh,
+// and the Events hooks below, none of which this does. Nothing in Loco uses
+// them - the API validates a symmetric key it holds itself.
+// ---------------------------------------------------------------------------
 namespace Microsoft.AspNetCore.Authentication.JwtBearer
 {
+    using System.IdentityModel.Tokens.Jwt;
+    using System.Security.Claims;
+    using System.Text.Encodings.Web;
+    using Microsoft.AspNetCore.Authentication;
+    using Microsoft.Extensions.Options;
+    using Microsoft.IdentityModel.Tokens;
+
     public static class JwtBearerDefaults
     {
         public const string AuthenticationScheme = "Bearer";
     }
 
-    public class JwtBearerOptions
+    public class JwtBearerOptions : AuthenticationSchemeOptions
     {
-        public Microsoft.IdentityModel.Tokens.TokenValidationParameters TokenValidationParameters { get; set; } = new();
+        public TokenValidationParameters TokenValidationParameters { get; set; } = new();
         public bool RequireHttpsMetadata { get; set; }
         public string? Authority { get; set; }
         public string? Audience { get; set; }
@@ -179,6 +209,10 @@ namespace Microsoft.AspNetCore.Authentication.JwtBearer
         public JwtBearerEvents Events { get; set; } = new();
     }
 
+    /// <summary>
+    /// Declared so application code that assigns these compiles. The real
+    /// package invokes them; this does not, and no Loco code sets them.
+    /// </summary>
     public class JwtBearerEvents
     {
         public Func<object, Task> OnAuthenticationFailed { get; set; } = _ => Task.CompletedTask;
@@ -186,19 +220,83 @@ namespace Microsoft.AspNetCore.Authentication.JwtBearer
         public Func<object, Task> OnChallenge { get; set; } = _ => Task.CompletedTask;
     }
 
+    public class JwtBearerHandler : AuthenticationHandler<JwtBearerOptions>
+    {
+        public JwtBearerHandler(
+            IOptionsMonitor<JwtBearerOptions> options,
+            Microsoft.Extensions.Logging.ILoggerFactory logger,
+            UrlEncoder encoder)
+            : base(options, logger, encoder)
+        {
+        }
+
+        protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+        {
+            string? header = Request.Headers.Authorization;
+
+            // No credentials is not a failure: it leaves the request anonymous
+            // so the authorization policy decides, which is what produces a 401
+            // on a protected endpoint and a 200 on an anonymous one.
+            if (string.IsNullOrWhiteSpace(header))
+            {
+                return Task.FromResult(AuthenticateResult.NoResult());
+            }
+
+            const string prefix = "Bearer ";
+            if (!header.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return Task.FromResult(AuthenticateResult.Fail("Not a bearer token"));
+            }
+
+            var token = header[prefix.Length..].Trim();
+
+            try
+            {
+                // Microsoft's validator, against the parameters the application
+                // configured. Signature, issuer, audience and lifetime are all
+                // checked by it, not by anything here.
+                var principal = new JwtSecurityTokenHandler()
+                    .ValidateToken(token, Options.TokenValidationParameters, out _);
+
+                var ticket = new AuthenticationTicket(principal, Scheme.Name);
+                return Task.FromResult(AuthenticateResult.Success(ticket));
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult(AuthenticateResult.Fail(ex));
+            }
+        }
+
+        /// <summary>
+        /// The real package answers an unauthenticated request with
+        /// 401 + WWW-Authenticate. Reproduced because tests assert the status.
+        /// </summary>
+        protected override Task HandleChallengeAsync(AuthenticationProperties properties)
+        {
+            Response.StatusCode = StatusCodes.Status401Unauthorized;
+            Response.Headers.WWWAuthenticate = "Bearer";
+            return Task.CompletedTask;
+        }
+
+        protected override Task HandleForbiddenAsync(AuthenticationProperties properties)
+        {
+            Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        }
+    }
+
     public static class JwtBearerExtensions
     {
-        public static Microsoft.AspNetCore.Authentication.AuthenticationBuilder AddJwtBearer(
-            this Microsoft.AspNetCore.Authentication.AuthenticationBuilder builder) => builder;
+        public static AuthenticationBuilder AddJwtBearer(this AuthenticationBuilder builder) =>
+            builder.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, _ => { });
 
-        public static Microsoft.AspNetCore.Authentication.AuthenticationBuilder AddJwtBearer(
-            this Microsoft.AspNetCore.Authentication.AuthenticationBuilder builder,
-            Action<JwtBearerOptions> configure) => builder;
+        public static AuthenticationBuilder AddJwtBearer(
+            this AuthenticationBuilder builder, Action<JwtBearerOptions> configure) =>
+            builder.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, configure);
 
-        public static Microsoft.AspNetCore.Authentication.AuthenticationBuilder AddJwtBearer(
-            this Microsoft.AspNetCore.Authentication.AuthenticationBuilder builder,
-            string scheme,
-            Action<JwtBearerOptions> configure) => builder;
+        public static AuthenticationBuilder AddJwtBearer(
+            this AuthenticationBuilder builder, string scheme, Action<JwtBearerOptions> configure) =>
+            builder.AddScheme<JwtBearerOptions, JwtBearerHandler>(scheme, configure);
     }
 }
 
