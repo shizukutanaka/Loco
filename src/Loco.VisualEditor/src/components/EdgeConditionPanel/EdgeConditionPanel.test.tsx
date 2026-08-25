@@ -4,14 +4,18 @@ import { EdgeConditionPanel } from './EdgeConditionPanel';
 import { useWorkflowStore } from '@/store/workflowStore';
 
 /**
- * Component tests for EdgeConditionPanel. These guard two bugs found by
- * adversarial self-review of the first version:
- *  1. Choosing "Custom expression…" snapped straight back to the default
- *     option and the expression input never appeared (the select value was
- *     derived purely from stored data, and "custom just chosen" stores '').
- *  2. The unset condition was labeled "Always", but the engine
- *     (ShouldFollowConnection) treats null/'default'/'success' as
- *     "only on success" - true unconditional routing needs a distinct value.
+ * Component tests for EdgeConditionPanel.
+ *
+ * The panel's job is to offer exactly what the engine can act on. It used to
+ * offer more: a free-text "Custom expression…" that the engine had no evaluator
+ * for and followed unconditionally, so a typed expression fired on every run
+ * whatever it said. The engine refuses those edges now, the option is gone, and
+ * these pin both halves - the reduced option list, and what the panel does with
+ * an expression a previous build already saved.
+ *
+ * Also pinned, from an earlier review: an unset condition is NOT "always". The
+ * engine treats null/'default'/'success' as "only on success", so unconditional
+ * routing needs the distinct 'always' value.
  */
 describe('EdgeConditionPanel', () => {
   beforeEach(() => {
@@ -32,14 +36,23 @@ describe('EdgeConditionPanel', () => {
     });
   };
 
+  /** Put a condition on the edge, then select it - the panel reads from the store. */
+  const selectEdgeWithCondition = (condition: string, id = 'e1') => {
+    act(() => {
+      useWorkflowStore.setState({
+        edges: useWorkflowStore
+          .getState()
+          .edges.map((e) => (e.id === id ? { ...e, data: { ...e.data, condition } } : e)),
+      });
+      useWorkflowStore.getState().setSelectedEdgeId(id);
+    });
+  };
+
   const getCondition = (id = 'e1') =>
     useWorkflowStore.getState().edges.find((e) => e.id === id)?.data?.condition;
 
   const getSelect = () =>
     screen.getByLabelText('Run this connection') as HTMLSelectElement;
-
-  const queryCustomInput = () =>
-    screen.queryByLabelText('Custom condition expression') as HTMLInputElement | null;
 
   it('renders nothing when no edge is selected', () => {
     const { container } = render(<EdgeConditionPanel />);
@@ -84,64 +97,47 @@ describe('EdgeConditionPanel', () => {
     expect(getCondition()).toBeUndefined();
   });
 
-  it('keeps "Custom expression…" selected and shows the input when chosen', () => {
+  it('offers only the conditions the engine can evaluate', () => {
+    // The dropdown used to include "Custom expression…". The engine has no
+    // expression evaluator: it followed any unrecognised value unconditionally,
+    // so a typed expression fired on every run whatever it said. The engine now
+    // refuses such an edge, and the option that produced them is gone.
     selectEdge();
     render(<EdgeConditionPanel />);
 
-    fireEvent.change(getSelect(), { target: { value: 'custom' } });
-
-    expect(getSelect().value).toBe('custom');
-    expect(queryCustomInput()).not.toBeNull();
-    // Nothing typed yet - the stored condition must not have been clobbered
-    expect(getCondition()).toBeUndefined();
+    const values = Array.from(getSelect().options).map((o) => o.value);
+    expect(values).toEqual(['', 'error', 'always']);
+    expect(values).not.toContain('custom');
   });
 
-  it('stores a typed custom expression, and clearing it falls back to undefined', () => {
-    selectEdge();
+  it('flags a custom expression saved by an older build instead of hiding it', () => {
+    // Such an edge still opens - the workflow is not corrupt - but the panel
+    // has to say the engine will refuse it rather than show a blank default.
+    selectEdgeWithCondition('output.status === 200');
     render(<EdgeConditionPanel />);
 
-    fireEvent.change(getSelect(), { target: { value: 'custom' } });
-    const input = queryCustomInput()!;
+    const warning = screen.getByRole('alert');
+    expect(warning.textContent).toContain('output.status === 200');
+    expect(warning.textContent).toMatch(/refuses/i);
+  });
 
-    fireEvent.change(input, { target: { value: 'output.status === 200' } });
+  it('leaves the stored expression alone until the user picks a supported option', () => {
+    selectEdgeWithCondition('output.status === 200');
+    render(<EdgeConditionPanel />);
+
     expect(getCondition()).toBe('output.status === 200');
 
-    fireEvent.change(input, { target: { value: '' } });
-    // '' would hit the engine's "anything else" branch and mean "always" -
-    // it must be stored as undefined instead
-    expect(getCondition()).toBeUndefined();
+    fireEvent.change(getSelect(), { target: { value: 'error' } });
+
+    expect(getCondition()).toBe('error');
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  it('shows an existing custom value as "custom" with the expression in the input', () => {
-    useWorkflowStore.setState({
-      edges: [
-        { id: 'e1', source: 'n1', target: 'n2', data: { condition: 'output.ok' } },
-      ],
-    });
-    selectEdge();
+  it('shows no warning for an edge the engine understands', () => {
+    selectEdgeWithCondition('always');
     render(<EdgeConditionPanel />);
 
-    expect(getSelect().value).toBe('custom');
-    expect(queryCustomInput()!.value).toBe('output.ok');
-  });
-
-  it('resets custom mode when a different edge is selected', () => {
-    useWorkflowStore.setState({
-      edges: [
-        { id: 'e1', source: 'n1', target: 'n2', data: {} },
-        { id: 'e2', source: 'n2', target: 'n1', data: { condition: 'error' } },
-      ],
-    });
-    selectEdge('e1');
-    render(<EdgeConditionPanel />);
-
-    fireEvent.change(getSelect(), { target: { value: 'custom' } });
-    expect(queryCustomInput()).not.toBeNull();
-
-    selectEdge('e2');
-    // The new edge has a known value - the custom input must be gone and the
-    // select must show that value, not a stale custom mode
-    expect(getSelect().value).toBe('error');
-    expect(queryCustomInput()).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(getSelect().value).toBe('always');
   });
 });

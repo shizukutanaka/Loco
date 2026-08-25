@@ -421,3 +421,217 @@ public class VisualWorkflowEngineCancellationTests
         result.Status.Should().Be(WorkflowExecutionStatus.Success);
     }
 }
+
+/// <summary>
+/// Tests that a condition node actually branches.
+///
+/// It did not. The editor's condition node draws two output handles, "true" and
+/// "false" (ConditionNode.tsx) - it is the only node type that names its handles
+/// at all. WorkflowMapper carried the handle through as
+/// WorkflowConnection.SourceOutput, the engine declared that property and never
+/// read it, and the verdict the condition handler returned went into NodeResults
+/// where nothing consulted it either.
+///
+/// So ShouldFollowConnection saw an edge with no Condition, fell through to
+/// `return result.Success`, and the condition node had succeeded - meaning BOTH
+/// branches ran, every time. Every if/else workflow this product executed took
+/// both paths, and nothing reported it: no error, no warning, just two branches
+/// of work where one was asked for.
+///
+/// NOTE: authored in an environment where dotnet test could not run (NuGet
+/// egress blocked by organization policy); the first CI run executes these.
+/// </summary>
+public class VisualWorkflowEngineBranchingTests
+{
+    /// <summary>A condition node wired to a "true" node and a "false" node.</summary>
+    private static VisualWorkflow Branching(out WorkflowNode whenTrue, out WorkflowNode whenFalse)
+    {
+        var decide = new WorkflowNode { Name = "decide", Type = "condition" };
+        whenTrue = new WorkflowNode { Name = "yes", Type = "action", Integration = "t", Action = "run" };
+        whenFalse = new WorkflowNode { Name = "no", Type = "action", Integration = "t", Action = "run" };
+
+        return new VisualWorkflow
+        {
+            Name = "branching",
+            Nodes = new List<WorkflowNode> { decide, whenTrue, whenFalse },
+            Connections = new List<WorkflowConnection>
+            {
+                new() { SourceNodeId = decide.Id, TargetNodeId = whenTrue.Id, SourceOutput = "true" },
+                new() { SourceNodeId = decide.Id, TargetNodeId = whenFalse.Id, SourceOutput = "false" },
+            },
+        };
+    }
+
+    private static void SetComparison(WorkflowNode node, object left, object right, string operation)
+    {
+        node.Parameters["left"] = left;
+        node.Parameters["right"] = right;
+        node.Parameters["operation"] = operation;
+    }
+
+    [Fact]
+    public async Task A_true_condition_runs_only_the_true_branch()
+    {
+        var engine = new VisualWorkflowEngine();
+        var ran = new List<string>();
+        engine.RegisterNodeHandler("t:run", (node, _) =>
+        {
+            ran.Add(node.Name);
+            return Task.FromResult<object?>(node.Name);
+        });
+
+        var workflow = Branching(out var whenTrue, out var whenFalse);
+        SetComparison(workflow.Nodes[0], "a", "a", "equals");
+
+        var context = await engine.ExecuteAsync(workflow);
+
+        context.Status.Should().Be(WorkflowExecutionStatus.Success);
+        ran.Should().Equal("yes");
+        context.NodeResults.Should().ContainKey(whenTrue.Id);
+        context.NodeResults.Should().NotContainKey(whenFalse.Id);
+    }
+
+    [Fact]
+    public async Task A_false_condition_runs_only_the_false_branch()
+    {
+        var engine = new VisualWorkflowEngine();
+        var ran = new List<string>();
+        engine.RegisterNodeHandler("t:run", (node, _) =>
+        {
+            ran.Add(node.Name);
+            return Task.FromResult<object?>(node.Name);
+        });
+
+        var workflow = Branching(out var whenTrue, out var whenFalse);
+        SetComparison(workflow.Nodes[0], "a", "b", "equals");
+
+        var context = await engine.ExecuteAsync(workflow);
+
+        context.Status.Should().Be(WorkflowExecutionStatus.Success);
+        // The regression in one line: this used to be ["yes", "no"].
+        ran.Should().Equal("no");
+        context.NodeResults.Should().NotContainKey(whenTrue.Id);
+        context.NodeResults.Should().ContainKey(whenFalse.Id);
+    }
+
+    [Theory]
+    [InlineData("not_equals", "a", "b", "yes")]
+    [InlineData("not_equals", "a", "a", "no")]
+    [InlineData("contains", "hello world", "world", "yes")]
+    [InlineData("contains", "hello world", "moon", "no")]
+    public async Task Each_comparison_picks_a_side(
+        string operation, string left, string right, string expected)
+    {
+        var engine = new VisualWorkflowEngine();
+        var ran = new List<string>();
+        engine.RegisterNodeHandler("t:run", (node, _) =>
+        {
+            ran.Add(node.Name);
+            return Task.FromResult<object?>(node.Name);
+        });
+
+        var workflow = Branching(out _, out _);
+        SetComparison(workflow.Nodes[0], left, right, operation);
+
+        await engine.ExecuteAsync(workflow);
+
+        ran.Should().Equal(expected);
+    }
+
+    [Fact]
+    public async Task Numeric_comparisons_pick_a_side()
+    {
+        var engine = new VisualWorkflowEngine();
+        var ran = new List<string>();
+        engine.RegisterNodeHandler("t:run", (node, _) =>
+        {
+            ran.Add(node.Name);
+            return Task.FromResult<object?>(node.Name);
+        });
+
+        var workflow = Branching(out _, out _);
+        SetComparison(workflow.Nodes[0], 10, 3, "greater_than");
+
+        await engine.ExecuteAsync(workflow);
+
+        ran.Should().Equal("yes");
+    }
+
+    [Fact]
+    public async Task A_branch_edge_from_a_node_that_gives_no_verdict_fails_loudly()
+    {
+        // Following such an edge - or its sibling - would be a guess, and a
+        // guess here sends work down a path nobody chose. Better to say so.
+        var engine = new VisualWorkflowEngine();
+        engine.RegisterNodeHandler("t:run", (node, _) => Task.FromResult<object?>(node.Name));
+
+        var source = new WorkflowNode { Name = "not-a-condition", Type = "action", Integration = "t", Action = "run" };
+        var target = new WorkflowNode { Name = "downstream", Type = "action", Integration = "t", Action = "run" };
+        var workflow = new VisualWorkflow
+        {
+            Name = "bogus-branch",
+            Nodes = new List<WorkflowNode> { source, target },
+            Connections = new List<WorkflowConnection>
+            {
+                new() { SourceNodeId = source.Id, TargetNodeId = target.Id, SourceOutput = "true" },
+            },
+        };
+
+        var context = await engine.ExecuteAsync(workflow);
+
+        context.Status.Should().Be(WorkflowExecutionStatus.Failed);
+        context.Error.Should().Contain("condition verdict");
+    }
+
+    [Fact]
+    public async Task An_unsupported_edge_expression_fails_rather_than_always_firing()
+    {
+        // `return true` was the old answer, which is the one outcome that looks
+        // like it works while ignoring what the user wrote.
+        var engine = new VisualWorkflowEngine();
+        engine.RegisterNodeHandler("t:run", (node, _) => Task.FromResult<object?>(node.Name));
+
+        var source = new WorkflowNode { Name = "first", Type = "action", Integration = "t", Action = "run" };
+        var target = new WorkflowNode { Name = "second", Type = "action", Integration = "t", Action = "run" };
+        var workflow = new VisualWorkflow
+        {
+            Name = "custom-expression",
+            Nodes = new List<WorkflowNode> { source, target },
+            Connections = new List<WorkflowConnection>
+            {
+                new() { SourceNodeId = source.Id, TargetNodeId = target.Id, Condition = "item.amount > 100" },
+            },
+        };
+
+        var context = await engine.ExecuteAsync(workflow);
+
+        context.Status.Should().Be(WorkflowExecutionStatus.Failed);
+        context.NodeResults.Should().NotContainKey(target.Id);
+    }
+
+    [Fact]
+    public async Task Default_and_error_routing_still_work()
+    {
+        // The branch check must not disturb the routing that already existed.
+        var engine = new VisualWorkflowEngine();
+        engine.RegisterNodeHandler("t:boom", (_, _) => throw new InvalidOperationException("kaboom"));
+        engine.RegisterNodeHandler("t:recover", (_, _) => Task.FromResult<object?>("recovered"));
+
+        var failing = new WorkflowNode { Name = "failing", Type = "action", Integration = "t", Action = "boom" };
+        var recovery = new WorkflowNode { Name = "recovery", Type = "action", Integration = "t", Action = "recover" };
+        var workflow = new VisualWorkflow
+        {
+            Name = "error-routing",
+            Nodes = new List<WorkflowNode> { failing, recovery },
+            Connections = new List<WorkflowConnection>
+            {
+                new() { SourceNodeId = failing.Id, TargetNodeId = recovery.Id, Condition = "error" },
+            },
+        };
+
+        var context = await engine.ExecuteAsync(workflow);
+
+        context.Status.Should().Be(WorkflowExecutionStatus.Success);
+        context.NodeResults[recovery.Id].Success.Should().BeTrue();
+    }
+}

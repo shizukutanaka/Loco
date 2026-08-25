@@ -8,49 +8,48 @@
  * Core/Workflows/VisualWorkflowEngine.cs) are:
  *   - null / "default" / "success"  -> follow only if the source node succeeded
  *   - "error"                       -> follow only if the source node failed
- *   - any other non-empty string    -> always follow (unconditional)
- * So an *unset* condition is NOT "always" - it is "only on success". The
- * options below are labeled to match that real behavior, and "always" is
- * stored as the literal string 'always' (which the engine treats as
- * unconditional via its "anything else" branch).
+ *   - "always"                      -> follow whichever way the node went
+ *   - anything else                 -> the engine refuses the edge
+ * So an *unset* condition is NOT "always" - it is "only on success", and the
+ * options below are labeled to match. 'always' is a real case the engine
+ * handles by name; it used to work only by falling through an "anything else
+ * -> follow it" branch that also made every unevaluatable expression fire.
+ *
+ * Branch handles are a separate thing: a condition node's true/false outputs
+ * are carried as the edge's sourceHandle, not as a condition value.
  */
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback } from 'react';
 import { X, Trash2 } from 'lucide-react';
 import { useSelectedEdge } from '@/store/selectors';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { FormSelect, FormInput } from '@/components/Form';
+import { FormSelect } from '@/components/Form';
 import type { SelectOption } from '@/components/Form/FormSelect';
 
 const CONDITION_OPTIONS: SelectOption[] = [
   { value: '', label: 'Only if the previous step succeeded (default)' },
   { value: 'error', label: 'Only if the previous step failed' },
   { value: 'always', label: 'Always, regardless of outcome' },
-  { value: 'custom', label: 'Custom expression…' },
 ];
 
-/** Values with a dedicated dropdown entry; anything else is a custom expression. */
+/**
+ * Every value the engine understands. Anything else makes it refuse the edge -
+ * so a workflow saved by an older build with a custom expression still opens,
+ * and the panel shows it as unsupported rather than pretending it routes.
+ */
 const KNOWN_VALUES = new Set(['', 'success', 'default', 'error', 'always']);
 
 function EdgeConditionPanelComponent() {
   const selectedEdge = useSelectedEdge();
   const { updateEdgeData, deleteEdge, setSelectedEdgeId } = useWorkflowStore();
 
-  // "Custom expression…" has to be sticky UI state: right after the user picks
-  // it the stored condition is still empty, which is indistinguishable from the
-  // default - deriving the select value from data alone made the dropdown snap
-  // straight back and the input never appeared.
-  const [customMode, setCustomMode] = useState(false);
-  const selectedEdgeId = selectedEdge?.id;
-  useEffect(() => {
-    setCustomMode(false);
-  }, [selectedEdgeId]);
-
   const condition = selectedEdge?.data?.condition ?? '';
-  const isCustomValue = condition !== '' && !KNOWN_VALUES.has(condition);
-  const isCustom = customMode || isCustomValue;
+  // A value from an older build, when this panel offered a free-text
+  // expression. The engine refuses those now rather than following them
+  // unconditionally, so the panel says so instead of offering to write more.
+  const isUnsupported = condition !== '' && !KNOWN_VALUES.has(condition);
   // 'success' and 'default' behave identically to unset - show them as default
-  const selectValue = isCustom
-    ? 'custom'
+  const selectValue = isUnsupported
+    ? ''
     : condition === 'success' || condition === 'default'
       ? ''
       : condition;
@@ -59,26 +58,9 @@ function EdgeConditionPanelComponent() {
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       if (!selectedEdge) return;
       const value = e.target.value;
-      if (value === 'custom') {
-        // Show the expression input; keep whatever is stored until they type
-        setCustomMode(true);
-        return;
-      }
-      setCustomMode(false);
       // Default is represented by omitting the field entirely (undefined),
       // matching the engine's own null-check rather than storing an empty string
       updateEdgeData(selectedEdge.id, { condition: value === '' ? undefined : value });
-    },
-    [selectedEdge, updateEdgeData]
-  );
-
-  const handleCustomConditionChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (!selectedEdge) return;
-      const text = e.target.value;
-      // An empty expression must not be stored as '' - the engine's "anything
-      // else" branch would silently treat it as "always follow"
-      updateEdgeData(selectedEdge.id, { condition: text === '' ? undefined : text });
     },
     [selectedEdge, updateEdgeData]
   );
@@ -132,15 +114,13 @@ function EdgeConditionPanelComponent() {
           helpText="Controls whether the workflow follows this connection based on the previous step's outcome."
         />
 
-        {isCustom && (
-          <FormInput
-            id="edge-condition-custom"
-            label="Custom condition expression"
-            value={isCustomValue ? condition : ''}
-            onChange={handleCustomConditionChange}
-            placeholder="e.g. output.status === 200"
-            helpText="Expression evaluation is not yet implemented in the engine - today any custom value behaves like 'Always'. Leaving this empty falls back to the default (only on success)."
-          />
+        {isUnsupported && (
+          <div className="text-xs text-amber-700" role="alert">
+            This connection stores <span className="font-mono">{condition}</span>, a custom
+            expression. The engine cannot evaluate expressions and now refuses such an edge
+            rather than following it regardless of what it says — pick one of the options
+            above, or put the comparison in a condition node.
+          </div>
         )}
       </div>
     </div>
