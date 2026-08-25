@@ -55,9 +55,10 @@ This repository is a work in progress. Being honest about the state:
   file that remains is reachable from something a user can do - the API's
   controllers and hosted services, the CLI's commands, the tests, or
   reflection-discovered connectors. `scripts/check-structure.py` enforces
-  that, along with three other properties that each hid a real defect: a
-  consistent package set, tests that only name types which exist, and SDK
-  calls that match the API's routes.
+  that, along with five other properties that each hid a real defect: a
+  consistent package set, tests that only name types which exist, SDK calls
+  that match the API's routes, editor modules the app can actually import,
+  and documents that cite files which exist.
 - **Backend verification status**: much of the backend was written where
   `dotnet restore` is impossible (api.nuget.org refused by proxy policy), so
   those commits carry a VERIFICATION CAVEAT. `scripts/typecheck-offline.sh` now

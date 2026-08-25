@@ -31,6 +31,12 @@ to the compiler, to the tests, and to review:
             Nothing connects an SDK to the controllers, so the two drift in
             silence and the only symptom is a 404 in someone else's program.
 
+  editor    The same reachability question for the React editor, which had
+            never been asked: 3,268 lines with no import path from the app -
+            two duplicate AccessibleButton implementations, a settings-tab set
+            the settings panel does not use, and a creation wizard whose submit
+            handler was `// TODO: Submit to API`.
+
   docs      Thirty-three documents described systems this repository has never
             contained - an AI framework, a governance engine, "quantum-ready
             autonomy", a report headed "Complete (7 of 7 systems implemented)"
@@ -383,6 +389,76 @@ def check_docs(sources):
     return problems
 
 
+EDITOR = "src/Loco.VisualEditor"
+TS_IMPORT = re.compile(r"""(?:from\s+|import\s*\(\s*)['"]([^'"]+)['"]""")
+
+
+def check_editor_reachable():
+    """
+    Every editor module must have an import path from the app.
+
+    Seeded from main.tsx and App.tsx plus every test file, then followed
+    through relative and `@/` imports. Vitest's setup file is seeded too: it is
+    named by vitest.config.ts rather than imported, so nothing would ever reach
+    it - the same shape as AssemblyInfo.cs on the C# side, and the reason both
+    are listed rather than inferred.
+
+    A dead React component is quieter than dead C#: it type-checks, it lints,
+    the bundler simply never includes it, and it goes on looking like a feature
+    to anyone reading the directory.
+    """
+    root = os.path.join(REPO, EDITOR)
+    if not os.path.isdir(root):
+        return []
+
+    files = {}
+    for dirpath, dirs, names in os.walk(os.path.join(root, "src")):
+        if "node_modules" in dirpath:
+            continue
+        for name in names:
+            if name.endswith((".ts", ".tsx")):
+                path = os.path.join(dirpath, name)
+                rel = os.path.relpath(path, root).replace(os.sep, "/")
+                files[rel] = open(path, encoding="utf-8", errors="ignore").read()
+
+    def resolve(importer, spec):
+        if spec.startswith("@/"):
+            base = "src/" + spec[2:]
+        elif spec.startswith("."):
+            base = os.path.normpath(
+                os.path.join(os.path.dirname(importer), spec)).replace(os.sep, "/")
+        else:
+            return None
+        for candidate in (base + ".ts", base + ".tsx",
+                          base + "/index.ts", base + "/index.tsx", base):
+            if candidate in files:
+                return candidate
+        return None
+
+    # Entry points, plus the files a config names rather than imports.
+    seeds = [p for p in files
+             if p.endswith(("main.tsx", "App.tsx", "vite-env.d.ts"))
+             or ".test." in p
+             or p == "src/test/setup.ts"]
+
+    reached = set(seeds)
+    queue = list(seeds)
+    while queue:
+        path = queue.pop()
+        for spec in TS_IMPORT.findall(files[path]):
+            target = resolve(path, spec)
+            if target and target not in reached:
+                reached.add(target)
+                queue.append(target)
+
+    problems = []
+    for path in sorted(p for p in files if p not in reached):
+        lines = files[path].count("\n")
+        problems.append(f"{EDITOR}/{path}: {lines} lines, no import path from the app")
+
+    return problems
+
+
 def main():
     sources = read_sources()
 
@@ -391,6 +467,7 @@ def main():
         ("tests", "every type a test names exists in src", check_test_references(sources)),
         ("reachable", "every src file has a path from an entry point", check_reachable(sources)),
         ("sdks", "every API path an SDK calls is a route the API exposes", check_sdks(sources)),
+        ("editor", "every editor module has an import path from the app", check_editor_reachable()),
         ("docs", "every source file a document cites exists", check_docs(sources)),
     ]
 
