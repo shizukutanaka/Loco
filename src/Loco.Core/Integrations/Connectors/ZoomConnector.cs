@@ -244,7 +244,7 @@ public sealed class ZoomConnector : ConnectorBase
             Parameters = new ActionParameter[]
             {
                 new() { Name = "meetingId", Type = ParameterType.String, Required = true },
-                new() { Name =="action", Type = ParameterType.String, DefaultValue = "trash", Description = "trash, delete" }
+                new() { Name = "action", Type = ParameterType.String, DefaultValue = "trash", Description = "trash, delete" }
             }
         },
 

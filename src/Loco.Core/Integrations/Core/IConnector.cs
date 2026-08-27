@@ -418,6 +418,12 @@ public sealed class ActionParameters
 
     public bool Contains(string name) => _values.ContainsKey(name);
 
+    /// <summary>
+    /// Alias for <see cref="Contains"/>. Added so connector code that used
+    /// the conventional `Has` name compiles; both mean "does this parameter exist".
+    /// </summary>
+    public bool Has(string name) => Contains(name);
+
     public Dictionary<string, object?> ToDictionary() => new(_values);
 
     private static T? ConvertValue<T>(object? value)
