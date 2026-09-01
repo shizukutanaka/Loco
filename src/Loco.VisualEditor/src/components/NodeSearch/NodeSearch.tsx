@@ -32,10 +32,24 @@ interface BasicNode {
 // Constants (Memoized - prevent recreation on every render)
 // ============================================================================
 
+/**
+ * The built-in node types, as search results.
+ *
+ * This is the second way to put a node on the canvas, and it listed three of
+ * the five built-ins: searching "trigger" or "delay" found nothing, even
+ * though both are real node types with renderers, property editors and engine
+ * handlers. Trigger's absence was the worse of the two, since a workflow
+ * without one does not validate and the palette did not offer it either.
+ *
+ * `id` is the node type verbatim - handleSelectResult copies it straight into
+ * `node.type` - so every id here must be a NodeType. A test pins that.
+ */
 const BASIC_NODES: BasicNode[] = [
+  { id: 'trigger', name: 'Trigger', description: 'Where the workflow starts', icon: '▶️' },
   { id: 'condition', name: 'Condition', description: 'Branch workflow based on conditions', icon: '🔀' },
   { id: 'transform', name: 'Transform', description: 'Transform data with C# code', icon: '🔄' },
   { id: 'loop', name: 'Loop', description: 'Iterate over items', icon: '🔁' },
+  { id: 'delay', name: 'Delay', description: 'Wait before continuing', icon: '⏱️' },
 ];
 
 // ============================================================================
@@ -111,7 +125,12 @@ function NodeSearchComponent({ isOpen, onClose }: NodeSearchProps) {
       position: { x: 400, y: 200 }, // Center position
       data: {
         label: result.name,
-        integration: result.type === 'integration' ? result.id : result.id,
+        // Both branches of this used to be `result.id`, so a Condition node
+        // came out carrying `integration: 'condition'`. Harmless to the engine
+        // - transform/condition/delay/loop dispatch by node type, never by
+        // `${integration}:${action}` - but it is a field claiming a connector
+        // that does not exist, and the ternary made the intent unreadable.
+        integration: result.type === 'integration' ? result.id : undefined,
         config: {},
         description: result.description,
       },
