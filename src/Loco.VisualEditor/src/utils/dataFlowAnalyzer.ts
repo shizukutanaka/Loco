@@ -10,6 +10,7 @@
  */
 
 import { Node, Edge } from 'reactflow';
+import { integrations } from '@/data/integrations';
 
 // ============================================================================
 // Types
@@ -79,68 +80,59 @@ const NODE_OUTPUT_SCHEMAS: Record<string, NodeOutputSchema> = {
   },
 };
 
-// Parameter requirements for each action type
-export const ACTION_PARAMETER_REQUIREMENTS: Record<string, ParameterDefinition[]> = {
-  http: [
-    {
-      name: 'url',
-      type: { name: 'url', baseType: 'string' },
-      required: true,
-      description: 'HTTP endpoint URL',
-    },
-    {
-      name: 'method',
-      type: { name: 'method', baseType: 'string' },
-      required: true,
-      description: 'HTTP method (GET, POST, etc.)',
-    },
-    {
-      name: 'headers',
-      type: { name: 'headers', baseType: 'object' },
-      required: false,
-      description: 'Optional HTTP headers',
-    },
-    {
-      name: 'body',
-      type: { name: 'body', baseType: 'any' },
-      required: false,
-      description: 'Optional request body',
-    },
-  ],
-  database: [
-    {
-      name: 'query',
-      type: { name: 'query', baseType: 'string' },
-      required: true,
-      description: 'SQL query to execute',
-    },
-    {
-      name: 'parameters',
-      type: { name: 'parameters', baseType: 'object' },
-      required: false,
-      description: 'Query parameters',
-    },
-  ],
-  email: [
-    {
-      name: 'to',
-      type: { name: 'to', baseType: 'string' },
-      required: true,
-      description: 'Email recipient',
-    },
-    {
-      name: 'subject',
-      type: { name: 'subject', baseType: 'string' },
-      required: true,
-      description: 'Email subject',
-    },
-    {
-      name: 'body',
-      type: { name: 'body', baseType: 'string' },
-      required: true,
-      description: 'Email body',
-    },
-  ],
+/**
+ * The required/optional parameters of one connector action.
+ *
+ * Derived from `data/integrations.ts`, which is where a connector's parameters
+ * are declared, where the PropertyPanel builds its input fields from, and what
+ * `scripts/check-structure.py` verifies the C# connectors actually read. This
+ * used to be a hand-written table with three entries - http, database, email -
+ * and it was wrong in both directions:
+ *
+ *   It covered 3 integrations out of the whole catalogue, so the
+ *   required-parameter check was simply silent for every other connector.
+ *
+ *   Its http entry required `method`, which no http action takes. HttpConnector
+ *   models one action per verb (get/post/put/patch/delete), so the parameter
+ *   does not exist, the panel offers no field for it, and a correctly
+ *   configured HTTP node reported "Missing Required Parameter: method"
+ *   permanently, with nothing a user could do to clear it.
+ *
+ * Requirements also differ per ACTION, not per integration - Slack's
+ * sendMessage and its uploadFile need different things - which a table keyed
+ * by integration alone cannot express.
+ */
+export function getActionParameters(
+  integrationId: string | undefined,
+  actionId: string | undefined
+): ParameterDefinition[] {
+  if (!integrationId) return [];
+
+  const integration = integrations.find((i) => i.id === integrationId);
+  if (!integration) return [];
+
+  // With no action chosen there is nothing to require yet; validation reports
+  // the missing action itself, and guessing at one action's parameters would
+  // produce errors for fields the user has not been asked for.
+  const action = integration.actions?.find((a) => a.id === actionId);
+  if (!action) return [];
+
+  return action.parameters.map((p) => ({
+    name: p.name,
+    type: { name: p.name, baseType: PARAMETER_BASE_TYPES[p.type] ?? 'any' },
+    required: p.required,
+    description: p.description,
+  }));
+}
+
+/** Maps a declared parameter type onto the analyzer's coarser base types. */
+const PARAMETER_BASE_TYPES: Record<string, DataType['baseType']> = {
+  string: 'string',
+  number: 'number',
+  boolean: 'boolean',
+  json: 'object',
+  select: 'string',
+  array: 'array',
 };
 
 // ============================================================================
@@ -290,14 +282,13 @@ export function analyzeDataFlow(
     }
 
     const sourceOutputs = nodeOutputSchemas.get(edge.source) || {};
-    const targetType = targetNode.type;
 
-    // Get expected parameters for target node
-    // Keyed by integration id (http/database/email). config.actionType is never
-    // written by the editor - the real fields are data.integration and
-    // config.action - so reading it here meant this lookup always missed.
-    const actionType = targetNode.data.integration || targetType;
-    const expectedParams = ACTION_PARAMETER_REQUIREMENTS[actionType as string] || [];
+    // The editor writes data.integration and config.action; config.actionType
+    // is never written, so an earlier version of this lookup always missed.
+    const expectedParams = getActionParameters(
+      targetNode.data.integration,
+      targetNode.data.config?.action
+    );
 
     // Check if target node has any required parameters
     if (expectedParams.length > 0 && targetNode.data.config?.parameters) {

@@ -165,7 +165,11 @@ export const templates: WorkflowTemplate[] = [
           position: { x: 400, y: 150 },
           data: {
             label: 'Check Amount',
-            config: { condition: 'item.amount > 100' },
+            // The engine's condition handler reads left/operation/right. This
+            // was a single free-text `condition` string, which it never read -
+            // so both operands were null, `equals` compared null to null, and
+            // the branch was silently always true.
+            config: { left: '{{item.amount}}', operation: 'greater_than', right: '100' },
           },
         },
         {
@@ -193,7 +197,9 @@ export const templates: WorkflowTemplate[] = [
             integration: 'postgresql',
             config: {
               action: 'query',
-              parameters: {},
+              parameters: {
+                sql: 'INSERT INTO orders (amount) VALUES (@amount)',
+              },
             },
           },
         },
@@ -266,7 +272,9 @@ export const templates: WorkflowTemplate[] = [
             integration: 'postgresql',
             config: {
               action: 'query',
-              parameters: {},
+              parameters: {
+                sql: 'INSERT INTO records (payload) VALUES (@payload)',
+              },
             },
           },
         },
@@ -318,7 +326,13 @@ export const templates: WorkflowTemplate[] = [
           data: {
             label: 'Slack',
             integration: 'slack',
-            config: { action: 'sendMessage' },
+            config: {
+              action: 'sendMessage',
+              parameters: {
+                channel: '#general',
+                text: 'Workflow notification',
+              },
+            },
           },
         },
         {
@@ -328,7 +342,14 @@ export const templates: WorkflowTemplate[] = [
           data: {
             label: 'Email',
             integration: 'email',
-            config: { action: 'send' },
+            config: {
+              action: 'send',
+              parameters: {
+                to: 'team@example.com',
+                subject: 'Workflow notification',
+                body: 'A workflow event occurred.',
+              },
+            },
           },
         },
         {
@@ -338,7 +359,13 @@ export const templates: WorkflowTemplate[] = [
           data: {
             label: 'Discord',
             integration: 'discord',
-            config: { action: 'sendMessage' },
+            config: {
+              action: 'sendMessage',
+              parameters: {
+                channelId: '000000000000000000',
+                content: 'Workflow notification',
+              },
+            },
           },
         },
       ],
@@ -411,7 +438,13 @@ export const templates: WorkflowTemplate[] = [
           data: {
             label: 'Notify Slack',
             integration: 'slack',
-            config: { action: 'sendMessage' },
+            config: {
+              action: 'sendMessage',
+              parameters: {
+                channel: '#engineering',
+                text: 'New issue created',
+              },
+            },
           },
         },
       ],
@@ -467,6 +500,7 @@ export const templates: WorkflowTemplate[] = [
               parameters: {
                 bucket: 'my-bucket',
                 key: 'uploads/file.txt',
+                filePath: '/tmp/file.txt',
               },
             },
           },
@@ -478,7 +512,14 @@ export const templates: WorkflowTemplate[] = [
           data: {
             label: 'Send Email',
             integration: 'email',
-            config: { action: 'send' },
+            config: {
+              action: 'send',
+              parameters: {
+                to: 'team@example.com',
+                subject: 'Upload complete',
+                body: 'The file has been uploaded to S3.',
+              },
+            },
           },
         },
       ],
@@ -529,7 +570,12 @@ export const templates: WorkflowTemplate[] = [
           data: {
             label: 'Query Database',
             integration: 'postgresql',
-            config: { action: 'query' },
+            config: {
+              action: 'query',
+              parameters: {
+                sql: 'SELECT id, name FROM users WHERE active = true',
+              },
+            },
           },
         },
         {
@@ -543,6 +589,7 @@ export const templates: WorkflowTemplate[] = [
               action: 'set',
               parameters: {
                 key: 'cache:users',
+                value: '{{result}}',
                 // RedisConnector's parameter is 'expirySeconds'; 'ttl' is a
                 // separate action on that connector and was never read here.
                 expirySeconds: 3600,
@@ -597,7 +644,10 @@ export const templates: WorkflowTemplate[] = [
           position: { x: 400, y: 150 },
           data: {
             label: 'For Each Item',
-            config: {},
+            // The engine's loop handler iterates `items` and exposes each
+            // element as the `currentItem` variable. With no items the
+            // collection was null and the body never ran.
+            config: { items: '["first", "second", "third"]' },
           },
         },
         {
@@ -607,7 +657,12 @@ export const templates: WorkflowTemplate[] = [
           data: {
             label: 'Process Item',
             integration: 'postgresql',
-            config: { action: 'query' },
+            config: {
+              action: 'query',
+              parameters: {
+                sql: 'UPDATE items SET processed = true WHERE id = @id',
+              },
+            },
           },
         },
       ],
@@ -661,7 +716,9 @@ export const templates: WorkflowTemplate[] = [
             config: {
               action: 'createCharge',
               parameters: {
+                amount: 1000,
                 currency: 'usd',
+                source: 'tok_visa',
               },
             },
           },
@@ -672,7 +729,7 @@ export const templates: WorkflowTemplate[] = [
           position: { x: 700, y: 150 },
           data: {
             label: 'Check Success',
-            config: { condition: 'payment.status == "succeeded"' },
+            config: { left: '{{payment.status}}', operation: 'equals', right: 'succeeded' },
           },
         },
         {
@@ -683,7 +740,13 @@ export const templates: WorkflowTemplate[] = [
             label: 'Send Receipt',
             integration: 'sendgrid',
             // SendGridConnector's action id is 'sendEmail'; 'send' resolved to nothing.
-            config: { action: 'sendEmail' },
+            config: {
+              action: 'sendEmail',
+              parameters: {
+                to: 'customer@example.com',
+                subject: 'Your receipt',
+              },
+            },
           },
         },
         {
@@ -693,7 +756,14 @@ export const templates: WorkflowTemplate[] = [
           data: {
             label: 'Send Error Email',
             integration: 'email',
-            config: { action: 'send' },
+            config: {
+              action: 'send',
+              parameters: {
+                to: 'billing@example.com',
+                subject: 'Payment failed',
+                body: 'The charge could not be completed.',
+              },
+            },
           },
         },
       ],

@@ -10,9 +10,10 @@
  */
 
 import { Node, Edge } from 'reactflow';
+import { CONDITION_OPERATIONS } from './constants';
 import {
   analyzeDataFlow,
-  ACTION_PARAMETER_REQUIREMENTS,
+  getActionParameters,
   ParameterDefinition,
 } from './dataFlowAnalyzer';
 
@@ -247,9 +248,11 @@ function validateConfiguration(nodes: Node[]): ValidationIssue[] {
         });
       }
 
-      // Validate required parameters. ACTION_PARAMETER_REQUIREMENTS is keyed by
-      // integration id (http/database/email), not by action id.
-      const expectedParams = ACTION_PARAMETER_REQUIREMENTS[integration as string] || [];
+      // Required parameters come from the connector's own declaration in
+      // data/integrations.ts, per action - the same declaration the
+      // PropertyPanel renders its fields from, so every parameter demanded
+      // here has a field that can supply it.
+      const expectedParams = getActionParameters(integration as string, action as string);
       expectedParams.forEach((param: ParameterDefinition) => {
         if (param.required && !config.parameters?.[param.name]) {
           issues.push({
@@ -265,42 +268,65 @@ function validateConfiguration(nodes: Node[]): ValidationIssue[] {
       });
     }
 
+    // The engine's condition handler reads `left`, `right` and `operation`;
+    // the PropertyPanel writes those three. This check used to require
+    // `config.expression`, which nothing writes and nothing reads - so a
+    // condition node with both sides filled in still reported "Missing
+    // Condition Expression", and no field in the UI could ever clear it. A
+    // permanent false positive is worse than no check: it teaches the user
+    // that the validation panel is noise.
     if (type === 'condition') {
-      if (!config.expression || config.expression.trim() === '') {
+      const missing = (['left', 'right'] as const).filter(
+        (key) => String(config[key] ?? '').trim() === ''
+      );
+
+      if (missing.length > 0) {
         issues.push({
-          id: `condition-expr-${node.id}`,
+          id: `condition-operands-${node.id}`,
           category: 'configuration',
           severity: 'error',
-          title: 'Missing Condition Expression',
-          description: `Condition "${label}" has no expression defined`,
+          title: 'Missing Condition Operand',
+          description: `Condition "${label}" has no ${missing.join(' and no ')} value`,
           nodeId: node.id,
-          suggestion: 'Enter a condition expression (e.g., status === "active")',
+          // Both sides matter: every operation the engine implements is
+          // binary, and two absent operands make `equals` compare null to
+          // null, which is true - so the branch silently always fires.
+          suggestion: 'Fill in both the left and right values to compare',
+        });
+      }
+
+      const operation = String(config.operation ?? 'equals');
+      if (!(CONDITION_OPERATIONS as readonly string[]).includes(operation)) {
+        issues.push({
+          id: `condition-operation-${node.id}`,
+          category: 'configuration',
+          severity: 'error',
+          title: 'Unknown Condition Operation',
+          description: `Condition "${label}" uses operation "${operation}", which the engine does not implement`,
+          nodeId: node.id,
+          // The engine's switch falls through to `_ => false`, so an unknown
+          // operation makes the condition permanently false rather than failing.
+          suggestion: `Use one of: ${CONDITION_OPERATIONS.join(', ')}`,
         });
       }
     }
 
+    // The engine's loop handler iterates `items` and exposes each element as
+    // the `currentItem` variable. There is no configurable iteration variable
+    // and no separate array expression, so the two checks here previously -
+    // `config.variable` and `config.arrayExpression` - demanded fields that do
+    // not exist in the editor, the engine, or the wire format.
     if (type === 'loop') {
-      if (!config.variable || config.variable.trim() === '') {
+      if (String(config.items ?? '').trim() === '') {
         issues.push({
-          id: `loop-var-${node.id}`,
+          id: `loop-items-${node.id}`,
           category: 'configuration',
           severity: 'error',
-          title: 'Missing Loop Variable',
-          description: `Loop "${label}" has no iteration variable`,
+          title: 'Missing Loop Items',
+          description: `Loop "${label}" has no collection to iterate`,
           nodeId: node.id,
-          suggestion: 'Define the variable that will hold each iteration value',
-        });
-      }
-
-      if (!config.arrayExpression || config.arrayExpression.trim() === '') {
-        issues.push({
-          id: `loop-array-${node.id}`,
-          category: 'configuration',
-          severity: 'error',
-          title: 'Missing Loop Array',
-          description: `Loop "${label}" has no array expression`,
-          nodeId: node.id,
-          suggestion: 'Specify the array or collection to iterate over',
+          suggestion:
+            'Provide a JSON array in Items. Each element is exposed as the currentItem variable.',
         });
       }
     }

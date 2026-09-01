@@ -9,6 +9,7 @@ import {
 } from '@/hooks';
 import { useConnections } from '@/hooks/useConnections';
 import { useWorkflowStore } from '@/store/workflowStore';
+import { CONDITION_OPERATIONS, ConditionOperation } from '@/utils/constants';
 
 // ============================================================================
 // Constants
@@ -31,18 +32,25 @@ const TRANSFORM_TYPES = [
 const ENGINE_BUILTIN_INTEGRATIONS = new Set(['variable']);
 
 /**
- * The comparisons the engine's built-in condition handler implements. Keep in
- * sync with the `operation switch` in
- * VisualWorkflowEngine.RegisterDefaultHandlers - an operation not listed there
- * falls through to `_ => false`.
+ * The operation dropdown, built from the engine's own list.
+ *
+ * Written out as a literal here before, which let it drift from what
+ * validation expected - validation asked for a `config.expression` no panel
+ * ever wrote. Deriving the options means the dropdown cannot offer an
+ * operation the engine does not implement.
  */
-const CONDITION_OPERATIONS = [
-  { value: 'equals', label: 'equals' },
-  { value: 'not_equals', label: 'does not equal' },
-  { value: 'greater_than', label: 'is greater than' },
-  { value: 'less_than', label: 'is less than' },
-  { value: 'contains', label: 'contains' },
-];
+const OPERATION_LABELS: Record<ConditionOperation, string> = {
+  equals: 'equals',
+  not_equals: 'does not equal',
+  greater_than: 'is greater than',
+  less_than: 'is less than',
+  contains: 'contains',
+};
+
+const CONDITION_OPERATION_OPTIONS = CONDITION_OPERATIONS.map((value) => ({
+  value,
+  label: OPERATION_LABELS[value],
+}));
 
 // ============================================================================
 // Property Panel Component
@@ -224,7 +232,7 @@ function PropertyPanelComponent() {
                 label="Operation"
                 value={String(localData.config?.operation ?? 'equals')}
                 onChange={(e) => handleConfigChange('operation', e.target.value)}
-                options={CONDITION_OPERATIONS}
+                options={CONDITION_OPERATION_OPTIONS}
               />
               <FormInput
                 id="condition-right"

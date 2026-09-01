@@ -148,3 +148,29 @@ export const API_RETRY_DELAY = 1000;
  * Maximum API retries
  */
 export const API_MAX_RETRIES = 3;
+
+// ============================================================================
+// Engine Contract
+// ============================================================================
+
+/**
+ * The comparison operations the engine's condition handler implements.
+ *
+ * VisualWorkflowEngine's condition handler switches on `operation` and falls
+ * through to `_ => false` for anything it does not recognise, so an operation
+ * outside this list makes the condition permanently false rather than raising
+ * an error. It lives here rather than in the PropertyPanel because validation
+ * needs the same list, and the two disagreeing is precisely how the panel came
+ * to demand a `config.expression` that no part of the product ever wrote.
+ *
+ * Every one is binary: each reads both `left` and `right`.
+ */
+export const CONDITION_OPERATIONS = [
+  'equals',
+  'not_equals',
+  'greater_than',
+  'less_than',
+  'contains',
+] as const;
+
+export type ConditionOperation = (typeof CONDITION_OPERATIONS)[number];
