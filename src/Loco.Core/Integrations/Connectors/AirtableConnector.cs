@@ -246,6 +246,35 @@ public sealed class AirtableConnector : ConnectorBase
             }
         }
 
+        // sort[0][field]=Name&sort[0][direction]=desc - Airtable's indexed form.
+        // The parameter was declared and offered in the editor but never read,
+        // so a user who set a sort order got records back in Airtable's own
+        // order and nothing said why.
+        var sort = parameters.Get<JsonElement?>("sort");
+        if (sort is { ValueKind: JsonValueKind.Array })
+        {
+            var index = 0;
+            foreach (var rule in sort.Value.EnumerateArray())
+            {
+                if (rule.ValueKind != JsonValueKind.Object) continue;
+
+                if (rule.TryGetProperty("field", out var field) && field.ValueKind == JsonValueKind.String)
+                {
+                    queryParams.Add(
+                        $"sort[{index}][field]={Uri.EscapeDataString(field.GetString()!)}");
+
+                    if (rule.TryGetProperty("direction", out var direction)
+                        && direction.ValueKind == JsonValueKind.String)
+                    {
+                        queryParams.Add(
+                            $"sort[{index}][direction]={Uri.EscapeDataString(direction.GetString()!)}");
+                    }
+
+                    index++;
+                }
+            }
+        }
+
         var offset = parameters.GetString("offset");
         if (!string.IsNullOrEmpty(offset))
             queryParams.Add($"offset={offset}");

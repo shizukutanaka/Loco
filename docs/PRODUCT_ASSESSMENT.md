@@ -20,7 +20,7 @@ grep とコンパイラとテストに答えさせる。
 | 検査 | 内容 | 現在 |
 |---|---|---|
 | `scripts/typecheck-offline.sh` | `src/` と `tests/` の全 C# を Roslyn でメソッド本体まで型検査 | **0 エラー** |
-| `scripts/check-structure.py` | 8 つの構造検査(下記) | **8/8** |
+| `scripts/check-structure.py` | 9 つの構造検査(下記) | **9/9** |
 | `scripts/run-tests-offline.sh` | バックエンドテスト全件 | **335 passed / 0 failed** |
 | `npx vitest run` | エディタ | **444 passed / 38 files** |
 | `npx tsc --noEmit` / `npm run build` / `npm run lint` | エディタ | クリーン / 警告 55(0 エラー) |
@@ -36,6 +36,8 @@ grep とコンパイラとテストに答えさせる。
 全ページロードで 404 だった)、コネクタが宣言するアクションの実装
 (`MongoDbConnector` が `createIndex` を宣言しながら dispatch を持たず、
 エディタの選択肢に出て実行時に "Unknown action" になっていた)、
+コネクタが宣言するパラメータの使用(Airtable の並び順と Discord の
+kick/ban 理由が、フォームに現れるのに実装から読まれず黙って捨てられていた)、
 ドキュメントが参照するファイルの実在(33 文書が存在しないシステムを
 解説していた)。
 

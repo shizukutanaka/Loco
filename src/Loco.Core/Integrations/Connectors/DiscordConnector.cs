@@ -594,7 +594,8 @@ public sealed class DiscordConnector : ConnectorBase
     {
         var guildId = parameters.GetString("guildId")!;
         var userId = parameters.GetString("userId")!;
-        return await DeleteAsync($"guilds/{guildId}/members/{userId}", ct);
+        return await DeleteAsync(
+            $"guilds/{guildId}/members/{userId}", ct, parameters.GetString("reason"));
     }
 
     private async Task<ActionResult> BanMemberAsync(ActionParameters parameters, CancellationToken ct)
@@ -607,7 +608,8 @@ public sealed class DiscordConnector : ConnectorBase
         if (days > 0)
             payload["delete_message_days"] = days;
 
-        return await PutAsync($"guilds/{guildId}/bans/{userId}", payload, ct);
+        return await PutAsync(
+            $"guilds/{guildId}/bans/{userId}", payload, ct, parameters.GetString("reason"));
     }
 
     private async Task<ActionResult> GetAsync(string endpoint, CancellationToken ct)
@@ -626,12 +628,16 @@ public sealed class DiscordConnector : ConnectorBase
         return await ProcessResponseAsync(response, ct);
     }
 
-    private async Task<ActionResult> PutAsync(string endpoint, object? payload, CancellationToken ct)
+    private async Task<ActionResult> PutAsync(
+        string endpoint, object? payload, CancellationToken ct, string? auditReason = null)
     {
         HttpContent? content = payload != null
             ? new StringContent(JsonSerializer.Serialize(payload, JsonOptions), Encoding.UTF8, "application/json")
             : new StringContent("", Encoding.UTF8, "application/json");
-        var response = await _httpClient!.PutAsync(endpoint, content, ct);
+
+        using var request = new HttpRequestMessage(HttpMethod.Put, endpoint) { Content = content };
+        AddAuditReason(request, auditReason);
+        var response = await _httpClient!.SendAsync(request, ct);
         return await ProcessResponseAsync(response, ct);
     }
 
@@ -645,10 +651,45 @@ public sealed class DiscordConnector : ConnectorBase
         return await ProcessResponseAsync(response, ct);
     }
 
-    private async Task<ActionResult> DeleteAsync(string endpoint, CancellationToken ct)
+    private async Task<ActionResult> DeleteAsync(
+        string endpoint, CancellationToken ct, string? auditReason = null)
     {
-        var response = await _httpClient!.DeleteAsync(endpoint, ct);
+        using var request = new HttpRequestMessage(HttpMethod.Delete, endpoint);
+        AddAuditReason(request, auditReason);
+        var response = await _httpClient!.SendAsync(request, ct);
         return await ProcessResponseAsync(response, ct);
+    }
+
+    /// <summary>
+    /// Attaches Discord's X-Audit-Log-Reason, which is how a kick or a ban
+    /// gets a reason recorded beside it in the server's audit log. Both
+    /// actions declared a `reason` parameter and neither sent it anywhere, so
+    /// a moderator typed one and it went nowhere.
+    /// </summary>
+    /// <remarks>
+    /// The value is user input going into an HTTP header, so it uses the
+    /// VALIDATING Add rather than TryAddWithoutValidation: a newline in a
+    /// header value is request splitting, and .NET rejects it here rather
+    /// than sending it. Discord caps the reason at 512 characters; a longer
+    /// one is truncated rather than refused, since losing the tail of an
+    /// explanation is better than failing the moderation action.
+    /// </remarks>
+    private static void AddAuditReason(HttpRequestMessage request, string? reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason)) return;
+
+        var trimmed = reason.Trim();
+        if (trimmed.Length > 512) trimmed = trimmed[..512];
+
+        try
+        {
+            request.Headers.Add("X-Audit-Log-Reason", trimmed);
+        }
+        catch (FormatException)
+        {
+            // A reason that cannot be a header value (control characters)
+            // must not take the kick or ban down with it.
+        }
     }
 
     private static async Task<ActionResult> ProcessResponseAsync(HttpResponseMessage response, CancellationToken ct)

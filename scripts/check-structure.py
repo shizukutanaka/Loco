@@ -48,6 +48,12 @@ to the compiler, to the tests, and to review:
             it; choosing it failed at execution with "Unknown action". Its
             transport - the Atlas Data API - has no index operation at all.
 
+  params    AirtableConnector offered a sort order that never reached the
+            query string, and DiscordConnector a kick/ban reason that never
+            reached the audit log. A declared parameter appears in the
+            editor's form; if nothing reads it, the user fills it in and it
+            is silently dropped.
+
   docs      Thirty-three documents described systems this repository has never
             contained - an AI framework, a governance engine, "quantum-ready
             autonomy", a report headed "Complete (7 of 7 systems implemented)"
@@ -521,6 +527,58 @@ SWITCH_ARM = re.compile(r'^\s*"([A-Za-z0-9_]+)"\s*=>', re.M)
 SWITCH_CASE = re.compile(r'^\s*case\s+"([A-Za-z0-9_]+)"\s*:', re.M)
 
 
+def check_connector_parameters():
+    """
+    Every parameter a connector declares must be mentioned somewhere else in
+    the file.
+
+    A declared parameter appears in the editor's form. If nothing reads it,
+    the user fills it in and it is silently dropped - AirtableConnector
+    offered a sort order that never reached the query string, and
+    DiscordConnector offered a kick/ban reason that never reached the audit
+    log. Both looked like they worked.
+
+    The test is deliberately weak: does the literal name appear anywhere
+    outside the Actions block? Three stronger versions of this check were
+    written first, and all three were WRONG - they matched
+    parameters.GetString("x") but not parameters.Get<JsonElement>("x"), then
+    not parameters.Get<Dictionary<string, string>>("x"), each time producing
+    a confident list of "defects" that were nothing of the kind. A crude test
+    whose failure mode is obvious beats a precise one that is quietly
+    mis-measuring.
+    """
+    problems = []
+    directory = os.path.join(REPO, "src/Loco.Core/Integrations/Connectors")
+    if not os.path.isdir(directory):
+        return problems
+
+    parsed = 0
+    for name in sorted(os.listdir(directory)):
+        if not name.endswith(".cs"):
+            continue
+
+        text = open(os.path.join(directory, name), encoding="utf-8").read()
+        block = ACTIONS_BLOCK.search(text)
+        if not block:
+            continue
+
+        parsed += 1
+        declared = set(re.findall(r'new\(\)\s*\{\s*Name\s*=\s*"([^"]+)"', block.group(1)))
+        elsewhere = text[:block.start(1)] + text[block.end(1):]
+
+        for parameter in sorted(declared):
+            if f'"{parameter}"' not in elsewhere:
+                problems.append(
+                    f"{name}: declares parameter '{parameter}' but never mentions it "
+                    f"outside the declaration - the editor asks for it and it goes nowhere"
+                )
+
+    if parsed == 0:
+        problems.append("no connectors could be parsed at all")
+
+    return problems
+
+
 def check_connector_actions():
     """
     Every action a connector advertises must have somewhere to go.
@@ -589,6 +647,7 @@ def main():
         ("editor", "every editor module has an import path from the app", check_editor_reachable()),
         ("assets", "every file the editor's page references exists", check_editor_assets()),
         ("actions", "every action a connector advertises is dispatched", check_connector_actions()),
+        ("params", "every parameter a connector declares is used", check_connector_parameters()),
         ("docs", "every source file a document cites exists", check_docs(sources)),
     ]
 
