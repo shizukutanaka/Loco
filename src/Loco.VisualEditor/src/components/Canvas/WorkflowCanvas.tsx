@@ -25,6 +25,7 @@ import {
   ConditionNode,
   TransformNode,
   LoopNode,
+  DelayNode,
 } from '@/components/NodeTypes';
 import { CanvasControls } from '@/components/CanvasControls/CanvasControls';
 import { QuickActionsMenu } from '@/components/QuickActionsMenu/QuickActionsMenu';
@@ -34,17 +35,26 @@ import {
   useCanvasContextMenu,
   useCanvasQuickActions,
 } from '@/hooks';
+import { NodeType } from '@/types/workflow';
 
 // ============================================================================
 // Constants (Memoized - prevent recreation on every render)
 // ============================================================================
 
-const NODE_TYPES: NodeTypes = {
+// Typed as Record<NodeType, ...> rather than React Flow's NodeTypes, which is
+// a plain index signature and so demands nothing of the union. `delay` was
+// missing from this map for exactly that reason: it is a NodeType, the palette
+// offers it and the engine runs it, but React Flow found no renderer and fell
+// back to its generic default node. Under this type the omission does not
+// compile. Exported so a test can also catch the reverse - an entry here for a
+// type nothing can produce.
+export const NODE_TYPES: Record<NodeType, NodeTypes[string]> = {
   trigger: TriggerNode,
   action: ActionNode,
   condition: ConditionNode,
   transform: TransformNode,
   loop: LoopNode,
+  delay: DelayNode,
 };
 
 const NODE_COLORS = {
@@ -53,6 +63,7 @@ const NODE_COLORS = {
   condition: '#fde047',
   transform: '#d8b4fe',
   loop: '#fdba74',
+  delay: '#cbd5e1',
   default: '#e5e7eb',
 } as const;
 

@@ -51,6 +51,12 @@ function NodePaletteComponent() {
           // did, so dragging HTTP/REST API onto the canvas made a trigger
           // node rather than the API call the user wanted.
           type: 'action',
+          // The drop handler reads `label` and `description` and falls back to
+          // "New Node" / "". Neither was ever sent, so every integration
+          // dropped onto the canvas was called "New Node" - the palette knew
+          // the name the user had just clicked and threw it away.
+          label: integration.name,
+          description: integration.description,
         })
       );
     },
