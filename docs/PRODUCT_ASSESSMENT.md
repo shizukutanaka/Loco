@@ -21,11 +21,11 @@ grep とコンパイラとテストに答えさせる。
 |---|---|---|
 | `scripts/typecheck-offline.sh` | `src/` と `tests/` の全 C# を Roslyn でメソッド本体まで型検査 | **0 エラー** |
 | `scripts/check-structure.py` | 9 つの構造検査(下記) | **9/9** |
-| `scripts/run-tests-offline.sh` | バックエンドテスト全件 | **335 passed / 0 failed** |
-| `npx vitest run` | エディタ | **444 passed / 38 files** |
+| `scripts/run-tests-offline.sh` | バックエンドテスト全件 | **341 passed / 0 failed** |
+| `npx vitest run` | エディタ | **494 passed / 41 files** |
 | `npx tsc --noEmit` / `npm run build` / `npm run lint` | エディタ | クリーン / 警告 55(0 エラー) |
 
-構造検査の 6 つは、いずれも**実際に欠陥を捕まえた**ために存在する:
+構造検査の 9 つは、いずれも**実際に欠陥を捕まえた**ために存在する:
 パッケージ管理の整合性(NU1008 で restore が 1 パッケージも取得せず失敗していた)、
 テストが参照する型の実在(存在しないクラスを名指す 2 ファイルがテスト
 アセンブリ全体を落としていた)、`src/` 全ファイルの到達可能性(4.4 万行が
@@ -132,6 +132,84 @@ CLI 版は stdin から読み、`loco help` に載り、貼り付け可能な設
 設定画面の「API Key」は API が読まないヘッダを、しかも Bearer の**代わりに**
 送っていた。入力すると動いていたセッションが 401 になる欄だった。
 
+### 問: 画面に出ている操作は、すべて何かに裏打ちされているか
+
+**証拠**: この問いだけで、独立した欠陥が 4 群見つかった。いずれも
+「書かれる側と読まれる側を突き合わせる」という同じ手つきで出てきた。
+
+**(a) キャンバスに置けないノードがあった。** パレットの「Basic Nodes」は
+Condition / Transform / Loop / Delay を並べていたが **Trigger が無かった**。
+トリガは全ワークフローに要る — 無ければ検証が "Missing Trigger Node" を出し、
+エンジンは入力エッジの無いノードから開始し、スケジューラは
+`type == "trigger"` からしか cron を読まない。テンプレートだけが作れて、
+白紙から始めたユーザには作る手段が無かった。
+併せて、統合をドラッグすると **`type: 'trigger'` になる**場合があった
+(パレット項目が triggers を宣言していれば)。宣言していたのは http の
+webhook 1 件だけで、結果「HTTP Request」をドラッグすると API 呼び出しでなく
+トリガノードができた。その webhook はそもそも発火し得ない(API に webhook
+エンドポイントは無い)ので、宣言ごと削除した。
+
+**(b) `delay` に描画子が無かった。** `delay` は NodeType の一員で、パレットが
+出し、PropertyPanel が `seconds` を編集し、エンジンが実行するのに、キャンバスの
+nodeTypes に登録が無く、React Flow は既定ノードに fallback していた。
+根本原因の方が重要である: この map は React Flow の `NodeTypes` 型
+(単なるインデックス署名)で、**共用体の網羅を何も要求しない**。
+`Record<NodeType, ...>` に変えたので、次に描画子を忘れればコンパイルが通らない。
+
+**(c) 統合ノードの名前が全部「New Node」だった。** ドロップハンドラは
+`nodeData.label` を読み、無ければ "New Node" にする。統合のドラッグ payload は
+`label` を送っていなかった — パレットは、ユーザがいま押した名前を知りながら
+捨てていた。
+
+**(d) 検索が、自分で作れるノードを見つけられなかった。** NodeSearch の
+built-in 一覧は condition / transform / loop の 3 件で、"trigger" や "delay" は
+「No results found」だった。
+
+**評決**: すべて修正済み(`100fac1` / `67c3861` / `3b80151`)。変異試験で
+確認した検知結果はコミットメッセージに記録してある — **検知できなかった
+1 件も含めて**。統合の type を旧式に戻す変異はテストに捕まらない。トリガ宣言が
+1 つも残っていない今、新旧どちらの式も `'action'` を返すからである。
+「捕まえられない」と書く方が、カバレッジを詐称するより安い。
+
+### 問: 検証パネルは、この製品が実際に読む項目を検査しているか
+
+**証拠**: 最も安上がりな問いから始めた — **この製品のテンプレートは、この製品の
+検証器を通るのか**。10 本中 5 本が通らなかった。掘ると、検証器の側が
+壊れていた。**どのフィールドも埋めようが無いエラー**が 3 種類あった:
+
+| 検証器の要求 | 実際に書かれ・読まれる項目 | 帰結 |
+|---|---|---|
+| `config.expression` | `left` / `operation` / `right` | 両辺を埋めても "Missing Condition Expression" が消えない |
+| `config.variable` + `config.arrayExpression` | `items` | 同上、2 件が永久に残る |
+| http の `method` | http アクションは動詞ごとに別 action。`method` は存在しない | 正しく設定した HTTP ノードが常に赤 |
+
+3 番目は実際に走らせて確認した。正しく設定した `http:get` ノードの検証結果は
+修正前 `["Missing Required Parameter: method"]`、修正後 `[]`。
+
+さらに大きな**沈黙**があった。必須パラメータ表は http / database / email の
+**手書き 3 件**で、他の全コネクタ(slack, discord, stripe, s3, redis,
+postgresql …)は一切検査されていなかった。channel も text も無い Slack ノードが
+無傷で通った。
+
+**修正は追加ではなく削除**である。その表を消し、`data/integrations.ts` から
+導出する `getActionParameters()` に置き換えた。そこはコネクタがパラメータを
+宣言する場所であり、PropertyPanel が入力欄を組み立てる元であり、
+`check-structure.py` が「C# のコネクタが実際に読んでいるか」を検査している
+場所でもある。宣言が 1 つになったので、**パネルに欄が無い項目を検証器が
+要求することが構造的に起こらない**。統合単位でなくアクション単位で引くので、
+Slack の sendMessage と uploadFile が別々の要求を持てる。
+
+検査が機能し始めた結果、テンプレートが本当に壊れていたことも分かった
+(10 本中 9 本)。`sql` を書かない postgresql ノード(コネクタの宣言は
+`query` ではなく `sql`)、パラメータが空の Slack / Discord / email / S3 /
+Redis / Stripe / SendGrid ノード、反復対象の無いループ、そして死んだ
+`condition` 文字列を使う条件 2 件 — これは両辺が null のまま
+`equals(null, null)` を評価するので、**黙って常に真**だった。
+
+**評決**: 修正済み(`7ea369d`)。`templates.contract.test.ts` が全テンプレートを
+`validateWorkflow` に通し、エラーが 1 件でもあれば落ちる。以後、製品自身が
+拒否する状態のテンプレートは出荷できない。
+
 ---
 
 ## 短所(現存)
@@ -188,6 +266,13 @@ Microsoft 実装)、Swashbuckle スタブは不活性、実 xunit / FluentAssert
 2. **backend ジョブが緑になった時点で**、各コミットの VERIFICATION CAVEAT を外す。
 3. 実行の再開(最終発火時刻の永続化)。3 の解消。
 4. 条件式の拡張。4 の解消。
+5. **「書かれる側と読まれる側を突き合わせる」検査を残りの境界にも広げる。**
+   このセッションで見つかった欠陥は、ほぼ全てこの 1 つの形をしていた —
+   検証器が要求する項目 / パネルが書く項目 / エンジンが読む項目 の三者が
+   食い違う。型が守ってくれないのは、境界がインデックス署名か
+   `Record<string, unknown>` を通るからである。`Record<NodeType, ...>` への
+   変更(b)のように、**コンパイラに網羅を要求させられる箇所**を探すのが
+   テストを増やすより効く。
 
 ---
 
