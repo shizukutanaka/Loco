@@ -20,7 +20,7 @@ grep とコンパイラとテストに答えさせる。
 | 検査 | 内容 | 現在 |
 |---|---|---|
 | `scripts/typecheck-offline.sh` | `src/` と `tests/` の全 C# を Roslyn でメソッド本体まで型検査 | **0 エラー** |
-| `scripts/check-structure.py` | 7 つの構造検査(下記) | **7/7** |
+| `scripts/check-structure.py` | 8 つの構造検査(下記) | **8/8** |
 | `scripts/run-tests-offline.sh` | バックエンドテスト全件 | **335 passed / 0 failed** |
 | `npx vitest run` | エディタ | **444 passed / 38 files** |
 | `npx tsc --noEmit` / `npm run build` / `npm run lint` | エディタ | クリーン / 警告 55(0 エラー) |
@@ -33,8 +33,11 @@ grep とコンパイラとテストに答えさせる。
 ルートを叩いていた)、エディタ各モジュールの到達可能性(3,268 行が import
 不能だった)、エディタのページが参照する静的ファイルの実在(`index.html` が Vite
 テンプレート既定の `/vite.svg` を参照したまま `public/` が存在せず、
-全ページロードで 404 だった)、ドキュメントが参照するファイルの実在(33 文書が
-存在しないシステムを解説していた)。
+全ページロードで 404 だった)、コネクタが宣言するアクションの実装
+(`MongoDbConnector` が `createIndex` を宣言しながら dispatch を持たず、
+エディタの選択肢に出て実行時に "Unknown action" になっていた)、
+ドキュメントが参照するファイルの実在(33 文書が存在しないシステムを
+解説していた)。
 
 **評決**: 主張は再現可能。ただし後述の「実パッケージビルド」だけは別。
 

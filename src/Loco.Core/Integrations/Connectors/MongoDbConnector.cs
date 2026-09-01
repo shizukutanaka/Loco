@@ -230,20 +230,14 @@ public sealed class MongoDbConnector : ConnectorBase
                 new() { Name = "database", Type = ParameterType.String }
             ]
         },
-        // Index operations
-        new()
-        {
-            Id = "createIndex",
-            Name = "Create Index",
-            Description = "Create an index on a collection",
-            Parameters =
-            [
-                new() { Name = "collection", Type = ParameterType.String, Required = true },
-                new() { Name = "keys", Type = ParameterType.Json, Required = true, Description = "{\"field\": 1}" },
-                new() { Name = "options", Type = ParameterType.Json, Description = "{\"unique\": true}" },
-                new() { Name = "database", Type = ParameterType.String }
-            ]
-        },
+        // No index operations. This connector speaks the Atlas Data API
+        // (data.mongodb-api.com/.../endpoint/data/v1/action/*), which offers
+        // find, insert, update, delete and aggregate and nothing else - index
+        // management lives in the Atlas Admin API or a driver, neither of
+        // which this connector uses. A "createIndex" action was declared here
+        // with no dispatch arm behind it, so the editor offered it, the
+        // catalogue published it, and choosing it failed at execution with
+        // "Unknown action: createIndex".
         // Find and modify
         new()
         {

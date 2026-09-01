@@ -43,6 +43,11 @@ to the compiler, to the tests, and to review:
             vite copies public/ without checking what the HTML asks for, so
             nothing noticed.
 
+  actions   MongoDbConnector advertised a createIndex action with no dispatch
+            arm behind it. The editor offered it and the catalogue published
+            it; choosing it failed at execution with "Unknown action". Its
+            transport - the Atlas Data API - has no index operation at all.
+
   docs      Thirty-three documents described systems this repository has never
             contained - an AI framework, a governance engine, "quantum-ready
             autonomy", a report headed "Complete (7 of 7 systems implemented)"
@@ -509,6 +514,70 @@ def check_editor_assets():
     return problems
 
 
+ACTIONS_BLOCK = re.compile(
+    r"IReadOnlyList<ConnectorAction>\s+Actions\s*=>(.*?)\n    (?:public|private|protected)", re.S)
+ACTION_ID = re.compile(r'Id\s*=\s*"([^"]+)"')
+SWITCH_ARM = re.compile(r'^\s*"([A-Za-z0-9_]+)"\s*=>', re.M)
+SWITCH_CASE = re.compile(r'^\s*case\s+"([A-Za-z0-9_]+)"\s*:', re.M)
+
+
+def check_connector_actions():
+    """
+    Every action a connector advertises must have somewhere to go.
+
+    A connector's Actions list is what the editor puts in its dropdown and
+    what GET /api/v1/connectors publishes. ExecuteAsync dispatches on the same
+    ids and answers anything it does not recognise with "Unknown action". The
+    two are written hundreds of lines apart with nothing tying them together,
+    so an id can be advertised and never implemented - and the user finds out
+    only when a saved workflow fails at execution.
+
+    MongoDbConnector advertised createIndex exactly that way. It speaks the
+    Atlas Data API, which has no index operation at all, so the action could
+    not have worked however long anyone waited.
+
+    Both directions are wrong but only one is silent: an unadvertised arm is
+    dead code, an unimplemented advertisement is a promise to the user. This
+    reports the second.
+    """
+    problems = []
+    directory = os.path.join(REPO, "src/Loco.Core/Integrations/Connectors")
+    if not os.path.isdir(directory):
+        return problems
+
+    parsed = 0
+    for name in sorted(os.listdir(directory)):
+        if not name.endswith(".cs"):
+            continue
+
+        text = open(os.path.join(directory, name), encoding="utf-8").read()
+
+        block = ACTIONS_BLOCK.search(text)
+        declared = set(ACTION_ID.findall(block.group(1))) if block else set()
+        dispatched = set(SWITCH_ARM.findall(text)) | set(SWITCH_CASE.findall(text))
+
+        if not declared or not dispatched:
+            # Say so rather than skipping quietly: a parser that silently
+            # matches nothing reports a clean run having checked nothing,
+            # which is how the first version of this check passed 28 files
+            # while reading the dispatch of none of them.
+            problems.append(
+                f"{name}: could not parse "
+                f"{'declared actions' if not declared else 'dispatch arms'} - "
+                f"the connector's shape changed and this check has stopped seeing it"
+            )
+            continue
+
+        parsed += 1
+        for action in sorted(declared - dispatched):
+            problems.append(f"{name}: advertises '{action}' but never dispatches it")
+
+    if parsed == 0:
+        problems.append("no connectors could be parsed at all")
+
+    return problems
+
+
 def main():
     sources = read_sources()
 
@@ -519,6 +588,7 @@ def main():
         ("sdks", "every API path an SDK calls is a route the API exposes", check_sdks(sources)),
         ("editor", "every editor module has an import path from the app", check_editor_reachable()),
         ("assets", "every file the editor's page references exists", check_editor_assets()),
+        ("actions", "every action a connector advertises is dispatched", check_connector_actions()),
         ("docs", "every source file a document cites exists", check_docs(sources)),
     ]
 
