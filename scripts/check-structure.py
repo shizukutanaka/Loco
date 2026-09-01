@@ -37,6 +37,12 @@ to the compiler, to the tests, and to review:
             the settings panel does not use, and a creation wizard whose submit
             handler was `// TODO: Submit to API`.
 
+  assets    index.html shipped Vite's template default,
+            `<link rel="icon" href="/vite.svg">`, with no public/ directory at
+            all - a 404 on every page load. tsc does not read index.html and
+            vite copies public/ without checking what the HTML asks for, so
+            nothing noticed.
+
   docs      Thirty-three documents described systems this repository has never
             contained - an AI framework, a governance engine, "quantum-ready
             autonomy", a report headed "Complete (7 of 7 systems implemented)"
@@ -470,6 +476,39 @@ def check_editor_reachable():
     return problems
 
 
+def check_editor_assets():
+    """
+    Every static file the editor's page references must exist.
+
+    index.html shipped `<link rel="icon" href="/vite.svg">` - Vite's own
+    template default - with no public/ directory at all, so every page load
+    fetched a 404. Nothing notices: tsc does not read index.html, vite copies
+    public/ without checking what the HTML asks for, and a missing favicon
+    breaks no test.
+
+    Only root-absolute paths are checked. /assets/* is emitted by the bundler
+    at build time and is not expected to sit in the repository.
+    """
+    index = os.path.join(REPO, "src/Loco.VisualEditor/index.html")
+    if not os.path.exists(index):
+        return []
+
+    html = open(index, encoding="utf-8").read()
+    public = os.path.join(REPO, "src/Loco.VisualEditor/public")
+
+    problems = []
+    for ref in sorted(set(re.findall(r'(?:src|href)="(/[^"]*)"', html))):
+        if ref.startswith("/assets/") or ref.startswith("/src/"):
+            continue
+        if not os.path.exists(os.path.join(public, ref.lstrip("/"))):
+            problems.append(
+                f"src/Loco.VisualEditor/index.html: references {ref}, "
+                f"which is not in public/"
+            )
+
+    return problems
+
+
 def main():
     sources = read_sources()
 
@@ -479,6 +518,7 @@ def main():
         ("reachable", "every src file has a path from an entry point", check_reachable(sources)),
         ("sdks", "every API path an SDK calls is a route the API exposes", check_sdks(sources)),
         ("editor", "every editor module has an import path from the app", check_editor_reachable()),
+        ("assets", "every file the editor's page references exists", check_editor_assets()),
         ("docs", "every source file a document cites exists", check_docs(sources)),
     ]
 
