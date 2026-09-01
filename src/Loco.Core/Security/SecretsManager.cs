@@ -346,7 +346,25 @@ public sealed class SecretsManager
 
     private string Decrypt(string cipherText, byte[] salt)
     {
-        var combined = Convert.FromBase64String(cipherText);
+        byte[] combined;
+        try
+        {
+            combined = Convert.FromBase64String(cipherText);
+        }
+        catch (FormatException ex)
+        {
+            // Every other way of damaging the store surfaces as
+            // InvalidOperationException - a short blob below, a failed tag
+            // below that, unparseable JSON in Load. A caller that catches
+            // InvalidOperationException to say "your secrets file is damaged"
+            // would have crashed on this one instead, and it is not an exotic
+            // case: a truncated write or a hand-edit produces it as readily as
+            // a flipped byte does.
+            throw new InvalidOperationException(
+                "Stored secret is malformed (not valid base64). The secrets store " +
+                "has been corrupted or edited by hand.", ex);
+        }
+
         if (combined.Length < NonceSize + TagSize)
         {
             throw new InvalidOperationException(

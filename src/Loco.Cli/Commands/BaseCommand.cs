@@ -29,7 +29,7 @@ public abstract class BaseCommand
     /// <summary>
     /// Try to consume an option from arguments
     /// </summary>
-    protected static bool TryConsumeOption(List<string> args, string optionName, out string? value)
+    protected internal static bool TryConsumeOption(List<string> args, string optionName, out string? value)
     {
         value = null;
         for (int i = 0; i < args.Count; i++)
@@ -63,7 +63,7 @@ public abstract class BaseCommand
     /// <summary>
     /// Consume a flag from arguments
     /// </summary>
-    protected static bool ConsumeFlag(List<string> args, string flag)
+    protected internal static bool ConsumeFlag(List<string> args, string flag)
     {
         for (int i = 0; i < args.Count; i++)
         {

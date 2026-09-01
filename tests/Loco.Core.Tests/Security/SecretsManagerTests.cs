@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Loco.Core.Security;
 using Xunit;
 using FluentAssertions;
@@ -139,15 +141,30 @@ public class SecretsManagerTests : IDisposable
         _secrets.StoreSecret("K", "original");
 
         var file = Directory.GetFiles(_dir, "secrets.json").Single();
-        var json = File.ReadAllText(file);
 
-        // Flip a character inside the stored base64 blob.
-        var start = json.IndexOf("\"cipher\"", StringComparison.OrdinalIgnoreCase);
-        start.Should().BeGreaterThan(-1);
-        var valueStart = json.IndexOf('"', json.IndexOf(':', start) + 1) + 1;
-        var tampered = json.Remove(valueStart + 4, 1)
-                           .Insert(valueStart + 4, json[valueStart + 4] == 'A' ? "B" : "A");
-        File.WriteAllText(file, tampered);
+        // Flip a bit in the DECODED blob, then re-encode.
+        //
+        // The first version of this edited a character at a fixed offset in the
+        // JSON text, and was flaky about one run in nine: System.Text.Json
+        // escapes '+' as \u002B, so when the base64 happened to start with one,
+        // the offset landed inside an escape sequence and the edit produced a
+        // string that was not base64 at all. That tested Convert.FromBase64String,
+        // not AES-GCM - and it found a real gap in the process (Decrypt let the
+        // FormatException escape), but it is not what this test is for.
+        //
+        // Decoding first makes the tamper exact: one bit of the nonce, which the
+        // tag covers, so only authentication can reject it.
+        var document = JsonDocument.Parse(File.ReadAllText(file));
+        var root = document.RootElement.Clone();
+        document.Dispose();
+
+        var entry = root.GetProperty("secrets").EnumerateObject().First();
+        var blob = Convert.FromBase64String(entry.Value.GetProperty("cipher").GetString()!);
+        blob[3] ^= 0x01;
+
+        var rewritten = JsonNode.Parse(root.GetRawText())!;
+        rewritten["secrets"]![entry.Name]!["cipher"] = Convert.ToBase64String(blob);
+        File.WriteAllText(file, rewritten.ToJsonString());
 
         var reopened = new SecretsManager(_dir);
 

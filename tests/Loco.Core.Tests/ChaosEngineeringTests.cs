@@ -156,25 +156,13 @@ namespace Loco.Core.Tests
 
         #region Chaos: Timing Issues
 
-        [Fact]
-        public async Task WorkflowExecution_HandlesNetworkLatency()
-        {
-            // Chaos: Simulate network latency
-            // Verify: Requests eventually complete
-
-            // Arrange
-            var completionTime = 0L;
-            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-
-            // Act - Simulate delayed operation
-            await SimulateNetworkLatency(TimeSpan.FromMilliseconds(100));
-
-            stopwatch.Stop();
-            completionTime = stopwatch.ElapsedMilliseconds;
-
-            // Assert
-            Assert.True(completionTime >= 100, $"Operation completed too quickly: {completionTime}ms");
-        }
+        // WorkflowExecution_HandlesNetworkLatency was removed here. It awaited
+        // Task.Delay(100ms) - SimulateNetworkLatency's whole body - and asserted
+        // that at least 100ms had elapsed. That tests the .NET timer, not one
+        // line of Loco, and it is flaky in both directions: Stopwatch and the
+        // timer read different clocks, so a 99.x ms measurement fails a run that
+        // did nothing wrong. It failed exactly that way when the CLI tests were
+        // added and the suite's timing shifted.
 
         [Fact]
         public async Task RuleStore_SurvivesRandomDelays()
@@ -396,11 +384,6 @@ namespace Loco.Core.Tests
         #endregion
 
         #region Helper Methods
-
-        private async Task SimulateNetworkLatency(TimeSpan latency)
-        {
-            await Task.Delay(latency);
-        }
 
         #endregion
     }

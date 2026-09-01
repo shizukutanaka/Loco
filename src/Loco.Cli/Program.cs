@@ -11,7 +11,11 @@ namespace Loco.Cli;
 /// </summary>
 class Program
 {
-    static async Task<int> Main(string[] args)
+    // Internal rather than private so the test project (InternalsVisibleTo in
+    // Properties/AssemblyInfo.cs) can drive the real dispatch: which strings
+    // reach which command, and which exit code comes back, is the CLI's
+    // outermost contract.
+    internal static async Task<int> Main(string[] args)
     {
         try
         {

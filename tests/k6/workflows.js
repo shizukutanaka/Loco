@@ -121,10 +121,13 @@ function sampleWorkflow(id = generateId()) {
         data: { label: 'Shape', config: { json: '{"ok":true}' } },
       },
       {
+        // delay(0), not "log": the editor's NodeType union has no log node
+        // and the engine registers no handler for one - a lesson paid for by
+        // a failing CLI test, not by a k6 run against production.
         id: 'n3',
-        type: 'log',
+        type: 'delay',
         position: { x: 480, y: 0 },
-        data: { label: 'Record', config: { message: 'Workflow executed' } },
+        data: { label: 'Breathe', config: { seconds: 0 } },
       },
     ],
     edges: [
