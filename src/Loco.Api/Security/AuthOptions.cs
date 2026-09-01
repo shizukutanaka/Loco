@@ -16,8 +16,8 @@ namespace Loco.Api.Security;
 ///     ]
 ///   }
 ///
-/// Generate a PasswordHash with Loco.Api.Security.PasswordHasher.Hash(password),
-/// e.g. via `dotnet run --project src/Loco.Api -- hash-password &lt;password&gt;`.
+/// Generate a PasswordHash with:
+///   printf 'your-password' | dotnet run --project src/Loco.Cli -- hash-password
 /// </summary>
 public class AuthOptions
 {

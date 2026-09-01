@@ -14,13 +14,12 @@ using Loco.Core.Workflows;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ── One-off utility: hash a password for Auth:Users configuration ──────────
-// Usage: dotnet run --project src/Loco.Api -- hash-password <password>
-if (args.Length >= 2 && args[0] == "hash-password")
-{
-    Console.WriteLine(PasswordHasher.Hash(args[1]));
-    return;
-}
+// Hashing a password for Auth:Users used to happen here, as an argv sniff
+// before the host was built. It worked, but it took the password as an
+// argument - recorded in shell history and readable from the process list -
+// and appeared in no help output, so nobody would find it without reading
+// this file. `loco hash-password` reads stdin instead and is listed by
+// `loco help`.
 
 // ── Logging ─────────────────────────────────────────────────────────────────
 builder.Logging.ClearProviders();

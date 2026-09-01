@@ -672,9 +672,12 @@ random per-run key is generated (tokens then reset on restart).
 each with a PBKDF2 password hash and a scope list. Generate a hash:
 
 ```bash
-dotnet run --project src/Loco.Api -- hash-password "your-password"
-# -> PBKDF2$100000$<salt>$<hash>
+printf 'your-password' | dotnet run --project src/Loco.Cli -- hash-password
+# -> PBKDF2$100000$<salt>$<hash>, followed by the Auth:Users block to paste
 ```
+
+The password is read from standard input rather than passed as an argument,
+so it does not land in your shell history or the process list.
 
 Then configure (e.g. in `appsettings.Development.json` or environment):
 
