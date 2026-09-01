@@ -76,6 +76,24 @@ grep とコンパイラとテストに答えさせる。
 
 **評決**: 動く。これが「ワークフロー実行機」と「自動化」の差である。
 
+### 問: 起動したユーザーは、実際にワークフローを 1 本完走できるのか
+
+**証拠**: 実際に走らせた。ビルド済み API ホストを設定済みユーザー 1 名で起動し、
+HTTP だけで一巡した:
+
+1. `POST /api/v1/authentication/token` → トークン取得
+2. `POST /api/v1/workflows`(trigger → transform)→ 作成
+3. `POST /api/v1/workflows/{id}/execute` → 実行開始
+4. `GET /api/v1/executions/{id}` → `status: completed`、
+   出力にノード 2 件、ログ 6 行(重要度付き)
+
+失敗経路も確かめた。存在しない接続を名指すノードを含むワークフローは
+**HTTP 400** と
+`node 'Notify' references connection 'missing-conn', which does not exist` —
+どのノードがどの接続を欲しがったかを名指す。実行は始まらない。
+
+**評決**: 完走する。中核経路は端から端まで動く。
+
 ### 問: 新規ユーザーは実際に使い始められるのか
 
 **証拠**: `loco hash-password` が PBKDF2 ハッシュと、貼り付け可能な
