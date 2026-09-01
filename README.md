@@ -35,7 +35,7 @@ still in progress.
 This repository is a work in progress. Being honest about the state:
 
 - **Works**: the connector library, the workflow engine, the visual editor
-  frontend (builds clean, 432 passing tests), the credential store and its
+  frontend (builds clean, 444 passing tests), the credential store and its
   UI, the cron scheduler, and the HTTP API's CRUD / execute / validate /
   connections / connectors / auth endpoints.
 - **In progress / limitations**: finished executions are persisted to disk and
@@ -70,7 +70,7 @@ This repository is a work in progress. Being honest about the state:
   only while claiming more. Stubbing those packages dropped the count to zero
   and surfaced defects that had been invisible since the repository began.
 
-  `scripts/run-tests-offline.sh` **runs the backend tests** — all 321 of them, in
+  `scripts/run-tests-offline.sh` **runs the backend tests** — all 335 of them, in
   about 7 seconds — against a working subset of xunit and FluentAssertions in
   `scripts/offline-test-harness/`. `dotnet test` needs packages that cannot be
   restored here; running the tests turned out not to need `dotnet test`.

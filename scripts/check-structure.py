@@ -141,7 +141,17 @@ def check_test_references(sources):
     built, and building it needs the very packages that cannot be restored
     here. So the check that matters most is the one the compiler cannot run.
     """
-    src = {p: s for p, s in sources.items() if p.startswith("src/")}
+    # The harness counts as "src" for this check: it supplies the stand-ins for
+    # packages that cannot be restored here (xunit, FluentAssertions,
+    # System.CommandLine), and a test naming one of those types is naming
+    # something that really exists in the compilation. What the check is for is
+    # a test naming a type NOBODY declares - which is how two files claiming to
+    # test AdvancedSecurityManager and CloudSyncManager kept the whole test
+    # assembly from building.
+    src = {
+        p: s for p, s in sources.items()
+        if p.startswith("src/") or p.startswith("scripts/offline-test-harness/")
+    }
     tests = {p: s for p, s in sources.items() if p.startswith("tests/")}
 
     namespaces = set()

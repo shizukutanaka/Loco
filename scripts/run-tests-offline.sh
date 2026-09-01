@@ -19,6 +19,8 @@
 # The controller tests need a live ASP.NET host, and they get one: this builds
 # the API as a real executable and the harness's WebApplicationFactory launches
 # it on a loopback port, so those tests talk to actual Kestrel over actual HTTP.
+# The CLI is covered too: the harness's System.CommandLine really parses, so
+# the CLI tests drive Program.Main and run workflows for real.
 # The ASP.NET Core shared runtime is installed, and the real JWT libraries ship
 # inside the SDK's own dotnet-user-jwts tool - so tokens are signed and
 # validated by Microsoft's code, not by anything in this directory.
