@@ -46,7 +46,11 @@ function NodePaletteComponent() {
         'application/reactflow',
         JSON.stringify({
           integration: integration.id,
-          type: integration.triggers && integration.triggers.length > 0 ? 'trigger' : 'action',
+          // Always an action. This used to read integration.triggers and
+          // produce 'trigger' when the entry declared any - which only http
+          // did, so dragging HTTP/REST API onto the canvas made a trigger
+          // node rather than the API call the user wanted.
+          type: 'action',
         })
       );
     },
@@ -75,6 +79,36 @@ function NodePaletteComponent() {
         <div className="mb-6">
           <h3 className="text-xs font-semibold text-gray-500 uppercase mb-3">Basic Nodes</h3>
           <div className="space-y-2">
+            {/*
+              Trigger was missing from this list, which meant a blank canvas
+              had no way to produce one. Every workflow needs a trigger node -
+              validation reports "Missing Trigger Node" without one, the engine
+              starts from nodes with no incoming edge, and the scheduler reads
+              its cron. Templates created them; a user starting from nothing
+              could not, unless they dragged HTTP, which became a trigger only
+              because its palette entry happened to declare a webhook trigger.
+              It goes first because it is where a workflow starts.
+            */}
+            <div
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('application/reactflow', JSON.stringify({
+                  type: 'trigger',
+                  label: 'Trigger',
+                }));
+              }}
+              className="p-3 bg-green-50 border border-green-200 rounded-lg cursor-move hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-xl">▶️</span>
+                <div>
+                  <div className="font-medium text-sm">Trigger</div>
+                  <div className="text-xs text-gray-600">Where the workflow starts</div>
+                </div>
+              </div>
+            </div>
+
             <div
               draggable
               onDragStart={(e) => {

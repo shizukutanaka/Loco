@@ -61,16 +61,11 @@ export const integrations: Integration[] = [
         ],
       },
     ],
-    triggers: [
-      {
-        id: 'webhook',
-        name: 'Webhook',
-        description: 'Triggered when webhook receives a request',
-        parameters: [
-          { name: 'path', type: 'string', required: true, description: 'Webhook path' },
-        ],
-      },
-    ],
+    // No triggers. A webhook trigger was declared here and nothing could
+    // deliver it: the API exposes no webhook endpoint, and the three
+    // receivers that once existed in Loco.Core were all unreachable and have
+    // been deleted. The only trigger this product can actually fire is a
+    // cron on a trigger node, which WorkflowSchedulerService reconciles.
   },
   {
     id: 'database',
