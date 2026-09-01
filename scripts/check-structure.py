@@ -201,6 +201,7 @@ BCL = {
     "Nullable", "Object", "Predicate", "Queue", "Random", "ReaderWriterLockSlim",
     "Regex", "SemaphoreSlim", "ServiceCollection", "SpinLock", "Stack",
     "Stopwatch", "StreamReader", "StreamWriter", "String", "StringBuilder",
+    "StringReader", "StringWriter",
     "StringContent", "Task", "Thread", "TimeSpan", "Tuple", "Uri", "Version",
     "WebApplicationFactory", "System",
 }

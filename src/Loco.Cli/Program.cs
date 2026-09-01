@@ -51,6 +51,7 @@ class Program
                 // BaseCommand-based commands (dispatch via ExecuteAsync)
                 "setup" => await new SetupCommand().ExecuteAsync(rest),
                 "secrets" => await new SecretsCommand().ExecuteAsync(rest),
+                "hash-password" => await new HashPasswordCommand().ExecuteAsync(rest),
 
                 // Static command classes
                 "backup-config" => await BackupConfigCommand.ExecuteAsync(rest),
@@ -101,6 +102,7 @@ class Program
         Console.WriteLine("  update            Check for updates");
         Console.WriteLine("  setup             Run the setup wizard");
         Console.WriteLine("  secrets           Manage stored secrets");
+        Console.WriteLine("  hash-password     Hash a password for an Auth:Users entry");
         Console.WriteLine("  backup-config     Backup / restore configuration");
         Console.WriteLine("  version           Show version information");
         Console.WriteLine("  help              Show this help message");

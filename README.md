@@ -104,6 +104,23 @@ fail fast rather than falling back to something insecure:
 
 In Development both fall back with a loud warning so the app still starts.
 
+### Creating the first user
+
+Every API endpoint requires a signed-in user, and the token endpoint **fails
+closed**: with `Auth:Users` empty it refuses to issue anything rather than
+accepting all. So the first thing to do is add a user, and passwords are stored
+as PBKDF2 hashes:
+
+```bash
+printf 'your-password' | dotnet run --project src/Loco.Cli -- hash-password
+```
+
+It prints the hash and the `Auth:Users` block to paste into `appsettings.json`.
+The password is read from standard input rather than an argument, so it does
+not land in your shell history or the process list.
+
+The visual editor signs in with that username and password on startup.
+
 ## Quick Start
 
 ### Installation

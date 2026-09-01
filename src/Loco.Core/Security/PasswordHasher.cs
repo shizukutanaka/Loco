@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Loco.Api.Security;
+namespace Loco.Core.Security;
 
 /// <summary>
 /// PBKDF2 password hashing with a self-describing storage format:
@@ -10,6 +10,11 @@ namespace Loco.Api.Security;
 ///
 /// Uses only BCL primitives (Rfc2898DeriveBytes.Pbkdf2 + FixedTimeEquals) -
 /// no external packages, which matters in this repo (see Loco.Api.csproj notes).
+///
+/// Lives in Loco.Core rather than Loco.Api because the CLI needs it too: a
+/// user has to be able to produce a hash for Auth:Users before the API will
+/// let anyone in, and `loco hash-password` is where they get one. Nothing here
+/// depends on ASP.NET.
 /// </summary>
 public static class PasswordHasher
 {
