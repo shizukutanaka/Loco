@@ -1,0 +1,89 @@
+{
+  "purpose": [
+    "Which outgoing edges are followed after a node runs, written once and",
+    "asserted by BOTH implementations: Loco.Core's ConnectionRouter (which the",
+    "engine runs) and the editor's shouldFollowConnection (which 'Test Workflow'",
+    "runs).",
+    "",
+    "The third of these shared tables, and the starkest divergence of the three:",
+    "the simulator was not mirroring the engine at all here. Its edge filter read",
+    "only the source handle and never the edge's condition, so an edge marked",
+    "'error' was followed after the node SUCCEEDED. A user marks a cleanup branch",
+    "as the error path in the EdgeConditionPanel, presses Test Workflow, and",
+    "watches it run - the opposite of what happens in production.",
+    "",
+    "Verified before fixing: trigger -> work (succeeds) -> cleanup on an 'error'",
+    "edge executed all three steps in the simulator."
+  ],
+
+  "rules": [
+    "Two independent things decide this and they are not the same.",
+    "",
+    "sourceOutput is which HANDLE the edge leaves from. A condition node draws",
+    "two, 'true' and 'false'; every other node has one unnamed output, which",
+    "means null or 'default'. A named branch is answered first: an edge on the",
+    "'false' handle must not run merely because the condition node did not throw.",
+    "An edge claiming a true/false branch whose source produced no verdict is an",
+    "error, because following it - or its sibling - would be a guess.",
+    "",
+    "condition is what the EdgeConditionPanel writes. null and 'default' behave",
+    "as 'success'. 'error' follows only when the source failed. 'always' follows",
+    "either way, which is the point of a cleanup step. Anything else is an error:",
+    "an unevaluatable expression used to return true, so a custom condition always",
+    "fired - the one outcome that looks like it works while ignoring what was",
+    "written.",
+    "",
+    "Both apply. A 'true' branch edge whose condition is 'error' needs the verdict",
+    "to be true AND the node to have failed."
+  ],
+
+  "cases": [
+    { "sourceOutput": null, "condition": null, "sourceSucceeded": true, "verdict": null,
+      "expect": "follow", "why": "The ordinary edge after an ordinary successful node." },
+    { "sourceOutput": null, "condition": null, "sourceSucceeded": false, "verdict": null,
+      "expect": "skip", "why": "A default edge does not carry on past a failure." },
+    { "sourceOutput": "default", "condition": "default", "sourceSucceeded": true, "verdict": null,
+      "expect": "follow", "why": "'default' spelled out means the same as absent." },
+
+    { "sourceOutput": null, "condition": "success", "sourceSucceeded": true, "verdict": null,
+      "expect": "follow", "why": "The success path after a success." },
+    { "sourceOutput": null, "condition": "success", "sourceSucceeded": false, "verdict": null,
+      "expect": "skip", "why": "The success path after a failure." },
+
+    { "sourceOutput": null, "condition": "error", "sourceSucceeded": false, "verdict": null,
+      "expect": "follow", "why": "The error path after a failure - what an error edge is for." },
+    { "sourceOutput": null, "condition": "error", "sourceSucceeded": true, "verdict": null,
+      "expect": "skip", "why": "THE DIVERGENCE. The simulator followed this, running the error branch after a success." },
+
+    { "sourceOutput": null, "condition": "always", "sourceSucceeded": true, "verdict": null,
+      "expect": "follow", "why": "A cleanup step runs after a success." },
+    { "sourceOutput": null, "condition": "always", "sourceSucceeded": false, "verdict": null,
+      "expect": "follow", "why": "And after a failure - the whole point of 'always'." },
+
+    { "sourceOutput": "true", "condition": null, "sourceSucceeded": true, "verdict": true,
+      "expect": "follow", "why": "The true branch of a condition that held." },
+    { "sourceOutput": "true", "condition": null, "sourceSucceeded": true, "verdict": false,
+      "expect": "skip", "why": "The true branch of a condition that did not hold." },
+    { "sourceOutput": "false", "condition": null, "sourceSucceeded": true, "verdict": false,
+      "expect": "follow", "why": "The false branch of a condition that did not hold." },
+    { "sourceOutput": "false", "condition": null, "sourceSucceeded": true, "verdict": true,
+      "expect": "skip", "why": "The false branch of a condition that held." },
+
+    { "sourceOutput": "true", "condition": null, "sourceSucceeded": false, "verdict": true,
+      "expect": "skip", "why": "Both tests apply: the verdict matches, but the node failed, so the default condition refuses." },
+    { "sourceOutput": "true", "condition": "always", "sourceSucceeded": false, "verdict": true,
+      "expect": "follow", "why": "'always' overrides the failure, but the verdict still has to match." },
+    { "sourceOutput": "false", "condition": "always", "sourceSucceeded": false, "verdict": true,
+      "expect": "skip", "why": "'always' does not override a mismatched branch handle." },
+
+    { "sourceOutput": "true", "condition": null, "sourceSucceeded": true, "verdict": null,
+      "expect": "error", "why": "A branch edge whose source produced no verdict. Only a condition node has true/false outputs." },
+    { "sourceOutput": "false", "condition": null, "sourceSucceeded": true, "verdict": null,
+      "expect": "error", "why": "The same for the false branch - neither sibling may be guessed at." },
+
+    { "sourceOutput": null, "condition": "custom:x > 1", "sourceSucceeded": true, "verdict": null,
+      "expect": "error", "why": "An expression the engine cannot evaluate. Returning true here made every custom condition fire." },
+    { "sourceOutput": null, "condition": "bogus", "sourceSucceeded": true, "verdict": null,
+      "expect": "error", "why": "Any unrecognised condition, not just the custom: prefix." }
+  ]
+}

@@ -11,6 +11,7 @@
 
 import { Node, Edge } from 'reactflow';
 import { compare } from './conditionSemantics';
+import { shouldFollowConnection } from './connectionRouting';
 
 // ============================================================================
 // Types
@@ -230,17 +231,31 @@ export function findNextNodes(
   currentNodeId: string,
   edges: Edge[],
   nodes: Node[],
-  verdict?: boolean
+  verdict?: boolean,
+  sourceSucceeded = true,
+  sourceNodeName = ''
 ): Node[] {
-  // Mirrors VisualWorkflowEngine.ShouldFollowConnection: an edge leaving a
-  // "true" or "false" handle is followed only when the verdict matches; an
-  // edge with no handle is the default output and is always followed.
+  // Delegates to the shared routing rules rather than re-deciding here. The
+  // filter used to read only the handle and ignore the edge's condition
+  // entirely, so an "error" edge was followed after the node succeeded.
+  //
+  // An edge the engine would refuse to route (a branch handle with no verdict,
+  // or an unevaluatable condition) is dropped rather than thrown from here:
+  // the engine fails the whole execution on one, and a simulation that aborted
+  // at the first bad edge would report less than one that keeps going.
   const nextEdges = edges.filter((e) => {
     if (e.source !== currentNodeId) return false;
-    if (e.sourceHandle === 'true' || e.sourceHandle === 'false') {
-      return verdict !== undefined && verdict === (e.sourceHandle === 'true');
+    try {
+      return shouldFollowConnection(
+        e.sourceHandle,
+        (e.data?.condition as string | undefined) ?? null,
+        sourceSucceeded,
+        verdict ?? null,
+        sourceNodeName
+      );
+    } catch {
+      return false;
     }
-    return true;
   });
   return nextEdges
     .map((e) => nodes.find((n) => n.id === e.target))
@@ -441,7 +456,9 @@ export function simulateWorkflow(
         // discard the answer, and pick one outgoing edge at random - so the
         // tester's step count changed from run to run for the same workflow.
         const verdict = step.outputData.matched === true;
-        const branches = findNextNodes(node.id, edges, nodes, verdict);
+        const branches = findNextNodes(
+          node.id, edges, nodes, verdict, step.status !== 'error', node.data.label
+        );
 
         if (branches.length > 0) {
           nextNodes.push(...branches);
@@ -449,7 +466,9 @@ export function simulateWorkflow(
         }
       } else {
         // For non-condition nodes, execute all outgoing branches
-        const next = findNextNodes(node.id, edges, nodes);
+        const next = findNextNodes(
+          node.id, edges, nodes, undefined, step.status !== 'error', node.data.label
+        );
         nextNodes.push(...next);
         if (next.length > 1) {
           pathsTaken++; // Count parallel branches

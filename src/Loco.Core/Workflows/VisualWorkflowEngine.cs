@@ -357,74 +357,19 @@ public class VisualWorkflowEngine
     }
 
     /// <summary>
-    /// Whether an outgoing edge should be followed after its source node ran.
+    /// Whether one outgoing edge should be followed after its source node ran.
     ///
-    /// Two independent things decide this, and they are not the same:
-    ///
-    ///   SourceOutput - which HANDLE the edge leaves from. The editor's
-    ///   condition node draws two, "true" and "false" (ConditionNode.tsx), and
-    ///   it is the only node type that names its handles at all; every other
-    ///   node has one unnamed output, which maps to "default".
-    ///
-    ///   Condition - the edge's own success/error routing, set in the edge
-    ///   panel and used to send failures down a recovery path.
-    ///
-    /// The branch handles used to be ignored completely. WorkflowMapper carried
-    /// SourceOutput faithfully from the editor, the engine declared the property
-    /// and never read it, and the condition node's verdict went into NodeResults
-    /// where nothing consulted it either. So a condition node did not branch: it
-    /// succeeded, both of its edges saw Success, and BOTH sides ran. Every
-    /// if/else workflow this product has ever executed took both paths, and
-    /// nothing anywhere reported it.
+    /// The decision itself lives in <see cref="ConnectionRouter"/> so it is a
+    /// pure function that the editor's simulator can be held to as well; this
+    /// only reads the verdict out of whatever shape the handler returned.
     /// </summary>
-    private bool ShouldFollowConnection(WorkflowConnection connection, NodeExecutionResult result)
-    {
-        // A named branch handle answers first: a false branch must not run just
-        // because the node that evaluated the condition did not throw.
-        if (connection.SourceOutput is "true" or "false")
-        {
-            var verdict = ReadConditionVerdict(result.Data);
-            if (verdict is null)
-            {
-                // The edge claims a branch its source did not produce a verdict
-                // for. Following it - or its sibling - would be a guess, and
-                // guessing here silently sends work down the wrong path.
-                throw new InvalidOperationException(
-                    $"Node '{result.NodeName}' has a '{connection.SourceOutput}' branch edge " +
-                    "but produced no condition verdict. Only a condition node has true/false " +
-                    "outputs; connect this edge to the node's default output instead.");
-            }
-
-            if (verdict.Value != (connection.SourceOutput == "true"))
-            {
-                return false;
-            }
-        }
-
-        if (connection.Condition == null || connection.Condition == "default")
-            return result.Success;
-
-        if (connection.Condition == "success")
-            return result.Success;
-
-        if (connection.Condition == "error")
-            return !result.Success;
-
-        // "Always" is a real routing choice - a cleanup step that must run
-        // whether or not the step before it failed - and the edge panel offers
-        // it by name. It used to work only by accident, falling through the
-        // "anything else" branch below.
-        if (connection.Condition == "always")
-            return true;
-
-        // An expression the engine cannot evaluate. This used to `return true`,
-        // which meant a custom condition always fired - the one outcome that
-        // looks like it works while ignoring what was written. Refusing is the
-        // honest answer until expressions are actually implemented.
-        throw new NotSupportedException(
-            $"Edge condition '{connection.Condition}' is not supported. Use 'success', " +
-            "'error' or 'always', or put the comparison in a condition node.");
-    }
+    private bool ShouldFollowConnection(WorkflowConnection connection, NodeExecutionResult result) =>
+        ConnectionRouter.ShouldFollow(
+            connection.SourceOutput,
+            connection.Condition,
+            result.Success,
+            ReadConditionVerdict(result.Data),
+            result.NodeName);
 
     /// <summary>
     /// The boolean a condition node produced, or null when the node produced

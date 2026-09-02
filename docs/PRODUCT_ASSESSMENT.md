@@ -21,8 +21,8 @@ grep とコンパイラとテストに答えさせる。
 |---|---|---|
 | `scripts/typecheck-offline.sh` | `src/` と `tests/` の全 C# を Roslyn でメソッド本体まで型検査 | **0 エラー** |
 | `scripts/check-structure.py` | 9 つの構造検査(下記) | **9/9** |
-| `scripts/run-tests-offline.sh` | バックエンドテスト全件 | **409 passed / 0 failed** |
-| `npx vitest run` | エディタ | **581 passed / 44 files** |
+| `scripts/run-tests-offline.sh` | バックエンドテスト全件 | **432 passed / 0 failed** |
+| `npx vitest run` | エディタ | **607 passed / 45 files** |
 | `npx tsc --noEmit` / `npm run build` / `npm run lint` | エディタ | クリーン / 警告 55(0 エラー) |
 
 構造検査の 9 つは、いずれも**実際に欠陥を捕まえた**ために存在する:
@@ -334,6 +334,42 @@ TS の equals を `===` に戻す / TS の順序を `false` 返却に戻す)で�
 **評決**: 修正済み。変異 4 件で確認 — 共有表の 1 ケースを書き換えると
 **C# と TS がちょうど 1 件ずつ落ち**、貪欲判定を戻すと C# が 3 件、
 探索順序を戻すと TS が 10 件、`data` スキップを外すと TS が 1 件落ちる。
+
+### 問: 分岐の経路選択は、2 つの実装で一致するか
+
+**証拠**: 3 つの中で最も甚だしかった — シミュレータは**そもそも写していなかった**。
+エッジのフィルタは `sourceHandle` しか見ず、`edge.data.condition` を一度も読まない。
+つまり EdgeConditionPanel で `error` に設定したエッジが、ノードが**成功しても**辿られる。
+実測: `trigger → work(成功) → cleanup`(error エッジ)を走らせると、
+**3 ステップすべてが実行された**。ユーザは後始末の分岐を error に設定してテストし、
+それが走るのを見る — 本番と正反対である。
+
+**修正**: エンジン側の `ShouldFollowConnection` を純粋関数 `ConnectionRouter.ShouldFollow`
+(sourceOutput / condition / 成否 / verdict の 4 引数)へ切り出し、
+シミュレータは `connectionRouting.ts` の同名関数を通すようにした。
+`tests/shared/connection-routing-table.json`(20 ケース)を新設し、
+**両スイートが読んで実行**する。
+
+表は「両方が効く」ケースまで固定した — `true` ハンドル かつ `condition: always` かつ
+ノード失敗 なら辿る(always が失敗を上書きする)が、`false` ハンドルなら辿らない
+(always はハンドル不一致を上書きしない)。片方だけ実装しても通らない。
+
+**評決**: 修正済み。変異 3 件 — 共有表の 1 ケース書き換えで**両方が 1 件ずつ**、
+C# の `error` を常時 true にすると 1 件、シミュレータのフィルタを
+condition 無視に戻すと 1 件落ちる。
+
+### この 3 つの表について
+
+条件比較・参照解決・経路選択 — **同じ意味論が 2 言語で 2 回実装されている箇所は
+この 3 つで全部**であり、3 つとも食い違っていた。共通する教訓は、食い違いの
+見つかり方にある: 条件比較は 7 ケース中 **6 ケースが一致**した。
+**一致して見えることが、食い違いが生き延びる仕組み**である。
+
+コードは言語をまたげないので、**表をまたがせた**。
+`tests/shared/*.json` の 3 ファイル・73 ケースを、C# と TypeScript の
+両スイートが読んで実行する。片側だけを変える改変は、必ずどちらかが落ちる —
+各表について「1 ケースの期待値を書き換えると両方がちょうど 1 件ずつ落ちる」ことを
+実際に確認済み。
 
 ---
 
