@@ -46,3 +46,53 @@ describe('shipped templates', () => {
     }
   );
 });
+
+/**
+ * Every {{reference}} a template writes must point at something that exists
+ * in that template.
+ *
+ * The engine resolves {{first.rest}} by looking up `first` as a workflow
+ * variable, then as a node id, then as the keyword `previous`. A reference to
+ * a name none of those match resolves to null - silently, since an unknown
+ * reference is not an error - and a condition comparing null to anything
+ * takes the wrong branch without saying so. Two templates shipped exactly
+ * that: `{{item.amount}}` and `{{payment.status}}`, where nothing named
+ * `item` or `payment` was ever produced.
+ *
+ * `input` is allowed because the engine seeds Variables["input"] with the
+ * trigger payload before any node runs.
+ */
+describe('template references', () => {
+  const REFERENCE = /\{\{\s*([^.}\s]+)/g;
+
+  const collect = (value: unknown, out: string[]) => {
+    if (typeof value === 'string') {
+      for (const m of value.matchAll(REFERENCE)) out.push(m[1]);
+    } else if (Array.isArray(value)) {
+      value.forEach((v) => collect(v, out));
+    } else if (value && typeof value === 'object') {
+      Object.values(value).forEach((v) => collect(v, out));
+    }
+  };
+
+  it.each(templates.map((t) => [t.id, t] as const))(
+    '%s only references nodes it contains',
+    (id, template) => {
+      const nodes = asNodes(template);
+      const known = new Set([...nodes.map((n) => n.id), 'input', 'previous']);
+      const refs: string[] = [];
+      nodes.forEach((n) => collect(n.data?.config, refs));
+
+      const dangling = refs.filter((r) => !known.has(r));
+
+      expect(dangling, `template "${id}" references names nothing produces`).toEqual([]);
+    }
+  );
+
+  it('actually finds references (the check is not vacuous)', () => {
+    // A regex that matched nothing would let every template pass above.
+    const refs: string[] = [];
+    templates.forEach((t) => asNodes(t).forEach((n) => collect(n.data?.config, refs)));
+    expect(refs.length).toBeGreaterThan(0);
+  });
+});

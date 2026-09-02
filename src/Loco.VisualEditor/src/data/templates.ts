@@ -169,7 +169,7 @@ export const templates: WorkflowTemplate[] = [
             // was a single free-text `condition` string, which it never read -
             // so both operands were null, `equals` compared null to null, and
             // the branch was silently always true.
-            config: { left: '{{item.amount}}', operation: 'greater_than', right: '100' },
+            config: { left: '{{trigger-1.amount}}', operation: 'greater_than', right: '100' },
           },
         },
         {
@@ -258,8 +258,11 @@ export const templates: WorkflowTemplate[] = [
           data: {
             label: 'Transform Data',
             integration: 'transform',
+            // The transform handler reads `type` and, for "json", `json`. It
+            // does not run C#; the `code` that used to sit here was never read.
             config: {
-              code: 'return items.Select(item => new { Name = item.name.ToUpper(), Total = item.price * item.quantity }).ToList();',
+              type: 'json',
+              json: '{"name": "WIDGET", "total": 42}',
             },
           },
         },
@@ -589,7 +592,9 @@ export const templates: WorkflowTemplate[] = [
               action: 'set',
               parameters: {
                 key: 'cache:users',
-                value: '{{result}}',
+                // The query node's whole result - `action-1` is that node's
+                // id, which is how the engine resolves a reference.
+                value: '{{action-1}}',
                 // RedisConnector's parameter is 'expirySeconds'; 'ttl' is a
                 // separate action on that connector and was never read here.
                 expirySeconds: 3600,
@@ -729,7 +734,7 @@ export const templates: WorkflowTemplate[] = [
           position: { x: 700, y: 150 },
           data: {
             label: 'Check Success',
-            config: { left: '{{payment.status}}', operation: 'equals', right: 'succeeded' },
+            config: { left: '{{action-1.status}}', operation: 'equals', right: 'succeeded' },
           },
         },
         {

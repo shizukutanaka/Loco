@@ -1,7 +1,6 @@
 // John Carmack: "Code should be written to be read by humans"
 // Rob Pike: "The bigger the interface, the weaker the abstraction"
 
-using System.Text.Json;
 using Loco.Core.Workflows;
 
 namespace Loco.Core.Integrations.Core;
@@ -323,13 +322,15 @@ public sealed class WorkflowConnectorBridge : IDisposable
         WorkflowExecutionContext workflowContext,
         CancellationToken ct)
     {
-        // Build action parameters from node parameters
+        // Node parameters arrive already resolved: VisualWorkflowEngine applies
+        // WorkflowVariableResolver at its single dispatch point, so connector
+        // actions and the engine's built-ins resolve identically. Resolving
+        // again here would expand a {{...}} that a variable's own VALUE
+        // contained, which is data, not a reference.
         var parameters = new ActionParameters();
         foreach (var param in node.Parameters)
         {
-            // Resolve variable references {{varName}}
-            var value = ResolveValue(param.Value, workflowContext);
-            parameters.Set(param.Key, value);
+            parameters.Set(param.Key, param.Value);
         }
 
         // Create execution context
@@ -361,143 +362,6 @@ public sealed class WorkflowConnectorBridge : IDisposable
         return result.Data;
     }
 
-    /// <summary>
-    /// Resolve variable references in values
-    /// Supports: {{variableName}}, {{nodeId.data.property}}, {{previous.property}}
-    /// </summary>
-    private object? ResolveValue(object? value, WorkflowExecutionContext context)
-    {
-        if (value is not string strValue)
-            return value;
-
-        // Check for full variable reference
-        if (strValue.StartsWith("{{") && strValue.EndsWith("}}"))
-        {
-            var path = strValue[2..^2].Trim();
-            return ResolveVariablePath(path, context);
-        }
-
-        // Check for inline variable references
-        var result = strValue;
-        var startIdx = 0;
-
-        while (true)
-        {
-            var openIdx = result.IndexOf("{{", startIdx);
-            if (openIdx < 0) break;
-
-            var closeIdx = result.IndexOf("}}", openIdx);
-            if (closeIdx < 0) break;
-
-            var path = result.Substring(openIdx + 2, closeIdx - openIdx - 2).Trim();
-            var resolved = ResolveVariablePath(path, context)?.ToString() ?? "";
-
-            result = result[..openIdx] + resolved + result[(closeIdx + 2)..];
-            startIdx = openIdx + resolved.Length;
-        }
-
-        return result;
-    }
-
-    private object? ResolveVariablePath(string path, WorkflowExecutionContext context)
-    {
-        var parts = path.Split('.');
-
-        if (parts.Length == 0)
-            return null;
-
-        // Check workflow variables first
-        if (context.Variables.TryGetValue(parts[0], out var variable))
-        {
-            if (parts.Length == 1)
-                return variable;
-
-            return NavigateObject(variable, parts[1..]);
-        }
-
-        // Check node results
-        if (context.NodeResults.TryGetValue(parts[0], out var nodeResult))
-        {
-            if (parts.Length == 1)
-                return nodeResult.Data;
-
-            if (parts[1] == "data" && parts.Length > 2)
-            {
-                return NavigateObject(nodeResult.Data, parts[2..]);
-            }
-
-            return NavigateObject(nodeResult.Data, parts[1..]);
-        }
-
-        // "previous" keyword for last executed node
-        if (parts[0] == "previous")
-        {
-            var lastResult = context.NodeResults.Values.LastOrDefault();
-            if (lastResult == null) return null;
-
-            if (parts.Length == 1)
-                return lastResult.Data;
-
-            return NavigateObject(lastResult.Data, parts[1..]);
-        }
-
-        return null;
-    }
-
-    private object? NavigateObject(object? obj, string[] path)
-    {
-        if (obj == null || path.Length == 0)
-            return obj;
-
-        var current = obj;
-
-        foreach (var part in path)
-        {
-            if (current == null)
-                return null;
-
-            // Handle JsonElement
-            if (current is JsonElement json)
-            {
-                if (json.ValueKind == JsonValueKind.Object && json.TryGetProperty(part, out var prop))
-                {
-                    current = prop.ValueKind switch
-                    {
-                        JsonValueKind.String => prop.GetString(),
-                        JsonValueKind.Number => prop.TryGetInt64(out var l) ? l : prop.GetDouble(),
-                        JsonValueKind.True => true,
-                        JsonValueKind.False => false,
-                        _ => (object)prop
-                    };
-                    continue;
-                }
-                return null;
-            }
-
-            // Handle Dictionary
-            if (current is IDictionary<string, object?> dict)
-            {
-                if (dict.TryGetValue(part, out var value))
-                {
-                    current = value;
-                    continue;
-                }
-                return null;
-            }
-
-            // Handle anonymous types and regular objects
-            var prop2 = current.GetType().GetProperty(part);
-            if (prop2 != null)
-            {
-                current = prop2.GetValue(current);
-                continue;
-            }
-
-            return null;
-        }
-
-        return current;
-    }
 
     public void Dispose()
     {

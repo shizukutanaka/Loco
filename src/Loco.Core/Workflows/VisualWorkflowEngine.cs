@@ -334,15 +334,23 @@ public class VisualWorkflowEngine
     {
         var handlerKey = $"{node.Integration}:{node.Action}";
 
+        // Resolve {{...}} references once, here, because this is the only place
+        // every handler is dispatched from. It used to happen inside
+        // WorkflowConnectorBridge, which meant it happened for connector
+        // actions and not for the engine's own built-ins - so a condition node
+        // comparing {{amount}} compared that literal text, and could therefore
+        // only ever compare two constants.
+        var resolved = WorkflowVariableResolver.WithResolvedParameters(node, context);
+
         if (_nodeHandlers.TryGetValue(handlerKey, out var handler))
         {
-            return await handler(node, context);
+            return await handler(resolved, context);
         }
 
         // Fallback: try generic handlers
         if (_nodeHandlers.TryGetValue(node.Type, out var typeHandler))
         {
-            return await typeHandler(node, context);
+            return await typeHandler(resolved, context);
         }
 
         throw new NotImplementedException($"No handler registered for {handlerKey}");
