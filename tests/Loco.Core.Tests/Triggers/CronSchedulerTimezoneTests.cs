@@ -108,7 +108,9 @@ public class CronSchedulerTimezoneTests
         next.Should().NotBeNull();
 
         var asUtc = next!.Value.Kind == DateTimeKind.Utc ? next.Value : next.Value.ToUniversalTime();
-        asUtc.Hour.Should().BeOneOf(13, 14,
+        // The collection overload, not the params one: BeOneOf(13, 14, "why")
+        // binds to BeOneOf(params int[]) and the reason cannot convert to int.
+        asUtc.Hour.Should().BeOneOf(new[] { 13, 14 },
             "09:00 US-Eastern is 13:00 UTC (EDT) or 14:00 UTC (EST), never 09:00 UTC");
     }
 }

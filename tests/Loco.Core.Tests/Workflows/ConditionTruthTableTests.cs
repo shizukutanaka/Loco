@@ -101,12 +101,16 @@ public class ConditionTruthTableTests
             var act = () => ConditionEvaluator.Evaluate(
                 testCase.Left, testCase.Operation, testCase.Right, "Check");
 
-            act.Should().Throw<InvalidOperationException>(testCase.Why)
-                // Naming the node and the operation is the point of the change:
-                // the old failure said "The input string 'abc' was not in a
-                // correct format" and named neither.
-                .WithMessage("Check")
-                .And.WithMessage(testCase.Operation);
+            var thrown = act.Should().Throw<InvalidOperationException>(testCase.Why).Which;
+
+            // Naming the node and the operation is the point of the change: the
+            // old failure said "The input string 'abc' was not in a correct
+            // format" and named neither. Asserted on the message directly
+            // rather than through WithMessage, whose real implementation is a
+            // wildcard match rather than the substring the offline harness
+            // treats it as.
+            thrown.Message.Should().Contain("Check");
+            thrown.Message.Should().Contain(testCase.Operation);
             return;
         }
 

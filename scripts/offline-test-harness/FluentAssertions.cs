@@ -287,11 +287,26 @@ namespace FluentAssertions
                 : throw new AssertionFailedException(
                     $"expected one of {Compare.Describe(validValues)}, found {Compare.Describe(_subject)}");
 
-        /// <summary>The trailing string is a "because" reason, not another candidate.</summary>
-        public Assertions<T> BeOneOf(object? a, object? b, string because) =>
-            Compare.AreEqual(a, _subject) || Compare.AreEqual(b, _subject)
+        /// <summary>
+        /// The real library's second overload: candidates as a COLLECTION,
+        /// followed by the "because" reason.
+        ///
+        /// This used to be `BeOneOf(object? a, object? b, string because)` - two
+        /// candidates and a reason - which FluentAssertions does not have. A
+        /// call written that way compiled here and failed the real build with
+        /// "cannot convert from 'string' to 'int'", because there the reason
+        /// binds to `params T[]`. An overload the real library lacks is worse
+        /// than a missing one: it makes this harness accept code that cannot
+        /// build.
+        /// </summary>
+        public Assertions<T> BeOneOf(System.Collections.IEnumerable validValues, string because = "", params object[] args)
+        {
+            var candidates = validValues.Cast<object?>().ToArray();
+
+            return candidates.Any(candidate => Compare.AreEqual(candidate, _subject))
                 ? this
-                : Fail($"expected {Compare.Describe(a)} or {Compare.Describe(b)}, found {Compare.Describe(_subject)}", because);
+                : Fail($"expected one of {Compare.Describe(candidates)}, found {Compare.Describe(_subject)}", because);
+        }
 
         private Assertions<T> CompareTo(object? expected, string because, Func<int, bool> accept, string wording)
         {
