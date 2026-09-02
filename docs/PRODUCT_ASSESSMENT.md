@@ -41,7 +41,7 @@ kick/ban 理由が、フォームに現れるのに実装から読まれず黙�
 ドキュメントが参照するファイルの実在(33 文書が存在しないシステムを
 解説していた)。
 
-**評決**: 主張は再現可能。ただし後述の「実パッケージビルド」だけは別。
+**評決**: 主張は再現可能。**実パッケージでのビルドとテストも CI で緑になった**(下記)。
 
 ---
 
@@ -426,23 +426,44 @@ condition 無視に戻すと 1 件落ちる。
 
 **評決**: 修正済み。変異 2 件(Run を戻す / Add Delay を消す)でそれぞれ 1 件落ちる。
 
+### 問: 実パッケージに対する本物のビルドとテストは通るのか — 解消済み
+
+**この分岐で最大の未検証項目だった。いま解消した。**
+
+**背景**: この作業環境では `curl https://api.nuget.org/v3/index.json` が
+`CONNECT tunnel failed, response 403` を返す。`/root/.ccr/README.md` はプロキシ 403 を
+**組織ポリシーによる拒否**と定義し迂回を禁じているので、`dotnet restore` は一度も
+実行できなかった。ゆえに「ハーネスで緑でも、実パッケージで緑とは限らない」と
+書き続けてきた。
+
+**証拠**: PR を開いたことで GitHub Actions が本物の restore / build / test を実行した。
+初回は **7 件のコンパイルエラー**が出た。**すべてテストプロジェクト側で、すべて私のもの**、
+そして**すべてハーネスが実物より寛容だったせい**である:
+
+| 実物での失敗 | ハーネスが見逃した理由 |
+|---|---|
+| `Loco.Cli.Tests` に `FluentAssertions` の PackageReference が無い | ハーネスは全プロジェクトに無条件で供給する |
+| `BeOneOf(13, 14, "理由")` が `params int[]` に束縛されて型エラー | ハーネスが**実物に存在しない** `BeOneOf(a, b, because)` を勝手に持っていた |
+| `WithMessage(...).And.WithMessage(...)` の型推論失敗 | ハーネスの `WithMessage` は部分一致、実物は**ワイルドカード一致** |
+
+修正後、**ubuntu / macOS / Windows の 3 プラットフォームすべてで
+`dotnet restore` → `dotnet build` → `dotnet test` が緑**になった
+(`ci.yml` の `build-and-test` ジョブ、head `876d0de`)。
+`src/` は最初から**エラーゼロ**でコンパイルされていた — 新設の
+`ConditionEvaluator` / `ConnectionRouter` / `WorkflowVariableResolver` を含めて。
+
+**教訓**: ハーネスのヘッダは「実物より**狭い**」箇所を列挙している。
+今回問題になったのは、逆に**黙って広げていた**箇所だった。
+狭いスタブはローカルで落ちるだけだが、**広いスタブは CI のサイクルを 1 回失わせる**。
+実物に無いオーバーロードを消したので、この種の食い違いは今後ローカルで捕まる。
+
+**評決**: 解消済み。もはや「未検証」ではない。
+
 ---
 
 ## 短所(現存)
 
-### 1. 実パッケージに対する `dotnet build` / `dotnet test` が未実行 — 最大
-
-**証拠**: `curl https://api.nuget.org/v3/index.json` は
-`CONNECT tunnel failed, response 403`。`/root/.ccr/README.md` はプロキシ 403 を
-**組織ポリシーによる拒否**と定義し、迂回を禁じている。
-
-**帰結**: ハーネスの `AddJwtBearer` 配線は自前(トークン検証自体は SDK 同梱の
-Microsoft 実装)、Swashbuckle スタブは不活性、実 xunit / FluentAssertions は
-このハーネスより賢い。ここで緑でも、実パッケージで緑とは限らない。
-
-**評決**: この環境では解消不能。`docs/ci/ci.yml` の backend ジョブが担う。
-
-### 2. CI 定義が適用できない
+### 1. CI 定義が適用できない
 
 **証拠**: GitHub App に `workflows` スコープが無く、`git push` と REST API の
 両経路で拒否された(`docs/ci/README.md` に応答を原文で記録)。
@@ -451,7 +472,7 @@ Microsoft 実装)、Swashbuckle スタブは不活性、実 xunit / FluentAssert
 
 **評決**: リポジトリ所有者の操作待ち。手順は `docs/ci/README.md`。
 
-### 3. 実行中のプロセス停止で、進行中の実行が失われる
+### 2. 実行中のプロセス停止で、進行中の実行が失われる
 
 **証拠**: `JsonFileExecutionStore` は**完了時のみ**書き込む。
 `WorkflowSchedulerService` の doc comment が明記するとおり、停止中に逃した
@@ -459,13 +480,13 @@ Microsoft 実装)、Swashbuckle スタブは不活性、実 xunit / FluentAssert
 
 **評決**: 意図的な設計上の限界。再開には最終発火時刻の永続化が要る。
 
-### 4. 条件式が限定文法
+### 3. 条件式が限定文法
 
 **証拠**: エッジ条件は `success` / `error` / `always` と限定的な比較式のみ。
 
 **評決**: 実用範囲だが、任意式ではない。
 
-### 5. lint 警告 55 件
+### 4. lint 警告 55 件
 
 **証拠**: `npm run lint` は 0 エラー / 55 警告。内訳は
 `<T extends (...args: any[]) => any>` のようなイディオム的ジェネリック制約か、

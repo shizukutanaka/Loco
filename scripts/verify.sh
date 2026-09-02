@@ -53,7 +53,8 @@ step "Editor lint"
 npm run lint
 
 printf '\n\033[1mAll offline checks passed.\033[0m\n'
-echo "Still unverified here: a real build against the real packages. The harness"
+echo "These run without NuGet, against scripts/offline-test-harness/. The harness"
 echo "hosts the API for the controller tests, but its JwtBearer plumbing is"
-echo "hand-written and its Swashbuckle stubs are inert. docs/ci/ci.yml runs the"
-echo "real suite."
+echo "hand-written and its Swashbuckle stubs are inert, so it is not a"
+echo "substitute for the real packages - CI runs dotnet restore/build/test on"
+echo "ubuntu, macOS and Windows, and that is what says the real build is sound."
