@@ -55,6 +55,29 @@ namespace Xunit
         public object?[] Data { get; }
     }
 
+    /// <summary>
+    /// Names a static property or method supplying a [Theory]'s cases, each an
+    /// object[] of arguments.
+    ///
+    /// Added for the condition truth table, whose cases are read from a JSON
+    /// file shared with the editor's test suite and so cannot be written as
+    /// compile-time [InlineData]. Real xunit resolves the member on the test
+    /// class unless MemberType says otherwise; so does the runner.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+    public sealed class MemberDataAttribute : Attribute
+    {
+        public MemberDataAttribute(string memberName, params object?[] parameters)
+        {
+            MemberName = memberName;
+            Parameters = parameters ?? Array.Empty<object?>();
+        }
+
+        public string MemberName { get; }
+        public object?[] Parameters { get; }
+        public Type? MemberType { get; set; }
+    }
+
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
     public sealed class CollectionAttribute : Attribute
     {

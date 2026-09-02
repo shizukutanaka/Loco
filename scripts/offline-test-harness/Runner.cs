@@ -7,6 +7,7 @@
 // missing: it executes the assertions and tells you which ones fail.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -179,6 +180,29 @@ namespace Loco.OfflineTestRunner
         private static IEnumerable<(object?[]? Arguments, string Label)> CasesFor(MethodInfo method)
         {
             var inline = method.GetCustomAttributes<InlineDataAttribute>().ToList();
+            var member = method.GetCustomAttributes<MemberDataAttribute>().ToList();
+
+            if (member.Count > 0)
+            {
+                var any = false;
+
+                foreach (var source in member)
+                {
+                    foreach (var row in ResolveMemberData(method, source))
+                    {
+                        any = true;
+                        var label = "(" + string.Join(", ", row.Select(Compare.Describe)) + ")";
+                        yield return (Coerce(method, row), label);
+                    }
+                }
+
+                // A member that yields nothing would let the [Theory] report as
+                // a pass having asserted nothing at all - the same trap as a
+                // [Theory] with no data, and the reason the table itself also
+                // has a test asserting it loaded.
+                if (!any) yield return (null, "(no data)");
+                yield break;
+            }
 
             if (inline.Count == 0)
             {
@@ -195,6 +219,59 @@ namespace Loco.OfflineTestRunner
             {
                 var label = "(" + string.Join(", ", data.Data.Select(Compare.Describe)) + ")";
                 yield return (Coerce(method, data.Data), label);
+            }
+        }
+
+        /// <summary>
+        /// The rows a [MemberData] names: a static property or method on the
+        /// test class (or on MemberType) returning IEnumerable&lt;object[]&gt;.
+        /// </summary>
+        private static IEnumerable<object?[]> ResolveMemberData(MethodInfo method, MemberDataAttribute source)
+        {
+            var owner = source.MemberType ?? method.DeclaringType!;
+            const BindingFlags flags =
+                BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy;
+
+            object? value;
+
+            if (owner.GetProperty(source.MemberName, flags) is { } property)
+            {
+                value = property.GetValue(null);
+            }
+            else if (owner.GetMethod(source.MemberName, flags) is { } dataMethod)
+            {
+                value = dataMethod.Invoke(null, source.Parameters.Length == 0 ? null : source.Parameters);
+            }
+            else if (owner.GetField(source.MemberName, flags) is { } field)
+            {
+                value = field.GetValue(null);
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    $"[MemberData(\"{source.MemberName}\")] on {owner.Name}.{method.Name} names no " +
+                    "public or private static property, method or field on that type.");
+            }
+
+            if (value is not IEnumerable rows)
+            {
+                throw new InvalidOperationException(
+                    $"[MemberData(\"{source.MemberName}\")] must supply IEnumerable<object[]>, " +
+                    $"got {value?.GetType().Name ?? "null"}.");
+            }
+
+            foreach (var row in rows)
+            {
+                if (row is object?[] arguments)
+                {
+                    yield return arguments;
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        $"[MemberData(\"{source.MemberName}\")] yielded a {row?.GetType().Name ?? "null"} " +
+                        "rather than an object[] of arguments.");
+                }
             }
         }
 

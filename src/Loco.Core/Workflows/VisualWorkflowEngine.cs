@@ -538,15 +538,10 @@ public class VisualWorkflowEngine
             var right = node.Parameters.GetValueOrDefault("right");
             var operation = node.Parameters.GetValueOrDefault("operation")?.ToString() ?? "equals";
 
-            var result = operation switch
-            {
-                "equals" => Equals(left, right),
-                "not_equals" => !Equals(left, right),
-                "greater_than" => Convert.ToDouble(left) > Convert.ToDouble(right),
-                "less_than" => Convert.ToDouble(left) < Convert.ToDouble(right),
-                "contains" => left?.ToString()?.Contains(right?.ToString() ?? "") ?? false,
-                _ => false
-            };
+            // The comparison itself lives in ConditionEvaluator so it has one
+            // definition, and so the editor's simulator has something specific to
+            // mirror. Both are held to tests/shared/condition-truth-table.json.
+            var result = ConditionEvaluator.Evaluate(left, operation, right, node.Name);
 
             return new { condition = result };
         });

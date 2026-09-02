@@ -10,7 +10,7 @@
  */
 
 import { Node, Edge } from 'reactflow';
-import { CONDITION_OPERATIONS } from './constants';
+import { compare } from './conditionSemantics';
 
 // ============================================================================
 // Types
@@ -158,21 +158,31 @@ export function simulateNodeExecution(
   const startTime = performance.now();
   const nodeType = node.type ?? 'unknown';
   let status: ExecutionResult = 'success';
+  let error: string | undefined;
   let outputData = generateMockData(nodeType, node.data.config);
   if (nodeType === 'condition') {
     // The one node whose output is not mock data. Its verdict is what the
     // branch selection below reads, so it is evaluated once, here, from the
     // same left/operation/right the engine reads.
     const config = node.data.config ?? {};
-    outputData = {
-      matched: evaluateCondition(node, inputData, nodeOutputs),
-      evaluated: true,
-      left: config.left,
-      operation: config.operation ?? 'equals',
-      right: config.right,
-    };
+    try {
+      outputData = {
+        matched: evaluateCondition(node, inputData, nodeOutputs),
+        evaluated: true,
+        left: config.left,
+        operation: config.operation ?? 'equals',
+        right: config.right,
+      };
+    } catch (e) {
+      // An ordering comparison on non-numbers fails the node in the engine, so
+      // the simulation has to fail it too. Reporting `false` and carrying on
+      // down the false branch is the simulator promising a green run for a
+      // workflow that will die.
+      status = 'error';
+      error = e instanceof Error ? e.message : String(e);
+      outputData = { error };
+    }
   }
-  let error: string | undefined;
 
   // Simulate errors based on configuration
   if (config.injectErrors && Math.random() < (config.errorRate || 0.1)) {
@@ -299,26 +309,13 @@ export function evaluateCondition(
   nodeOutputs: Record<string, SimulationData> = {}
 ): boolean {
   const config = conditionNode.data.config ?? {};
-  const left = resolveReference(config.left, data, nodeOutputs);
-  const right = resolveReference(config.right, data, nodeOutputs);
-  const operation = String(config.operation ?? 'equals');
 
-  if (!(CONDITION_OPERATIONS as readonly string[]).includes(operation)) return false;
-
-  switch (operation) {
-    case 'equals':
-      return left === right;
-    case 'not_equals':
-      return left !== right;
-    case 'greater_than':
-      return Number(left) > Number(right);
-    case 'less_than':
-      return Number(left) < Number(right);
-    case 'contains':
-      return String(left ?? '').includes(String(right ?? ''));
-    default:
-      return false;
-  }
+  return compare(
+    resolveReference(config.left, data, nodeOutputs),
+    String(config.operation ?? 'equals'),
+    resolveReference(config.right, data, nodeOutputs),
+    conditionNode.data.label ?? ''
+  );
 }
 
 // ============================================================================
