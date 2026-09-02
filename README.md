@@ -35,7 +35,7 @@ still in progress.
 This repository is a work in progress. Being honest about the state:
 
 - **Works**: the connector library, the workflow engine, the visual editor
-  frontend (builds clean, 607 passing tests), the credential store and its
+  frontend (builds clean, 619 passing tests), the credential store and its
   UI, the cron scheduler, and the HTTP API's CRUD / execute / validate /
   connections / connectors / auth endpoints.
 - **In progress / limitations**: finished executions are persisted to disk and

@@ -73,16 +73,69 @@ const getPriorityColor = (priority: string) => {
 };
 
 // Query routing configuration for memoization
-const QUERY_ROUTES = {
-  performance: (input: string) =>
-    input.includes('performance') || input.includes('optimize') || input.includes('speed'),
-  security: (input: string) =>
-    input.includes('security') || input.includes('safe') || input.includes('risk'),
-  error_fix: (input: string) =>
-    input.includes('error') || input.includes('fix') || input.includes('issue'),
-  pattern: (input: string) =>
-    input.includes('pattern'),
-};
+/**
+ * The topics this panel can actually answer on.
+ *
+ * There is no model behind any of this: `aiAnalyzer.ts` is 563 lines of static
+ * checks over the workflow graph and makes no network call of any kind. What
+ * the text box does is match eleven keywords across the four topics below.
+ *
+ * That mattered because of what happened when nothing matched. Asking "why is
+ * my Slack node failing?" fell through to a branch that replied "I found 7
+ * insights about your workflow. Here are the most important ones:" - the
+ * generic list, worded as an answer to the question. The panel could not
+ * understand the question and did not say so.
+ *
+ * The topics are now offered as buttons as well, so the real capability is
+ * reachable without guessing which words trigger it, and an unmatched question
+ * gets told plainly that it was not understood.
+ */
+type Topic = 'performance' | 'security' | 'error_fix' | 'pattern';
+
+const TOPICS: ReadonlyArray<{
+  id: Topic;
+  label: string;
+  lead: string;
+  matches: (input: string) => boolean;
+}> = [
+  {
+    id: 'performance',
+    label: 'Performance',
+    lead: 'Here are the main performance optimization opportunities I found:',
+    matches: (i) => i.includes('performance') || i.includes('optimize') || i.includes('speed'),
+  },
+  {
+    id: 'security',
+    label: 'Security',
+    lead: 'Here are the security concerns I detected:',
+    matches: (i) => i.includes('security') || i.includes('safe') || i.includes('risk'),
+  },
+  {
+    id: 'error_fix',
+    label: 'Errors',
+    lead: 'Here are the critical issues that need fixing:',
+    matches: (i) => i.includes('error') || i.includes('fix') || i.includes('issue'),
+  },
+  {
+    id: 'pattern',
+    label: 'Patterns',
+    lead: 'Here are the workflow patterns I detected:',
+    matches: (i) => i.includes('pattern'),
+  },
+];
+
+/** The topic a question matches, or null when none does. */
+export function topicFor(input: string): Topic | null {
+  const lower = input.toLowerCase();
+  return TOPICS.find((t) => t.matches(lower))?.id ?? null;
+}
+
+/** What to say when the question matched no topic. */
+const NOT_UNDERSTOOD =
+  "I can't answer questions in general - I run a fixed set of checks over the " +
+  'workflow and report what they find. Pick a topic below, or ask about ' +
+  TOPICS.map((t) => t.label.toLowerCase()).join(', ') +
+  '.';
 
 // ============================================================================
 // AI Assistant Component
@@ -129,18 +182,19 @@ function AIAssistantComponent({ isOpen, onClose }: AIAssistantProps) {
     }
   }, [nodes, edges, toast]);
 
-  const handleSendMessage = useCallback(async () => {
-    if (!input.trim()) return;
+  const handleSendMessage = useCallback(async (asked?: string) => {
+    const question = asked ?? input;
+    if (!question.trim()) return;
 
     const userMessage: Message = {
       id: `msg-${Date.now()}`,
       type: 'user',
-      content: input,
+      content: question,
       timestamp: Date.now(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    setInput('');
+    if (asked === undefined) setInput('');
     setIsAnalyzing(true);
 
     try {
@@ -149,37 +203,29 @@ function AIAssistantComponent({ isOpen, onClose }: AIAssistantProps) {
       const analysisResult = analysisEngine.analyze(nodes, edges);
       const analysis = analysisResult.aiAnalysis;
 
-      let responseContent = '';
-      let responseInsights: AIInsight[] = [];
+      const topic = topicFor(question);
+      const matched = topic ? TOPICS.find((t) => t.id === topic)! : null;
 
-      // Route based on user input using memoized configuration
-      const inputLower = input.toLowerCase();
+      // An unmatched question is answered by saying so. It used to fall through
+      // to the generic list worded as a reply, which reads as an answer to a
+      // question the panel never understood.
+      const responseInsights: AIInsight[] = matched
+        ? analysis.insights.filter((i) => i.type === matched.id)
+        : [];
 
-      if (QUERY_ROUTES.performance(inputLower)) {
-        responseContent =
-          'Here are the main performance optimization opportunities I found:';
-        responseInsights = analysis.insights.filter((i) => i.type === 'performance');
-      } else if (QUERY_ROUTES.security(inputLower)) {
-        responseContent = 'Here are the security concerns I detected:';
-        responseInsights = analysis.insights.filter((i) => i.type === 'security');
-      } else if (QUERY_ROUTES.error_fix(inputLower)) {
-        responseContent = 'Here are the critical issues that need fixing:';
-        responseInsights = analysis.insights.filter((i) => i.type === 'error_fix');
-      } else if (QUERY_ROUTES.pattern(inputLower)) {
-        responseContent = 'Here are the workflow patterns I detected:';
-        responseInsights = analysis.insights.filter((i) => i.type === 'pattern');
+      let responseContent: string;
+      if (!matched) {
+        responseContent = NOT_UNDERSTOOD;
+      } else if (responseInsights.length > 0) {
+        responseContent = matched.lead;
       } else {
-        responseContent = `I found ${analysis.insights.length} insights about your workflow. Here are the most important ones:`;
-        responseInsights = analysis.insights.slice(0, 5);
+        responseContent = `I checked for ${matched.label.toLowerCase()} issues and found none.`;
       }
 
       const assistantMessage: Message = {
         id: `msg-${Date.now()}`,
         type: 'assistant',
-        content:
-          responseInsights.length > 0
-            ? responseContent
-            : "I've analyzed your workflow. What specific aspect would you like me to help with? (e.g., 'performance', 'security', 'errors')",
+        content: responseContent,
         timestamp: Date.now(),
         insights: responseInsights.length > 0 ? responseInsights : undefined,
       };
@@ -366,6 +412,24 @@ function AIAssistantComponent({ isOpen, onClose }: AIAssistantProps) {
 
       {/* Input */}
       <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+        {/*
+          The four topics as buttons. The text box matches eleven keywords, so
+          without these the only way to reach a topic was to guess a word that
+          triggers it - and a question that guessed wrong used to be answered
+          with the generic list rather than told it had not been understood.
+        */}
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {TOPICS.map((topic) => (
+            <button
+              key={topic.id}
+              onClick={() => handleSendMessage(topic.label)}
+              disabled={isAnalyzing}
+              className="px-2.5 py-1 text-xs rounded-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {topic.label}
+            </button>
+          ))}
+        </div>
         <div className="flex gap-2">
           <input
             type="text"
@@ -376,13 +440,13 @@ function AIAssistantComponent({ isOpen, onClose }: AIAssistantProps) {
                 handleSendMessage();
               }
             }}
-            placeholder="Ask about performance, security, errors..."
-            aria-label="Ask AI assistant questions about your workflow"
+            placeholder="Ask about performance, security, errors or patterns"
+            aria-label="Ask about workflow performance, security, errors or patterns"
             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
             disabled={isAnalyzing}
           />
           <button
-            onClick={handleSendMessage}
+            onClick={() => handleSendMessage()}
             disabled={isAnalyzing || !input.trim()}
             className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Send"
