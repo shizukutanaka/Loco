@@ -118,6 +118,7 @@ function WorkflowCanvasComponent() {
   // Setup quick actions handler
   const { handleQuickAction } = useCanvasQuickActions({
     nodes,
+    edges,
     contextMenuNodeId: contextMenu.nodeId,
     contextMenuPosition: contextMenu.position,
     onSelectNode: setSelectedNodeId,
@@ -297,7 +298,6 @@ function WorkflowCanvasComponent() {
         isOpen={contextMenu.isOpen}
         position={contextMenu.position}
         nodeId={contextMenu.nodeId}
-        nodeType={contextMenu.nodeType}
         onClose={contextMenu.closeContextMenu}
         onAction={handleQuickAction}
       />

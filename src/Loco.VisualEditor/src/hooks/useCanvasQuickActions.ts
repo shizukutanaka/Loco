@@ -1,5 +1,5 @@
 import { useCallback, useRef, useEffect } from 'react';
-import { Node } from 'reactflow';
+import { Node, Edge } from 'reactflow';
 import { useReactFlow } from 'reactflow';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useToast } from '@/contexts/ToastContext';
@@ -7,6 +7,7 @@ import { ActionType } from '@/components/QuickActionsMenu/QuickActionsMenu';
 
 interface UseCanvasQuickActionsOptions {
   nodes: Node[];
+  edges: Edge[];
   contextMenuNodeId: string | null;
   contextMenuPosition: { x: number; y: number };
   onSelectNode: (nodeId: string | null) => void;
@@ -18,22 +19,28 @@ interface UseCanvasQuickActionsOptions {
  */
 export function useCanvasQuickActions({
   nodes,
+  edges,
   contextMenuNodeId,
   contextMenuPosition,
   onSelectNode,
 }: UseCanvasQuickActionsOptions) {
   const reactFlowInstance = useReactFlow();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { addNode, deleteNode, updateNode } = useWorkflowStore();
+  const { addNode, deleteNode, updateNode, deleteEdge } = useWorkflowStore();
   const toast = useToast();
 
   // Store nodes in ref to avoid callback recreation when nodes change
   const nodesRef = useRef<Node[]>(nodes);
+  const edgesRef = useRef<Edge[]>(edges);
 
-  // Update ref with current nodes without recreating the callback
+  // Update refs with current graph without recreating the callback
   useEffect(() => {
     nodesRef.current = nodes;
   }, [nodes]);
+
+  useEffect(() => {
+    edgesRef.current = edges;
+  }, [edges]);
 
   const handleQuickAction = useCallback(
     (action: ActionType) => {
@@ -79,23 +86,22 @@ export function useCanvasQuickActions({
           }
           break;
 
-        case 'run':
-          toast.info('Running workflow from this node...');
-          break;
-
-        case 'group':
-          toast.info('Grouping nodes (feature coming soon)');
-          break;
-
-        case 'connect':
-          toast.info('Connect mode (feature coming soon)');
-          break;
-
         case 'disconnect':
           if (contextMenuNodeId) {
-            // Remove all edges connected to this node
-            // Note: We need to implement deleteEdge in the store
-            toast.info('Disconnected node (feature coming soon)');
+            // This said "feature coming soon" and did nothing. The store has
+            // had deleteEdge the whole time, so the note claiming it was
+            // missing was simply stale.
+            const attached = edgesRef.current.filter(
+              (e) => e.source === contextMenuNodeId || e.target === contextMenuNodeId
+            );
+
+            attached.forEach((e) => deleteEdge(e.id));
+
+            toast.success(
+              attached.length === 1
+                ? 'Removed 1 connection'
+                : `Removed ${attached.length} connections`
+            );
           }
           break;
 
@@ -117,7 +123,8 @@ export function useCanvasQuickActions({
         case 'add-action':
         case 'add-condition':
         case 'add-transform':
-        case 'add-loop': {
+        case 'add-loop':
+        case 'add-delay': {
           const nodeType = action.replace('add-', '');
           const position = reactFlowInstance.project({
             x: contextMenuPosition.x - (reactFlowWrapper.current?.offsetLeft || 0),

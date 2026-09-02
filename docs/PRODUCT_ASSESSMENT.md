@@ -22,7 +22,7 @@ grep とコンパイラとテストに答えさせる。
 | `scripts/typecheck-offline.sh` | `src/` と `tests/` の全 C# を Roslyn でメソッド本体まで型検査 | **0 エラー** |
 | `scripts/check-structure.py` | 9 つの構造検査(下記) | **9/9** |
 | `scripts/run-tests-offline.sh` | バックエンドテスト全件 | **432 passed / 0 failed** |
-| `npx vitest run` | エディタ | **619 passed / 46 files** |
+| `npx vitest run` | エディタ | **630 passed / 47 files** |
 | `npx tsc --noEmit` / `npm run build` / `npm run lint` | エディタ | クリーン / 警告 55(0 エラー) |
 
 構造検査の 9 つは、いずれも**実際に欠陥を捕まえた**ために存在する:
@@ -398,6 +398,33 @@ condition 無視に戻すと 1 件落ちる。
 製品のポジショニングの判断であり、私が一存で決めるべきものではないと考えた。
 表示名を実態に合わせるなら、`AIAssistant.tsx` の見出しと
 `aria-label` の 2 箇所である。
+
+### 問: 右クリックメニューの項目は、押したら何かが起きるか
+
+**証拠**: 3 項目は起きなかった。
+
+| 項目 | 実際の挙動 |
+|---|---|
+| **Run from Here** | `toast.info('Running workflow from this node...')` — **実行したと言って、何もしない** |
+| Group Nodes | `toast.info('Grouping nodes (feature coming soon)')` |
+| Connect To... | `toast.info('Connect mode (feature coming soon)')` |
+| Disconnect | `toast.info('Disconnected node (feature coming soon)')` |
+
+「Run from Here」が最も悪い。**成功を報告する**からである。しかも API に
+部分実行の経路は無い(`POST /workflows/{id}/execute` は全体実行のみ)ので、
+実装される見込みがあって未着手なのではなく、**裏付けが存在しない**。
+
+**修正**: Run / Group / Connect は**メニューから削除**した(マスクの第 2 段階 —
+存在しない機能の広告を消す)。Disconnect は**実装した** —
+ストアには最初から `deleteEdge` があり、「実装が必要」というコメントの方が
+古かった。併せて `Add Delay` を追加(delay は描画子・設定欄・エンジンハンドラを
+持つ正式なノード型なのに、キャンバスのメニューだけが出していなかった)。
+
+`run` 専用だった「condition と loop では無効化する」ロジックと、そのためだけに
+存在した `nodeType` プロップも削除した。**型が消し忘れを捕まえた** —
+`ActionType` から `'run'` を消した時点で、比較が TS2367 でコンパイルエラーになった。
+
+**評決**: 修正済み。変異 2 件(Run を戻す / Add Delay を消す)でそれぞれ 1 件落ちる。
 
 ---
 

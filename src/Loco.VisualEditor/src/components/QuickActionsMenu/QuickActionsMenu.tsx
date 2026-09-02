@@ -10,9 +10,6 @@ import {
   Copy,
   Trash2,
   Edit,
-  PlayCircle,
-  Layers,
-  Link,
   Unlink,
   Settings,
   Info,
@@ -27,18 +24,34 @@ interface QuickActionsMenuProps {
   isOpen: boolean;
   position: { x: number; y: number };
   nodeId?: string | null;
-  nodeType?: string | null;
   onClose: () => void;
   onAction: (action: ActionType) => void;
 }
 
+/**
+ * Actions this menu offers.
+ *
+ * Three were removed rather than left in place, because nothing backed them:
+ *
+ *   'run' ("Run from Here") showed "Running workflow from this node..." and
+ *   ran nothing. The API executes a whole workflow - POST
+ *   /workflows/{id}/execute - and exposes no partial run, so the menu item was
+ *   claiming an action that had no way to happen. Worse than an unimplemented
+ *   feature, because it reported success.
+ *
+ *   'group' ("Group Nodes") and 'connect' ("Connect To...") each showed
+ *   "feature coming soon". A menu entry is a promise that something will
+ *   happen; these were advertising to the user that the product does something
+ *   it does not.
+ *
+ * 'disconnect' was in the same state - "feature coming soon" - but is kept,
+ * because the store has had deleteEdge all along and the comment saying
+ * otherwise was stale. It now works.
+ */
 export type ActionType =
   | 'duplicate'
   | 'delete'
   | 'rename'
-  | 'run'
-  | 'group'
-  | 'connect'
   | 'disconnect'
   | 'properties'
   | 'info'
@@ -46,7 +59,8 @@ export type ActionType =
   | 'add-action'
   | 'add-condition'
   | 'add-transform'
-  | 'add-loop';
+  | 'add-loop'
+  | 'add-delay';
 
 interface MenuItem {
   id: ActionType;
@@ -76,27 +90,11 @@ const NODE_MENU_ITEMS_BASE: MenuItem[] = [
     shortcut: 'F2',
   },
   {
-    id: 'run',
-    label: 'Run from Here',
-    icon: <PlayCircle className="w-4 h-4" />,
-  },
-  {
     id: 'delete',
     label: 'Delete',
     icon: <Trash2 className="w-4 h-4" />,
     shortcut: 'Del',
     separator: true,
-  },
-  {
-    id: 'group',
-    label: 'Group Nodes',
-    icon: <Layers className="w-4 h-4" />,
-    shortcut: 'Ctrl+G',
-  },
-  {
-    id: 'connect',
-    label: 'Connect To...',
-    icon: <Link className="w-4 h-4" />,
   },
   {
     id: 'disconnect',
@@ -143,6 +141,13 @@ const CANVAS_MENU_ITEMS: MenuItem[] = [
     label: 'Add Loop',
     icon: <ChevronRight className="w-4 h-4" />,
   },
+  {
+    // Delay is a full node type - renderer, property editor, engine handler -
+    // and the palette offers it, but this menu did not.
+    id: 'add-delay',
+    label: 'Add Delay',
+    icon: <ChevronRight className="w-4 h-4" />,
+  },
 ];
 
 // ============================================================================
@@ -153,7 +158,6 @@ function QuickActionsMenuComponent({
   isOpen,
   position,
   nodeId,
-  nodeType,
   onClose,
   onAction,
 }: QuickActionsMenuProps) {
@@ -161,16 +165,13 @@ function QuickActionsMenuComponent({
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // Get menu items with dynamic disabled state for node menu
-  const menuItems = useMemo(() => {
-    if (nodeId) {
-      return NODE_MENU_ITEMS_BASE.map((item) => ({
-        ...item,
-        disabled: item.disabled || (item.id === 'run' && (nodeType === 'condition' || nodeType === 'loop')),
-      }));
-    }
-    return CANVAS_MENU_ITEMS;
-  }, [nodeId, nodeType]);
+  // The only per-node disabling here was for 'run', which has been removed:
+  // it disabled "Run from Here" on condition and loop nodes, which was the one
+  // honest part of an item that ran nothing on any node type.
+  const menuItems = useMemo(
+    () => (nodeId ? NODE_MENU_ITEMS_BASE : CANVAS_MENU_ITEMS),
+    [nodeId]
+  );
 
   // Focus management for keyboard navigation
   useEffect(() => {
