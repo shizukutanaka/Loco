@@ -4,7 +4,7 @@
 #
 # One command, because the alternative is remembering five and running three.
 # api.nuget.org is refused by proxy policy here, so there is no package restore
-# and no `dotnet test` - but all 341 backend tests DO run, against the harness in
+# and no `dotnet test` - but all 351 backend tests DO run, against the harness in
 # scripts/offline-test-harness/, including the controller tests, which get a real
 # API process on a loopback port. Between them these checks have caught a restore
 # that failed before it reached a package, a test assembly that could not

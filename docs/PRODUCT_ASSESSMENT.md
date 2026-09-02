@@ -21,8 +21,8 @@ grep とコンパイラとテストに答えさせる。
 |---|---|---|
 | `scripts/typecheck-offline.sh` | `src/` と `tests/` の全 C# を Roslyn でメソッド本体まで型検査 | **0 エラー** |
 | `scripts/check-structure.py` | 9 つの構造検査(下記) | **9/9** |
-| `scripts/run-tests-offline.sh` | バックエンドテスト全件 | **341 passed / 0 failed** |
-| `npx vitest run` | エディタ | **494 passed / 41 files** |
+| `scripts/run-tests-offline.sh` | バックエンドテスト全件 | **351 passed / 0 failed** |
+| `npx vitest run` | エディタ | **523 passed / 42 files** |
 | `npx tsc --noEmit` / `npm run build` / `npm run lint` | エディタ | クリーン / 警告 55(0 エラー) |
 
 構造検査の 9 つは、いずれも**実際に欠陥を捕まえた**ために存在する:
@@ -210,6 +210,50 @@ Redis / Stripe / SendGrid ノード、反復対象の無いループ、そして
 `validateWorkflow` に通し、エラーが 1 件でもあれば落ちる。以後、製品自身が
 拒否する状態のテンプレートは出荷できない。
 
+### 問: 条件ノードは、上流のデータを比較できるか
+
+**証拠**: できなかった。`{{var}}` の解決は `WorkflowConnectorBridge` の中にあり、
+コネクタ経由の action ノードでしか走っていなかった。エンジン組み込みハンドラ
+(condition / loop / transform / delay / variable)は `node.Parameters` を生で読む。
+つまり `left: "{{amount}}"` は **10 文字の文字列 "{{amount}}"** と比較されていた。
+条件ノードの目的は上流が作った値を比較することなので、**定数同士しか比較できない
+条件ノード**とは、答えが最初から分かっている比較しかできないノードである。
+一方 PropertyPanel の helpText は "Supports {{variable}} references." と謳っていた。
+
+**修正**: 解決ロジックを `WorkflowVariableResolver` へ移し、
+`VisualWorkflowEngine.ExecuteNodeHandlerAsync` — **全ハンドラが通る唯一の dispatch 点**
+— で 1 回だけ適用する。Bridge 側の 137 行の複製は削除した(二重解決すると、
+変数の**値**に含まれる `{{` まで展開してしまう)。解決はノードの**コピー**に対して行う
+(retry で同一ノードが再実行される)。全プロパティが写ることはリフレクションで検査。
+
+**訂正**: 前コミットで私自身がテンプレートに `{{item.amount}}` / `{{payment.status}}` /
+`{{result}}` と書いた。`item` も `payment` も `result` も、そのテンプレートの何も
+生成しない名前である。新設した契約テスト(全 `{{参照}}` の先頭が同一テンプレートの
+ノード id / `input` / `previous` であること)が **3 件とも私の誤りを捕まえた**。
+実在する上流ノード(`trigger-1` / `action-1`)に直した。
+計測器を先に作っていれば、誤りは書いた瞬間に落ちていた。
+
+**評決**: 修正済み。エンジン経由で `{{amount}}` > 100 が、150 なら true、20 なら false を
+返すことをテストで確認。変異(解決を素通しにする)で 3 件落ちる。
+
+### 問: 「Test Workflow」は、本当に条件を評価しているか
+
+**証拠**: していなかった。`workflowSimulator.ts` の `evaluateCondition` は両引数を `_` で
+捨てて `Math.random() > 0.5` を返し、呼び出し側は**その戻り値すら捨てて**出力エッジから
+ランダムに 1 本選んでいた。condition のモック出力も `matched: Math.random() > 0.5` かつ
+死んだ `config.expression` を参照。ユーザは WorkflowTester で "Steps Executed: N /
+Coverage: X/Y nodes" を見るので、**同じワークフローを 2 回テストすると違う結果**が出た。
+
+**修正**: エンジンの意味論を写した。left / operation / right、`equals` / `not_equals` /
+`greater_than` / `less_than` / `contains`、未知演算は false、operation 既定は equals、
+`{{参照}}` はノード出力 → マージ済みデータ → `previous` の順で解決。分岐は
+`sourceHandle` が verdict と一致するエッジだけを辿る(`ShouldFollowConnection` と同じ)。
+演算一覧は `utils/constants.ts` の `CONDITION_OPERATIONS` を使うので、
+パネル・検証器・シミュレータの三者が同じ源を読む。
+
+**評決**: 修正済み。20 回連続同一結果のテストがあり、コイン投げに戻すと落ちる。
+分岐フィルタを外しても落ちる。
+
 ---
 
 ## 短所(現存)
@@ -249,7 +293,16 @@ Microsoft 実装)、Swashbuckle スタブは不活性、実 xunit / FluentAssert
 
 **評決**: 実用範囲だが、任意式ではない。
 
-### 5. lint 警告 55 件
+### 5. エンジンの `equals` は型が揃わないと一致しない
+
+**証拠**: 条件ハンドラは `Equals(left, right)`(.NET のオブジェクト等価)。`{{amount}}` が
+int の 150、`right` が設定欄の文字列 "150" なら **不一致**。`greater_than` /
+`less_than` は `Convert.ToDouble` で両辺を揃えるのに、`equals` だけ揃えない非対称がある。
+
+**評決**: 未修正。修正はエンジン意味論の変更なので、単独のコミットとして扱うべき。
+シミュレータは(嘘をつかないために)この振る舞いをそのまま写している。
+
+### 6. lint 警告 55 件
 
 **証拠**: `npm run lint` は 0 エラー / 55 警告。内訳は
 `<T extends (...args: any[]) => any>` のようなイディオム的ジェネリック制約か、
@@ -266,7 +319,8 @@ Microsoft 実装)、Swashbuckle スタブは不活性、実 xunit / FluentAssert
 2. **backend ジョブが緑になった時点で**、各コミットの VERIFICATION CAVEAT を外す。
 3. 実行の再開(最終発火時刻の永続化)。3 の解消。
 4. 条件式の拡張。4 の解消。
-5. **「書かれる側と読まれる側を突き合わせる」検査を残りの境界にも広げる。**
+5. `equals` の型揃え(両辺を文字列化して比較、または数値なら数値で)。5 の解消。
+6. **「書かれる側と読まれる側を突き合わせる」検査を残りの境界にも広げる。**
    このセッションで見つかった欠陥は、ほぼ全てこの 1 つの形をしていた —
    検証器が要求する項目 / パネルが書く項目 / エンジンが読む項目 の三者が
    食い違う。型が守ってくれないのは、境界がインデックス署名か
