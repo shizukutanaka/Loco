@@ -10,6 +10,7 @@
  */
 
 import { Node, Edge } from 'reactflow';
+import { CONDITION_OPERATIONS } from './constants';
 
 // ============================================================================
 // Types
@@ -94,11 +95,10 @@ function generateMockData(
       };
 
     case 'condition':
-      return {
-        matched: Math.random() > 0.5,
-        evaluated: true,
-        expression: config.expression || 'true',
-      };
+      // Replaced in simulateNodeExecution with the real verdict. This used to
+      // be `matched: Math.random() > 0.5` and reported a `config.expression`
+      // that nothing writes.
+      return { matched: false, evaluated: false };
 
     case 'transform':
       return {
@@ -152,12 +152,26 @@ function mergeData(base: SimulationData, ...updates: SimulationData[]): Simulati
 export function simulateNodeExecution(
   node: Node,
   inputData: SimulationData,
-  config: SimulationConfig = {}
+  config: SimulationConfig = {},
+  nodeOutputs: Record<string, SimulationData> = {}
 ): ExecutionStep {
   const startTime = performance.now();
   const nodeType = node.type ?? 'unknown';
   let status: ExecutionResult = 'success';
   let outputData = generateMockData(nodeType, node.data.config);
+  if (nodeType === 'condition') {
+    // The one node whose output is not mock data. Its verdict is what the
+    // branch selection below reads, so it is evaluated once, here, from the
+    // same left/operation/right the engine reads.
+    const config = node.data.config ?? {};
+    outputData = {
+      matched: evaluateCondition(node, inputData, nodeOutputs),
+      evaluated: true,
+      left: config.left,
+      operation: config.operation ?? 'equals',
+      right: config.right,
+    };
+  }
   let error: string | undefined;
 
   // Simulate errors based on configuration
@@ -205,27 +219,105 @@ export function simulateNodeExecution(
 export function findNextNodes(
   currentNodeId: string,
   edges: Edge[],
-  nodes: Node[]
+  nodes: Node[],
+  verdict?: boolean
 ): Node[] {
-  const nextEdges = edges.filter((e) => e.source === currentNodeId);
+  // Mirrors VisualWorkflowEngine.ShouldFollowConnection: an edge leaving a
+  // "true" or "false" handle is followed only when the verdict matches; an
+  // edge with no handle is the default output and is always followed.
+  const nextEdges = edges.filter((e) => {
+    if (e.source !== currentNodeId) return false;
+    if (e.sourceHandle === 'true' || e.sourceHandle === 'false') {
+      return verdict !== undefined && verdict === (e.sourceHandle === 'true');
+    }
+    return true;
+  });
   return nextEdges
     .map((e) => nodes.find((n) => n.id === e.target))
     .filter((n) => n !== undefined) as Node[];
 }
 
 /**
- * Evaluate condition to determine which branch to follow
+ * Resolve a {{reference}} the way WorkflowVariableResolver does on the server.
+ *
+ * A value that is exactly one reference keeps the referenced value's type
+ * (a number stays a number, so greater_than compares numbers); a reference
+ * inside longer text is substituted as text; an unresolvable reference is
+ * null - not its own braces, which would be non-empty text and make
+ * `contains ''` true.
+ *
+ * Lookup order matches the engine: a node's own output by node id, then the
+ * merged simulation data (the engine's workflow variables), then `previous`.
+ */
+function resolveReference(
+  value: unknown,
+  data: SimulationData,
+  nodeOutputs: Record<string, SimulationData>
+): unknown {
+  if (typeof value !== 'string') return value;
+
+  const lookup = (path: string): unknown => {
+    const [head, ...rest] = path.trim().split('.');
+    let current: unknown;
+    if (head in nodeOutputs) current = nodeOutputs[head];
+    else if (head in data) current = data[head];
+    else if (head === 'previous') {
+      const ids = Object.keys(nodeOutputs);
+      current = ids.length ? nodeOutputs[ids[ids.length - 1]] : undefined;
+    } else return null;
+
+    for (const part of rest) {
+      if (current && typeof current === 'object' && part in (current as object)) {
+        current = (current as Record<string, unknown>)[part];
+      } else {
+        return null;
+      }
+    }
+    return current ?? null;
+  };
+
+  const whole = /^\{\{(.+)\}\}$/.exec(value);
+  if (whole) return lookup(whole[1]);
+
+  return value.replace(/\{\{(.+?)\}\}/g, (_, path) => {
+    const resolved = lookup(path);
+    return resolved == null ? '' : String(resolved);
+  });
+}
+
+/**
+ * The condition node's verdict, computed the way the engine computes it.
+ *
+ * This was `Math.random() > 0.5` with both parameters unused. The engine's
+ * handler (VisualWorkflowEngine.RegisterDefaultHandlers) reads left, right
+ * and operation, defaults operation to "equals", and falls through to false
+ * for an operation it does not know - so does this.
  */
 export function evaluateCondition(
-  _conditionNode: Node,
-  _data: SimulationData
+  conditionNode: Node,
+  data: SimulationData,
+  nodeOutputs: Record<string, SimulationData> = {}
 ): boolean {
-  try {
-    // In simulation, we randomly pick a branch for true/false conditions
-    return Math.random() > 0.5;
-  } catch (_e) {
-    // On error, default to false
-    return false;
+  const config = conditionNode.data.config ?? {};
+  const left = resolveReference(config.left, data, nodeOutputs);
+  const right = resolveReference(config.right, data, nodeOutputs);
+  const operation = String(config.operation ?? 'equals');
+
+  if (!(CONDITION_OPERATIONS as readonly string[]).includes(operation)) return false;
+
+  switch (operation) {
+    case 'equals':
+      return left === right;
+    case 'not_equals':
+      return left !== right;
+    case 'greater_than':
+      return Number(left) > Number(right);
+    case 'less_than':
+      return Number(left) < Number(right);
+    case 'contains':
+      return String(left ?? '').includes(String(right ?? ''));
+    default:
+      return false;
   }
 }
 
@@ -264,6 +356,9 @@ export function simulateWorkflow(
   // Execute workflow step by step
   let currentNodes = [triggerNode];
   let currentData: SimulationData = {};
+  // Each node's own output by id, so a condition can read {{nodeId.field}}
+  // the way the engine reads NodeResults.
+  const nodeOutputs: Record<string, SimulationData> = {};
   let pathsTaken = 0;
   let stepCount = 0;
   const maxSteps = Math.min(nodes.length * 5, 100); // Prevent infinite loops
@@ -280,8 +375,9 @@ export function simulateWorkflow(
       visitedNodes.add(node.id);
 
       // Simulate execution
-      const step = simulateNodeExecution(node, currentData, config);
+      const step = simulateNodeExecution(node, currentData, config, nodeOutputs);
       steps.push(step);
+      nodeOutputs[node.id] = step.outputData;
       stepCount++;
 
       // Record error
@@ -312,15 +408,15 @@ export function simulateWorkflow(
 
       // Find next nodes to execute
       if (node.type === 'condition') {
-        // For conditions, evaluate and pick one branch
-        // Note: we randomly pick a branch in simulation, regardless of actual condition
-        evaluateCondition(node, currentData);
-        const branches = findNextNodes(node.id, edges, nodes);
+        // The verdict was computed in simulateNodeExecution; the edges whose
+        // handle matches it are followed. This used to call evaluateCondition,
+        // discard the answer, and pick one outgoing edge at random - so the
+        // tester's step count changed from run to run for the same workflow.
+        const verdict = step.outputData.matched === true;
+        const branches = findNextNodes(node.id, edges, nodes, verdict);
 
         if (branches.length > 0) {
-          // In simulation, randomly pick one branch
-          const selectedBranch = branches[Math.floor(Math.random() * branches.length)];
-          nextNodes.push(selectedBranch);
+          nextNodes.push(...branches);
           pathsTaken++;
         }
       } else {
