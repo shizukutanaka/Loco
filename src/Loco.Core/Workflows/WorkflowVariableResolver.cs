@@ -80,10 +80,20 @@ public static class WorkflowVariableResolver
         if (value is not string strValue)
             return value;
 
-        // A value that is nothing but one reference keeps that reference's own
+        // A value that is nothing but ONE reference keeps that reference's own
         // type - a number stays a number, so `greater_than` can compare it
         // rather than comparing its rendering.
-        if (strValue.StartsWith("{{") && strValue.EndsWith("}}"))
+        //
+        // "Exactly one" is the whole point of the closing-brace check. Testing
+        // only StartsWith/EndsWith made "{{user}} said {{message}}" look like a
+        // single reference to the path "user}} said {{message", which resolves
+        // to null - so a template that both began and ended with a reference
+        // silently became null. "prefix {{user}} said {{message}}" was fine,
+        // which is how it survived: the shape needed to fail is exactly
+        // "{{first}} {{last}}".
+        if (strValue.StartsWith("{{", StringComparison.Ordinal)
+            && strValue.EndsWith("}}", StringComparison.Ordinal)
+            && strValue.IndexOf("}}", StringComparison.Ordinal) == strValue.Length - 2)
         {
             var path = strValue[2..^2].Trim();
             return ResolveVariablePath(path, context);

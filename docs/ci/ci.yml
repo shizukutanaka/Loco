@@ -3,7 +3,7 @@ name: CI
 # Consolidated pipeline, intended to REPLACE the seven workflows currently in
 # .github/workflows (build, ci, ci-cd, code-quality, enhanced-ci-cd, release,
 # test - 1,023 lines). Six of those fire on the same push, and all seven are
-# .NET-only, so the 559 frontend tests - the only verified part of this product
+# .NET-only, so the 581 frontend tests - the only verified part of this product
 # - are never run by CI at all.
 #
 # HOW TO APPLY (this could not be committed automatically; see docs/ci/README.md):
@@ -101,7 +101,7 @@ jobs:
       - name: Structural checks
         run: python3 scripts/check-structure.py
 
-      # The same 387 tests the backend job runs, but without a restore. If
+      # The same 409 tests the backend job runs, but without a restore. If
       # nuget.org is ever unreachable from the runner - the condition this
       # repository was written under - this job still says whether the
       # assertions hold.

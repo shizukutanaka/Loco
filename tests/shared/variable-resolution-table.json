@@ -1,0 +1,103 @@
+{
+  "purpose": [
+    "How a {{reference}} resolves, written once and asserted by BOTH",
+    "implementations: Loco.Core's WorkflowVariableResolver (which the engine runs)",
+    "and the editor's resolveReference (which 'Test Workflow' runs).",
+    "",
+    "The companion of tests/shared/condition-truth-table.json, and it exists for",
+    "the same reason: the two are separate implementations in separate languages,",
+    "and they had already drifted. Probing both on identical input found the",
+    "simulator silently missing the `.data.` form the engine supports, and",
+    "resolving names in the opposite order.",
+    "",
+    "It also pins a defect that was in the engine from the start and was copied",
+    "into the simulator when it was written to mirror it: a string that BOTH",
+    "begins and ends with a reference was treated as one whole reference, so",
+    "'{{user}} said {{message}}' parsed as the single path 'user}} said {{message'",
+    "and resolved to null. 'prefix {{user}} said {{message}}' worked, which is why",
+    "it survived - the failure needed a template starting AND ending with a",
+    "reference, which is exactly the shape of '{{first}} {{last}}' or '{{a}}-{{b}}'."
+  ],
+
+  "rules": [
+    "A string that is exactly ONE reference resolves to the referenced value with",
+    "its type intact, so a number stays a number. Any other string has each",
+    "reference substituted as text.",
+    "",
+    "Lookup order is workflow variables, then node results by node id, then the",
+    "keyword 'previous' meaning the node that ran last. The engine is the",
+    "authority on this order; a variable therefore shadows a node with the same",
+    "name, including when that makes the rest of the path unresolvable.",
+    "",
+    "Within a node's result, an optional 'data' segment is skipped, so",
+    "{{n1.data.status}} and {{n1.status}} name the same thing.",
+    "",
+    "An unresolvable reference is null when it is the whole string, and empty",
+    "text when substituted into a longer one. It is never its own braces: a",
+    "literal '{{missing}}' reaching a real API as if it were the user's data is",
+    "worse than an empty value."
+  ],
+
+  "context": {
+    "variables": {
+      "amount": 150,
+      "user": "ada",
+      "message": "hi",
+      "enabled": true,
+      "shadow": "from-variable"
+    },
+    "nodeResults": {
+      "n1": { "status": "succeeded", "nested": { "deep": 7 } },
+      "shadow": { "x": "from-node" },
+      "n2": { "value": "last" }
+    }
+  },
+
+  "cases": [
+    { "expression": "{{amount}}", "expect": 150,
+      "why": "A lone reference keeps the value's type; 'greater_than' needs a number, not '150'." },
+    { "expression": "{{user}}", "expect": "ada",
+      "why": "The ordinary case." },
+    { "expression": "{{enabled}}", "expect": true,
+      "why": "Booleans survive as booleans." },
+
+    { "expression": "{{user}} said {{message}}", "expect": "ada said hi",
+      "why": "THE BUG. Begins and ends with a reference, so it was read as the single path 'user}} said {{message' and resolved to null." },
+    { "expression": "{{user}}-{{message}}", "expect": "ada-hi",
+      "why": "The same shape with no spaces - '{{first}}-{{last}}' is a common template." },
+    { "expression": "prefix {{user}} said {{message}}", "expect": "prefix ada said hi",
+      "why": "Worked before, because it does not begin with a reference. This is why the bug survived." },
+    { "expression": "{{user}} said {{message}} today", "expect": "ada said hi today",
+      "why": "Also worked before - it does not end with a reference." },
+    { "expression": "{{amount}}{{amount}}", "expect": "150150",
+      "why": "Two adjacent references are text substitution, not one reference." },
+
+    { "expression": "{{n1.status}}", "expect": "succeeded",
+      "why": "A property of an earlier node's result." },
+    { "expression": "{{n1.data.status}}", "expect": "succeeded",
+      "why": "The 'data' segment is optional. The simulator did not support it and returned null." },
+    { "expression": "{{n1.nested.deep}}", "expect": 7,
+      "why": "Nested navigation, type intact." },
+    { "expression": "{{previous.value}}", "expect": "last",
+      "why": "'previous' is the node that ran last, which is n2." },
+
+    { "expression": "{{shadow}}", "expect": "from-variable",
+      "why": "Variables are looked up before node results. Pins the order rather than leaving it to whichever side is read first." },
+    { "expression": "{{shadow.x}}", "expect": null,
+      "why": "The consequence of that order: the variable wins, and a string has no 'x', so the path dies rather than falling through to the node." },
+
+    { "expression": "{{missing}}", "expect": null,
+      "why": "A lone unresolvable reference is null, not the text '{{missing}}'." },
+    { "expression": "{{missing.deep}}", "expect": null,
+      "why": "An unresolvable head is null however long the path." },
+    { "expression": "{{n1.absent}}", "expect": null,
+      "why": "A real node with no such property." },
+    { "expression": "value: {{missing}}", "expect": "value: ",
+      "why": "Substituted into longer text, an unresolvable reference is empty." },
+
+    { "expression": "plain text", "expect": "plain text",
+      "why": "A string with no references is untouched." },
+    { "expression": "", "expect": "",
+      "why": "Empty stays empty rather than becoming null." }
+  ]
+}

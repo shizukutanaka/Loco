@@ -259,7 +259,7 @@ export function findNextNodes(
  * Lookup order matches the engine: a node's own output by node id, then the
  * merged simulation data (the engine's workflow variables), then `previous`.
  */
-function resolveReference(
+export function resolveReference(
   value: unknown,
   data: SimulationData,
   nodeOutputs: Record<string, SimulationData>
@@ -269,14 +269,33 @@ function resolveReference(
   const lookup = (path: string): unknown => {
     const [head, ...rest] = path.trim().split('.');
     let current: unknown;
-    if (head in nodeOutputs) current = nodeOutputs[head];
-    else if (head in data) current = data[head];
-    else if (head === 'previous') {
-      const ids = Object.keys(nodeOutputs);
-      current = ids.length ? nodeOutputs[ids[ids.length - 1]] : undefined;
-    } else return null;
+    let fromNodeResult = false;
 
-    for (const part of rest) {
+    // Workflow variables first, then node results, then `previous`. The engine
+    // is the authority on this order and resolves variables first; this used to
+    // check node outputs first, so a variable and a node sharing a name
+    // resolved to opposite things in the two implementations.
+    if (head in data) {
+      current = data[head];
+    } else if (head in nodeOutputs) {
+      current = nodeOutputs[head];
+      fromNodeResult = true;
+    } else if (head === 'previous') {
+      const ids = Object.keys(nodeOutputs);
+      if (!ids.length) return null;
+      current = nodeOutputs[ids[ids.length - 1]];
+      fromNodeResult = true;
+    } else {
+      return null;
+    }
+
+    // Within a node result an optional `data` segment is skipped, so
+    // {{n1.data.status}} and {{n1.status}} name the same thing. The engine
+    // has always allowed both; the simulator returned null for the first.
+    const segments =
+      fromNodeResult && rest[0] === 'data' && rest.length > 1 ? rest.slice(1) : rest;
+
+    for (const part of segments) {
       if (current && typeof current === 'object' && part in (current as object)) {
         current = (current as Record<string, unknown>)[part];
       } else {
@@ -286,8 +305,20 @@ function resolveReference(
     return current ?? null;
   };
 
-  const whole = /^\{\{(.+)\}\}$/.exec(value);
-  if (whole) return lookup(whole[1]);
+  // Exactly one reference and nothing else keeps the referenced value's type.
+  // The test is that the FIRST closing brace is the last thing in the string:
+  // a greedy /^{{(.+)}}$/ also matched "{{user}} said {{message}}", read it as
+  // the single path "user}} said {{message", and resolved the whole parameter
+  // to null. "prefix {{user}} said {{message}}" was unaffected, which is how
+  // it survived - the failing shape is exactly "{{first}} {{last}}".
+  const trimmed = value;
+  if (
+    trimmed.startsWith('{{') &&
+    trimmed.endsWith('}}') &&
+    trimmed.indexOf('}}') === trimmed.length - 2
+  ) {
+    return lookup(trimmed.slice(2, -2));
+  }
 
   return value.replace(/\{\{(.+?)\}\}/g, (_, path) => {
     const resolved = lookup(path);
