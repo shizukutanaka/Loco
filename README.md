@@ -28,8 +28,8 @@ Loco is a lightweight, production-ready workflow automation engine designed for 
 #### From Source
 
 ```bash
-git clone https://github.com/loco-automation/loco.git
-cd loco
+git clone https://github.com/shizukutanaka/Loco.git
+cd Loco
 dotnet build
 dotnet run --project src/Loco.Api
 ```
@@ -319,9 +319,8 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
 ## Support
 
 - 📖 [Documentation](#documentation) - Complete guides and references
-- 🐛 [Issue Tracker](https://github.com/loco-automation/loco/issues)
-- 💬 [Discussions](https://github.com/loco-automation/loco/discussions)
-- 📧 Email: support@loco.io
+- 🐛 [Issue Tracker](https://github.com/shizukutanaka/Loco/issues)
+- 💬 [Discussions](https://github.com/shizukutanaka/Loco/discussions)
 
 ## Acknowledgments
 

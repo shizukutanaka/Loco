@@ -119,8 +119,8 @@
 
 ```bash
 # Clone repository
-git clone https://github.com/loco-automation/loco.git
-cd loco
+git clone https://github.com/shizukutanaka/Loco.git
+cd Loco
 
 # Install dependencies
 dotnet restore
@@ -631,7 +631,7 @@ DATABASE_URL=postgresql://...
 - Conversion Guide: This document
 
 ### Community
-- [GitHub Discussions](https://github.com/loco-automation/loco/discussions)
+- [GitHub Discussions](https://github.com/shizukutanaka/Loco/discussions)
 - [Discord Server](https://discord.gg/loco) (coming soon)
 - [Example Workflows](https://github.com/loco-automation/examples)
 
