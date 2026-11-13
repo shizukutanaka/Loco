@@ -13,8 +13,8 @@ Complete guide to building your first automated workflow with Loco in under 15 m
 ### 1. Clone and Build
 
 ```bash
-git clone https://github.com/loco-automation/loco.git
-cd loco
+git clone https://github.com/shizukutanaka/Loco.git
+cd Loco
 dotnet build
 ```
 
@@ -659,7 +659,7 @@ foreach (var (nodeId, nodeResult) in result.NodeResults)
 - **[Practical Patterns Index](../src/Loco.Core/Practical/INDEX.md)** - All 37 patterns
 - **[Competitive Analysis](COMPETITIVE_ANALYSIS_2025.md)** - Market positioning
 - **[Examples](../examples/)** - More code samples
-- **[GitHub Issues](https://github.com/loco-automation/loco/issues)** - Report bugs
+- **[GitHub Issues](https://github.com/shizukutanaka/Loco/issues)** - Report bugs
 
 ---
 
