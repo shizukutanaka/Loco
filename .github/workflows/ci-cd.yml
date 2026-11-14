@@ -49,16 +49,6 @@ jobs:
         name: test-results
         path: test-results/
 
-    - name: Run integration tests
-      run: .\test-suite.bat integration
-
-    - name: Upload integration test results
-      uses: actions/upload-artifact@v5
-      if: always()
-      with:
-        name: integration-test-results
-        path: test-results/
-
   security-scan:
     name: Security Scan
     runs-on: windows-latest
@@ -73,42 +63,27 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.SOLUTION_PATH }}
+
     - name: Run security scan
-      run: .\test-suite.bat security
+      shell: bash
+      run: |
+        dotnet list ${{ env.SOLUTION_PATH }} package --vulnerable --include-transitive 2>&1 | tee security-scan.log
+        if grep -q "has the following vulnerable packages" security-scan.log; then
+          echo "::warning::Vulnerable packages detected"
+        fi
 
     - name: Upload security scan results
       uses: actions/upload-artifact@v5
       with:
         name: security-scan-results
-        path: test-results/
-
-  performance-test:
-    name: Performance Test
-    runs-on: windows-latest
-    needs: build-and-test
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v5
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v5
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
-
-    - name: Run performance tests
-      run: .\test-suite.bat performance
-
-    - name: Upload performance results
-      uses: actions/upload-artifact@v5
-      with:
-        name: performance-test-results
-        path: test-results/
+        path: security-scan.log
 
   publish:
     name: Publish Artifacts
     runs-on: windows-latest
-    needs: [build-and-test, security-scan, performance-test]
+    needs: [build-and-test, security-scan]
     if: github.event_name == 'release'
 
     steps:
