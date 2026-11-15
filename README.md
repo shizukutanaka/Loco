@@ -23,23 +23,28 @@ Loco is a lightweight, production-ready workflow automation engine designed for 
 
 ## Quick Start
 
-### Installation
-
-#### From Source
+### Run a workflow from the command line (fastest first success)
 
 ```bash
 git clone https://github.com/shizukutanaka/Loco.git
 cd Loco
 dotnet build
+dotnet run --project src/Loco.Cli -- workflow workflows/hello-loco.json
+```
+
+You should see `✓ Workflow completed successfully`. The `workflows/`
+folder contains more examples; validate any of them without executing
+with `--dry-run`, and inspect them with `--lint` or `--visualize full`.
+
+### Run the API server
+
+```bash
 dotnet run --project src/Loco.Api
 ```
 
-#### Using Docker
-
-```bash
-docker build -t loco:latest .
-docker run -p 5000:5000 loco:latest
-```
+The API listens on http://localhost:5000. Note: the root `Dockerfile`
+does not currently build (it references a `Loco.VisualEditor.csproj`
+that does not exist); Docker instructions will return once that is fixed.
 
 ### Visual Editor (No-Code)
 
@@ -57,25 +62,39 @@ npm run dev
 # Open browser to http://localhost:3000
 ```
 
-### Code-Based Workflow
+### Calling the API
+
+The API uses JWT bearer authentication (there is no API-key scheme;
+an `X-Api-Key` header alone will be rejected with 401).
 
 ```bash
 # Start the API server
 dotnet run --project src/Loco.Api
 
-# Health check
+# Health check (no authentication required)
 curl http://localhost:5000/health
+
+# Get a token (the demo build accepts any non-empty username/password)
+curl -X POST http://localhost:5000/api/v1/authentication/token \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "admin"}'
+# The response contains an "AccessToken" value; use it as <token> below.
 
 # List workflows
 curl http://localhost:5000/api/v1/workflows \
-  -H "X-Api-Key: your-api-key"
+  -H "Authorization: Bearer <token>"
 
 # Execute a workflow
 curl -X POST http://localhost:5000/api/v1/workflows/{workflow-id}/execute \
   -H "Content-Type: application/json" \
-  -H "X-Api-Key: your-api-key" \
+  -H "Authorization: Bearer <token>" \
   -d '{"parameters": {}}'
 ```
+
+Current limits of the HTTP API: listing workflows returns what the
+engine knows about, execution is acknowledged with `202` but there is
+no execution-status endpoint yet, so calls such as the SDKs'
+`wait_for_execution` cannot complete against this API today.
 
 ### Python SDK
 

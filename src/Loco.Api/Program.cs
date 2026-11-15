@@ -105,16 +105,27 @@ builder.Services
     });
 
 // Configure Authorization
+//
+// The token endpoint issues a single "scope" claim whose value is the
+// space-delimited OAuth2 scope list ("workflows:read workflows:manage
+// workflows:execute"). RequireClaim does an exact value match, so it never
+// matched and every request with a freshly issued token was rejected with
+// 403. The policies therefore split the scope claim(s) on spaces.
+static bool HasScope(System.Security.Claims.ClaimsPrincipal user, string scope) =>
+    user.FindAll("scope")
+        .SelectMany(c => c.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        .Contains(scope);
+
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("CanManageWorkflows", policy =>
-        policy.RequireClaim("scope", "workflows:manage"));
+        policy.RequireAssertion(context => HasScope(context.User, "workflows:manage")));
 
     options.AddPolicy("CanViewWorkflows", policy =>
-        policy.RequireClaim("scope", "workflows:read"));
+        policy.RequireAssertion(context => HasScope(context.User, "workflows:read")));
 
     options.AddPolicy("CanExecuteWorkflows", policy =>
-        policy.RequireClaim("scope", "workflows:execute"));
+        policy.RequireAssertion(context => HasScope(context.User, "workflows:execute")));
 });
 
 // Add Rate Limiting
