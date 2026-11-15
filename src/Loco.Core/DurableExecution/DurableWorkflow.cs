@@ -30,7 +30,7 @@ public interface IWorkflowContext
     string WorkflowId { get; }
     string ExecutionId { get; }
     Dictionary<string, object> Variables { get; }
-    
+
     /// <summary>
     /// アクティビティ実行 (自動リトライ付き)
     /// </summary>
@@ -39,7 +39,7 @@ public interface IWorkflowContext
         object input,
         ActivityOptions? options = null,
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// 子ワークフロー実行
     /// </summary>
@@ -48,14 +48,14 @@ public interface IWorkflowContext
         object input,
         ChildWorkflowOptions? options = null,
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// タイマー (永続化される)
     /// </summary>
     Task DelayAsync(
         TimeSpan duration,
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// 外部イベント待機
     /// </summary>
@@ -63,7 +63,7 @@ public interface IWorkflowContext
         string eventName,
         TimeSpan? timeout = null,
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Saga パターン用補償アクション登録
     /// </summary>
