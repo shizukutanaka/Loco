@@ -85,6 +85,9 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        BenchmarkRunner.Run<PracticalBenchmarks>();
+        // Single entry point for all benchmark classes in this assembly.
+        // (SpanBenchmarks.cs previously declared a second Program.Main,
+        // which made the project fail to compile with CS0101/CS0111.)
+        BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
     }
 }
