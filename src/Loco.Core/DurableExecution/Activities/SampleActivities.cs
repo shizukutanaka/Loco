@@ -1,9 +1,9 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Loco.Core.Examples;
 using Loco.Core.Serialization;
+using System;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Loco.Core.DurableExecution.Activities;
 
@@ -33,10 +33,10 @@ public class ProcessPaymentActivity : IActivity
 
     public Task<object?> ExecuteAsync(object? input, CancellationToken cancellationToken)
     {
-        return Task.FromResult<object?>(new PaymentResult 
-        { 
-            Success = true, 
-            TransactionId = Guid.NewGuid().ToString() 
+        return Task.FromResult<object?>(new PaymentResult
+        {
+            Success = true,
+            TransactionId = Guid.NewGuid().ToString()
         });
     }
 }
