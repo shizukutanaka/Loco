@@ -1,3 +1,4 @@
+using Loco.Api.Middleware;
 using Loco.Core.Interfaces;
 using Loco.Core.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -46,8 +47,10 @@ public class WorkflowsController : ControllerBase
     {
         _logger.LogInformation("Getting workflows: skip={Skip}, take={Take}", skip, take);
 
-        if (take > 100)
-            return BadRequest(new { message = "Maximum take value is 100" });
+        // Pagination parameters are clamped, not rejected: a negative skip
+        // counts as 0 and take is capped at the page-size limit of 100.
+        skip = Math.Max(0, skip);
+        take = Math.Clamp(take, 1, 100);
 
         try
         {
@@ -117,13 +120,20 @@ public class WorkflowsController : ControllerBase
     {
         _logger.LogInformation("Creating workflow: {WorkflowName}", request.Name);
 
-        // Validation
+        // Validation. The error body is the public ApiErrorResponse type (the
+        // same shape GlobalExceptionHandlingMiddleware returns): an anonymous
+        // type here would be internal to this assembly and its members could
+        // not be inspected by API clients binding dynamically or by tests.
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(new
+            return BadRequest(new ApiErrorResponse
             {
-                code = "VALIDATION_FAILED",
-                message = "Validation failed",
-                errors = new { Name = new[] { "Workflow name is required" } }
+                Code = "VALIDATION_FAILED",
+                Message = "Validation failed",
+                Errors = new Dictionary<string, string[]>
+                {
+                    ["Name"] = new[] { "Workflow name is required" }
+                },
+                TraceId = HttpContext?.TraceIdentifier ?? string.Empty
             });
 
         try
@@ -237,7 +247,14 @@ public class WorkflowsController : ControllerBase
         {
             var executionId = Guid.NewGuid().ToString();
 
-            // In a real implementation, execute workflow asynchronously
+            // Dispatch to the real engine. Previously this action returned
+            // "Queued" without calling the engine at all. The engine API is
+            // fire-and-forget (ExecuteFlowAsync returns only success/failure
+            // and there is no execution-tracking store), so the response
+            // remains an acknowledgement; failures of the engine itself
+            // propagate to the caller.
+            await _engine.ExecuteFlowAsync(id, HttpContext?.RequestAborted ?? CancellationToken.None);
+
             var result = new ExecutionResultDto
             {
                 ExecutionId = executionId,
@@ -249,7 +266,7 @@ public class WorkflowsController : ControllerBase
 
             _logger.LogInformation("Workflow queued for execution: {ExecutionId}", executionId);
 
-            return Accepted(new { Location = $"/api/v1/executions/{executionId}" }, result);
+            return Accepted($"/api/v1/executions/{executionId}", result);
         }
         catch (Exception ex)
         {

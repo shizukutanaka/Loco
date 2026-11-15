@@ -1,6 +1,8 @@
 #nullable enable
 
 using System.Diagnostics;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
 namespace Loco.Api.BFF;
@@ -307,15 +309,15 @@ public class MobileWorkflowBffController : BffBaseController
             var executionResponse = responses.FirstOrDefault(r => r.ServiceName == "ExecutionService");
             var analyticsResponse = responses.FirstOrDefault(r => r.ServiceName == "AnalyticsService");
 
-            var workflows = workflowResponse?.Success
+            var workflows = workflowResponse?.Success == true
                 ? System.Text.Json.JsonSerializer.Deserialize<dynamic>(workflowResponse.ResponseBody ?? "{}")
                 : null;
 
-            var executions = executionResponse?.Success
+            var executions = executionResponse?.Success == true
                 ? System.Text.Json.JsonSerializer.Deserialize<dynamic>(executionResponse.ResponseBody ?? "{}")
                 : null;
 
-            var analytics = analyticsResponse?.Success
+            var analytics = analyticsResponse?.Success == true
                 ? System.Text.Json.JsonSerializer.Deserialize<dynamic>(analyticsResponse.ResponseBody ?? "{}")
                 : null;
 

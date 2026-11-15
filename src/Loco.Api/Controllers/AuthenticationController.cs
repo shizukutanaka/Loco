@@ -131,9 +131,13 @@ public class AuthenticationController : ControllerBase
     private string GenerateJwtToken(string username)
     {
         var jwtSettings = _configuration.GetSection("Jwt");
-        var secretKey = jwtSettings.GetValue<string>("SecretKey") ?? "DefaultSecretKeyChangeInProduction12345";
-        var issuer = jwtSettings.GetValue<string>("Issuer") ?? "https://loco.local";
-        var audience = jwtSettings.GetValue<string>("Audience") ?? "loco-api";
+        // Read via the section indexer: GetValue<T> on a section requires the
+        // child section to exist in the configuration provider chain, which
+        // throws NullReferenceException for IConfiguration implementations
+        // that only surface values through the indexer.
+        var secretKey = jwtSettings["SecretKey"] ?? "DefaultSecretKeyChangeInProduction12345";
+        var issuer = jwtSettings["Issuer"] ?? "https://loco.local";
+        var audience = jwtSettings["Audience"] ?? "loco-api";
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

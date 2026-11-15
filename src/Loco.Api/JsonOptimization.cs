@@ -1,5 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
+using Microsoft.AspNetCore.Http.Json;
 
 namespace Loco.Api;
 
@@ -19,7 +21,6 @@ public static class JsonOptimization
         {
             // Case-insensitive property matching for flexible API contracts
             PropertyNameCaseInsensitive = true,
-            PropertyNamingPolicy = null,
 
             // Optimize buffer size for better memory efficiency
             // 8KB is optimal for most workflow payloads (reduced from 16KB default)

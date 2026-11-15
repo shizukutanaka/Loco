@@ -1,12 +1,10 @@
 using Loco.Core;
 using Loco.Core.Configuration;
-using Loco.Core.Execution;
-using Loco.Core.Health;
 using Loco.Core.Interfaces;
 using Loco.Core.Storage;
-using Loco.Api.Services;
-using Loco.Core.DataAccess;
-using Loco.Core.Data;
+using Loco.Api.Filters;
+using Loco.Api.HealthChecks;
+using Loco.Api.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
@@ -16,6 +14,7 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using System.Diagnostics;
 using System.Text;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,9 +26,6 @@ builder.Services.AddLogging(logging =>
     logging.AddFilter("Microsoft", LogLevel.Information);
     logging.AddFilter("System", LogLevel.Information);
 });
-
-// Add gRPC support (Phase 1B)
-builder.Services.AddGrpc();
 
 // Create ActivitySource for manual instrumentation
 var activitySource = new ActivitySource("Loco.Workflow");
@@ -239,53 +235,49 @@ builder.Services.AddSwaggerGen(c =>
     c.OperationFilter<AddResponseHeadersFilter>();
 });
 
-// Add Data Access Services (Phase 2 - EF Core + Dapper Hybrid)
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? "Data Source=loco.db";
+// Data access services
+//
+// NOTE: This file previously registered an EF Core + Dapper "hybrid" data layer
+// (LocoDbContext, HybridWorkflowRepository, HybridExecutionHistoryRepository),
+// OAuth 2.0 services, an event-store repository, a health-check service and a
+// structured-logging helper. None of those types exist anywhere in Loco.Core or
+// Loco.Api (verified by full-text search), so the registrations could never
+// compile or run. They have been removed; the services below are the real ones.
+// The workflow surface is WorkflowsController backed by IAutomationEngine and
+// IRuleStore, exactly as covered by tests/Loco.Api.Tests.
 
-builder.Services.AddDbContext<Loco.Core.DataAccess.LocoDbContext>(options =>
-    options.UseSqlite(connectionString));
-
-// Register IDbConnection for Dapper (SQLite)
-builder.Services.AddScoped<System.Data.IDbConnection>(sp =>
-    new Microsoft.Data.Sqlite.SqliteConnection(connectionString));
-
-// Register hybrid repositories
-builder.Services.AddScoped<IWorkflowRepository, Loco.Core.DataAccess.HybridWorkflowRepository>();
-builder.Services.AddScoped<IExecutionHistoryRepository, Loco.Core.DataAccess.HybridExecutionHistoryRepository>();
-
-// Phase 3: Register OAuth 2.0 services
-builder.Services.AddOAuth2Services();
-
-// Phase 3: Register Event Store Repository
-builder.Services.AddScoped<IWorkflowExecutionEventRepository, WorkflowExecutionEventRepository>();
-
-// Phase 3: Register Advanced Metrics Collector
-builder.Services.AddSingleton<WorkflowMetricsCollector>();
+// Advanced Metrics Collector (real type in Loco.Core.Workflows)
+builder.Services.AddSingleton<Loco.Core.Workflows.WorkflowMetricsCollector>();
 
 // Add Core Services
-builder.Services.AddScoped<IAutomationEngine, WorkflowExecutionEngine>();
-builder.Services.AddScoped<IRuleStore, JsonFileRuleStore>();
-builder.Services.AddScoped<IHealthCheckService, HealthCheckService>();
-builder.Services.AddSingleton<LocoConfig>(sp =>
+builder.Services.AddSingleton<LocoConfig>();
+builder.Services.AddSingleton<IRuleStore>(sp =>
 {
-    var configPath = builder.Configuration.GetValue<string>("ConfigPath") ?? "loco-config.json";
-    return LocoConfig.LoadFromFile(configPath);
+    var ruleStorePath = builder.Configuration.GetValue<string>("RULE_STORE_PATH")
+        ?? "rules.json";
+    return new JsonFileRuleStore(
+        ruleStorePath,
+        sp.GetService<ILogger<JsonFileRuleStore>>());
 });
+builder.Services.AddSingleton<IAutomationEngine>(sp =>
+    new SimpleLightEngine(
+        sp.GetService<ILogger<SimpleLightEngine>>(),
+        sp.GetRequiredService<LocoConfig>(),
+        sp.GetRequiredService<IRuleStore>()));
 
-// Add Structured Logging
-builder.Services.AddScoped<IStructuredLoggingHelper, StructuredLoggingHelper>();
+// Health check service (real implementation in Loco.Core.Practical;
+// fully qualified because Loco.Core.Practical also defines HttpContext,
+// which would collide with Microsoft.AspNetCore.Http.HttpContext here)
+builder.Services.AddSingleton(sp =>
+{
+    var healthChecks = new Loco.Core.Practical.SimpleHealthCheckService();
+    healthChecks.AddCheck(new Loco.Core.Practical.CommonHealthChecks.MemoryHealthCheck());
+    return healthChecks;
+});
 
 // Add Health Checks
 builder.Services.AddHealthChecks()
     .AddCheck<LocoHealthCheck>("loco-health");
-
-// Phase 2: Add Dynamic Memory Optimizer (critical for containers)
-builder.Services.AddSingleton(sp =>
-{
-    var logger = sp.GetRequiredService<ILogger<Loco.Core.Memory.DynamicMemoryOptimizer>>();
-    return new Loco.Core.Memory.DynamicMemoryOptimizer(logger);
-});
 
 var app = builder.Build();
 
@@ -323,17 +315,8 @@ app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 // Structured Logging Middleware
 app.UseMiddleware<StructuredLoggingMiddleware>();
 
-// Map gRPC Services (Phase 1B)
-app.MapGrpcService<WorkflowEngineGrpcService>();
-
 // Map Controllers
 app.MapControllers();
-
-// Phase 3: Map OAuth 2.0 Endpoints
-app.MapOAuthEndpoints();
-
-// Phase 3: Map Workflow Minimal API Endpoints
-app.MapWorkflowEndpoints();
 
 // Health Check Endpoint
 app.MapHealthChecks("/health");
@@ -363,11 +346,5 @@ var logger = app.Services.GetRequiredService<ILogger<Program>>();
 logger.LogInformation("Loco API starting...");
 logger.LogInformation("Environment: {Environment}", app.Environment.EnvironmentName);
 logger.LogInformation("Swagger UI available at: /docs");
-
-// Phase 2: Start Dynamic Memory Optimizer (critical for production)
-var memoryOptimizer = app.Services.GetRequiredService<Loco.Core.Memory.DynamicMemoryOptimizer>();
-memoryOptimizer.Start();
-var memoryMetrics = memoryOptimizer.GetMetrics();
-logger.LogInformation("Memory optimizer started - {MemoryMetrics}", memoryMetrics);
 
 app.Run();

@@ -1,5 +1,6 @@
 using Serilog;
 using Serilog.Context;
+using Serilog.Events;
 using Microsoft.AspNetCore.Http;
 using System.Diagnostics;
 
