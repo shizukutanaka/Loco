@@ -1,10 +1,10 @@
-using System;
-using System.Threading.Tasks;
+using FluentAssertions;
 using Loco.Core;
 using Loco.Core.Configuration;
 using Loco.Core.Models;
+using System;
+using System.Threading.Tasks;
 using Xunit;
-using FluentAssertions;
 
 namespace Loco.Core.Tests;
 
@@ -90,7 +90,7 @@ public class SimpleLightEngineTests : IDisposable
         var status = _engine.GetEngineStatus();
 
         // Assert
-        status.TotalExecutions.Should().Be(status.SuccessfulExecutions + 
+        status.TotalExecutions.Should().Be(status.SuccessfulExecutions +
             (status.TotalExecutions - status.SuccessfulExecutions));
         status.SuccessfulExecutions.Should().BeLessThanOrEqualTo(status.TotalExecutions);
     }

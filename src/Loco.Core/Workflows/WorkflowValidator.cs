@@ -1,7 +1,7 @@
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.Workflows
 {
@@ -98,7 +98,7 @@ namespace Loco.Core.Workflows
         private void ValidateStepType(WorkflowStep step, MainWorkflowValidationResult result, string context)
         {
             var validTypes = new[] { "log", "delay", "file", "process", "command", "http", "api" };
-            
+
             if (!validTypes.Contains(step.Type.ToLowerInvariant()))
             {
                 result.AddWarning($"{context}: Unknown step type '{step.Type}'");
@@ -126,7 +126,7 @@ namespace Loco.Core.Workflows
                     break;
 
                 case "file":
-                    if (string.IsNullOrWhiteSpace(step.Path) && 
+                    if (string.IsNullOrWhiteSpace(step.Path) &&
                         (string.IsNullOrWhiteSpace(step.Source) || string.IsNullOrWhiteSpace(step.Destination)))
                     {
                         result.AddError($"{context}: File action requires either 'path' or 'source' and 'destination'");
@@ -242,7 +242,7 @@ namespace Loco.Core.Workflows
         public override string ToString()
         {
             var result = new System.Text.StringBuilder();
-            
+
             if (Errors.Count > 0)
             {
                 result.AppendLine($"Errors ({Errors.Count}):");

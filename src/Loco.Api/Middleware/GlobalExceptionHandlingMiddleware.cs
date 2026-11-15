@@ -1,5 +1,5 @@
-using System.Text.Json;
 using Loco.Core;
+using System.Text.Json;
 
 namespace Loco.Api.Middleware;
 

@@ -1,12 +1,12 @@
 // John Carmack: "Make it work, make it right, make it fast"
 // Rob Pike: "Don't communicate by sharing memory; share memory by communicating"
 
+using Loco.Core.Integrations.Core;
+using Loco.Core.Practical;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using Loco.Core.Integrations.Core;
-using Loco.Core.Practical;
 
 namespace Loco.Core.Integrations.Connectors;
 

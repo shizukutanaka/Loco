@@ -1,14 +1,14 @@
-using Xunit;
+using Loco.Api.Controllers;
+using Loco.Core.Interfaces;
+using Loco.Core.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Moq;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Loco.Core.Interfaces;
-using Loco.Core.Models;
-using Loco.Api.Controllers;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
+using Xunit;
 
 namespace Loco.Api.Tests
 {

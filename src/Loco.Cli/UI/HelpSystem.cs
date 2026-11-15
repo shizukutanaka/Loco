@@ -1,7 +1,7 @@
-using System;
-using System.Linq;
 using Loco.Cli.UI.Models;
 using Loco.Cli.UI.Providers;
+using System;
+using System.Linq;
 
 namespace Loco.Cli.UI;
 

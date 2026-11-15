@@ -1,7 +1,7 @@
+using Loco.Core.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Logging;
-using Loco.Core.Exceptions;
 
 namespace Loco.Api.Filters;
 

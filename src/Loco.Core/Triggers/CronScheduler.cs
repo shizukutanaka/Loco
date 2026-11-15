@@ -1,6 +1,6 @@
+using Microsoft.Extensions.Logging;
 using System.Text;
 using System.Text.RegularExpressions;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.Triggers;
 
@@ -427,4 +427,3 @@ public class CronSchedulerStats
     public int TotalSchedules { get; set; }
     public int TotalExecutions { get; set; }
 }
-

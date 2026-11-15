@@ -1,10 +1,10 @@
 // Rob Pike: "Clear is better than clever"
 // John Carmack: "Focus on the data and the structure will follow"
 
+using Loco.Core.Practical;
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Reflection;
-using Loco.Core.Practical;
 
 namespace Loco.Core.Integrations.Core;
 

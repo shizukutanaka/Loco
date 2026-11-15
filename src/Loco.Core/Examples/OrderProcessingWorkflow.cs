@@ -1,7 +1,7 @@
+using Loco.Core.DurableExecution;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Loco.Core.DurableExecution;
 
 namespace Loco.Core.Examples;
 

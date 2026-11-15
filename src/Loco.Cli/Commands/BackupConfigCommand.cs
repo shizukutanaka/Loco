@@ -1,9 +1,9 @@
+using Loco.Cli.UI;
+using Loco.Core.Configuration;
 using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Loco.Core.Configuration;
-using Loco.Cli.UI;
 
 namespace Loco.Cli.Commands;
 

@@ -1,11 +1,11 @@
 // John Carmack: "Simple things should be simple, complex things should be possible"
 // Rob Pike: "A little copying is better than a little dependency"
 
+using Loco.Core.Integrations.Core;
+using Loco.Core.Practical;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using Loco.Core.Integrations.Core;
-using Loco.Core.Practical;
 
 namespace Loco.Core.Integrations.Connectors;
 
@@ -309,7 +309,8 @@ public sealed class HttpConnector : ConnectorBase
             {
                 return ActionResult.Fail(
                     $"HTTP {result.StatusCode}: {result.StatusText}",
-                    result.StatusCode.ToString()) with { Data = result };
+                    result.StatusCode.ToString()) with
+                { Data = result };
             }
 
             return ActionResult.Ok(result);

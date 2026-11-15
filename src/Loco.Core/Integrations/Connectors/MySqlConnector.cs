@@ -1,11 +1,11 @@
 // John Carmack: "The obvious implementation is often the best"
 // Rob Pike: "Simplicity is the key to reliability"
 
+using Loco.Core.Integrations.Core;
+using Loco.Core.Practical;
 using System.Data;
 using System.Data.Common;
 using System.Text.Json;
-using Loco.Core.Integrations.Core;
-using Loco.Core.Practical;
 
 namespace Loco.Core.Integrations.Connectors;
 

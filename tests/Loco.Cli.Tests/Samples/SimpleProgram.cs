@@ -1,8 +1,8 @@
-using System;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Loco.Core;
 using Loco.Core.Models;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Threading.Tasks;
 
 namespace Loco.Cli
 {

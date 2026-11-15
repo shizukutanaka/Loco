@@ -1,10 +1,10 @@
 // John Carmack: "Low-level thinking is helpful when solving high-level problems"
 // Rob Pike: "Measure. Don't tune for speed until you've measured"
 
+using Loco.Core.Integrations.Core;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using Loco.Core.Integrations.Core;
 
 namespace Loco.Core.Integrations.Connectors;
 

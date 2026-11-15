@@ -1,11 +1,11 @@
-using Xunit;
+using Loco.Core.Models;
+using Loco.Core.Storage;
+using Loco.Core.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Loco.Core.Models;
-using Loco.Core.Storage;
-using Loco.Core.Utilities;
+using Xunit;
 
 namespace Loco.Core.Tests
 {

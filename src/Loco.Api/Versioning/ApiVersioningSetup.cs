@@ -1,10 +1,10 @@
 #nullable enable
 
-using System.Reflection;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using System.Reflection;
 
 namespace Loco.Api.Versioning;
 

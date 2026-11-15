@@ -1,9 +1,9 @@
 // Uncle Bob: "A class should have one, and only one, reason to change"
 // John Carmack: "The obvious implementation is the best implementation"
 
+using Loco.Core.Practical;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using Loco.Core.Practical;
 
 namespace Loco.Core.Integrations.Core;
 

@@ -1,6 +1,6 @@
-using System.CommandLine;
 using Loco.Core;
 using Loco.Core.Configuration;
+using System.CommandLine;
 
 namespace Loco.Cli.Commands;
 

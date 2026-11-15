@@ -1,9 +1,9 @@
 // John Carmack: "The key to good code is to think in terms of data flow"
 // Rob Pike: "Fancy algorithms are slow when n is small, and n is usually small"
 
+using Loco.Core.Practical;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Loco.Core.Practical;
 
 namespace Loco.Core.AI;
 

@@ -1,7 +1,7 @@
+using Microsoft.Extensions.ObjectPool;
 using System;
 using System.Collections.Concurrent;
 using System.Threading;
-using Microsoft.Extensions.ObjectPool;
 
 namespace Loco.Core.Performance;
 

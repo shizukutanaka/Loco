@@ -1,7 +1,7 @@
+using Loco.Core.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Loco.Core.Models;
 
 namespace Loco.Core.Interfaces
 {

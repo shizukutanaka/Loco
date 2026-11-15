@@ -1,11 +1,11 @@
 // John Carmack: "If you want to go fast, go alone. If you want to go far, go together."
 // Linus Torvalds: "Talk is cheap. Show me the code."
 
+using Loco.Core.Integrations.Core;
+using Loco.Core.Practical;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using Loco.Core.Integrations.Core;
-using Loco.Core.Practical;
 
 namespace Loco.Core.Integrations.Connectors;
 

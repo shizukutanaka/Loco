@@ -1,7 +1,7 @@
+using Loco.Core.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Loco.Core.Interfaces;
 
 namespace Loco.Core.Workflows
 {

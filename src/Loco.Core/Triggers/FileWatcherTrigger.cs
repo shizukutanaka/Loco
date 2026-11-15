@@ -1,5 +1,5 @@
-using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 namespace Loco.Core.Triggers;
 
@@ -294,4 +294,3 @@ public class FileWatcherStats
     public string WatchPath { get; set; } = "";
     public string Filter { get; set; } = "";
 }
-

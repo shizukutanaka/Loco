@@ -2,13 +2,13 @@
 // Based on OpenTelemetry eBPF Instrumentation (OBI), Grafana Beyla
 // Research: OBI first release 2025, zero-code HTTP/gRPC/database tracing
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.AIPlatform;
 

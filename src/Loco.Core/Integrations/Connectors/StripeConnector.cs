@@ -1,10 +1,10 @@
 // John Carmack: "Focus on making things work, then optimize"
 // Rob Pike: "A little copying is better than a little dependency"
 
+using Loco.Core.Integrations.Core;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using Loco.Core.Integrations.Core;
 
 namespace Loco.Core.Integrations.Connectors;
 

@@ -1,3 +1,8 @@
+using Loco.Core;
+using Loco.Core.Configuration;
+using Loco.Core.Models;
+using Loco.Core.Storage;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -5,12 +10,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Xunit;
-using Loco.Core;
-using Loco.Core.Models;
-using Loco.Core.Configuration;
-using Loco.Core.Storage;
 
 namespace Loco.Core.Tests
 {

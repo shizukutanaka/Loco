@@ -1,11 +1,11 @@
-using Xunit;
-using Moq;
-using System;
-using System.Threading.Tasks;
 using Loco.Api.Controllers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Moq;
+using System;
+using System.Threading.Tasks;
+using Xunit;
 
 namespace Loco.Api.Tests
 {

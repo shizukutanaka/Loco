@@ -1,7 +1,7 @@
-using System;
-using System.Threading.Tasks;
 using Loco.Core.Interfaces;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Threading.Tasks;
 
 namespace Loco.Core.Workflows
 {

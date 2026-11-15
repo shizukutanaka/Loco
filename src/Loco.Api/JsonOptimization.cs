@@ -1,7 +1,7 @@
+using Microsoft.AspNetCore.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
-using Microsoft.AspNetCore.Http.Json;
 
 namespace Loco.Api;
 

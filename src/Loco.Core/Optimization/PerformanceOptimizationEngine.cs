@@ -2,12 +2,12 @@
 // Automated performance tuning with intelligent resource allocation
 // Optimizes workflows based on historical patterns and ML analysis
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.Optimization;
 

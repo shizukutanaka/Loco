@@ -1,3 +1,6 @@
+using Loco.Core.Examples;
+using Loco.Core.Serialization;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -5,9 +8,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Loco.Core.Examples;
-using Loco.Core.Serialization;
 
 namespace Loco.Core.DurableExecution;
 
@@ -146,7 +146,7 @@ public class WorkflowOrchestrator
         {
             context.Variables[kvp.Key] = kvp.Value;
         }
-        
+
         // 再生モードであることをコンテキストに通知（必要であれば）
         // context.IsReplaying = true;
 
@@ -177,7 +177,7 @@ public class WorkflowOrchestrator
         catch (Exception ex)
         {
             _logger.LogError(ex, "Resumed workflow execution failed: {ExecutionId}", executionId);
-            
+
             // 失敗イベント記録
             await _eventStore.AppendEventAsync(
                 workflow.GetType().Name,
@@ -234,13 +234,13 @@ internal class WorkflowContext : IWorkflowContext
         if (Variables.TryGetValue(outputKey, out var cachedOutput))
         {
             _logger.LogInformation("Skipping completed activity: {ActivityName}", activityName);
-            
+
             // JsonElementの場合の処理 (System.Text.Jsonの仕様)
             if (cachedOutput is System.Text.Json.JsonElement jsonElement)
             {
                 return jsonElement.Deserialize<TResult>(Loco.Core.Serialization.LocoJsonContext.Default.Options)!;
             }
-            
+
             return (TResult)cachedOutput;
         }
 
@@ -287,7 +287,7 @@ internal class WorkflowContext : IWorkflowContext
                         Output = result
                     },
                     cancellationToken);
-                
+
                 // メモリ内キャッシュ更新
                 Variables[outputKey] = result!;
 

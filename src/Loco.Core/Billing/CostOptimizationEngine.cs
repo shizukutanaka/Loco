@@ -2,12 +2,12 @@
 // Intelligent cost analysis and optimization recommendations
 // Provides data-driven insights to reduce operational expenses
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.Billing;
 

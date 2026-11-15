@@ -1,8 +1,8 @@
+using Loco.Cli.Commands;
 using System;
 using System.CommandLine;
 using System.Reflection;
 using System.Threading.Tasks;
-using Loco.Cli.Commands;
 
 namespace Loco.Cli;
 

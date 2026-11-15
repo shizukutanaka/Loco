@@ -1,11 +1,11 @@
+using Loco.Core.Interfaces;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Loco.Core.Interfaces;
 
 namespace Loco.Core.OCR;
 

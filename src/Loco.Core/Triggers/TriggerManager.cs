@@ -1,6 +1,6 @@
+using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Net;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.Triggers;
 
