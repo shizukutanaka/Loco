@@ -91,12 +91,3 @@ public class TestData
     public int Value { get; set; }
     public DateTimeOffset Timestamp { get; set; }
 }
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var summary = BenchmarkRunner.Run<SpanBenchmarks>();
-        Console.WriteLine(summary);
-    }
-}

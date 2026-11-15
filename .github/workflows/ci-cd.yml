@@ -110,15 +110,11 @@ jobs:
       env:
         PUBLISH_RUNTIME: osx-x64
 
-    - name: Publish GUI for Windows
-      run: dotnet publish src/Loco.Gui/Loco.Gui.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish-gui-win-x64
-
     - name: Create release archives
       run: |
-        Compress-Archive -Path output\* -DestinationPath loco-cli-windows-x64.zip
+        Compress-Archive -Path publish-production\* -DestinationPath loco-cli-windows-x64.zip
         Compress-Archive -Path publish-linux-x64\* -DestinationPath loco-cli-linux-x64.zip
         Compress-Archive -Path publish-osx-x64\* -DestinationPath loco-cli-macos-x64.zip
-        Compress-Archive -Path publish-gui-win-x64\* -DestinationPath loco-gui-windows-x64.zip
 
     - name: Upload release assets
       uses: softprops/action-gh-release@v2
@@ -127,7 +123,6 @@ jobs:
           loco-cli-windows-x64.zip
           loco-cli-linux-x64.zip
           loco-cli-macos-x64.zip
-          loco-gui-windows-x64.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -150,89 +145,21 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Build and push CLI Docker image
+    # The only Dockerfile in this repository is ./Dockerfile (the API
+    # image). The previously referenced deployment/Dockerfile.cli and
+    # deployment/Dockerfile.gui do not exist.
+    - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
         context: .
-        file: ./deployment/Dockerfile.cli
+        file: ./Dockerfile
         push: true
-        tags: locoautomation/loco-cli:latest, locoautomation/loco-cli:${{ github.event.release.tag_name }}
-
-    - name: Build and push GUI Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: ./deployment/Dockerfile.gui
-        push: true
-        tags: locoautomation/loco-gui:latest, locoautomation/loco-gui:${{ github.event.release.tag_name }}
-
-  deploy-to-winget:
-    name: Deploy to Winget
-    runs-on: windows-latest
-    needs: publish
-    if: github.event_name == 'release'
-
-    steps:
-    - name: Checkout winget-pkgs
-      uses: actions/checkout@v5
-      with:
-        repository: microsoft/winget-pkgs
-        path: winget-pkgs
-
-    - name: Update winget manifest
-      run: |
-        $version = "${{ github.event.release.tag_name }}".TrimStart("v")
-        $manifestPath = "winget-pkgs/manifests/l/locoautomation/loco/$version/"
-
-        New-Item -ItemType Directory -Force -Path $manifestPath
-
-        # Copy and update manifests
-        Copy-Item "winget\LocoAutomation.Loco.yaml" "$manifestPath\"
-        Copy-Item "winget\LocoAutomation.Loco.installer.yaml" "$manifestPath\"
-        Copy-Item "winget\LocoAutomation.Loco.locale.en-US.yaml" "$manifestPath\"
-
-        # Update version in manifests
-        $content = Get-Content "$manifestPath\LocoAutomation.Loco.yaml"
-        $content = $content -replace "PackageVersion: .*", "PackageVersion: $version"
-        Set-Content "$manifestPath\LocoAutomation.Loco.yaml" $content
-
-        $content = Get-Content "$manifestPath\LocoAutomation.Loco.installer.yaml"
-        $content = $content -replace "PackageVersion: .*", "PackageVersion: $version"
-        $content = $content -replace "PLACEHOLDER_SHA256_HASH", "UPDATE_WITH_ACTUAL_HASH"
-        Set-Content "$manifestPath\LocoAutomation.Loco.installer.yaml" $content
-
-        $content = Get-Content "$manifestPath\LocoAutomation.Loco.locale.en-US.yaml"
-        $content = $content -replace "PackageVersion: .*", "PackageVersion: $version"
-        Set-Content "$manifestPath\LocoAutomation.Loco.locale.en-US.yaml" $content
-
-    - name: Create Pull Request
-      uses: peter-evans/create-pull-request@v7
-      with:
-        token: ${{ secrets.WINGET_TOKEN }}
-        path: winget-pkgs
-        branch: loco-${{ github.event.release.tag_name }}
-        title: "Add Loco Automation Platform v${{ github.event.release.tag_name }}"
-        body: |
-          ## Package Details
-
-          - **Package ID**: LocoAutomation.Loco
-          - **Version**: ${{ github.event.release.tag_name }}
-          - **Publisher**: Loco Automation
-
-          ## Description
-
-          Enterprise-grade automation platform with IoT integration, security compliance, and comprehensive monitoring capabilities.
-
-          ## Release Notes
-
-          ${{ github.event.release.body }}
-
-        commit-message: "Add Loco Automation Platform v${{ github.event.release.tag_name }}"
+        tags: locoautomation/loco:latest, locoautomation/loco:${{ github.event.release.tag_name }}
 
   notify-release:
     name: Notify Release
     runs-on: ubuntu-latest
-    needs: [publish, deploy-docker, deploy-to-winget]
+    needs: [publish, deploy-docker]
     if: github.event_name == 'release'
 
     steps:
@@ -241,8 +168,7 @@ jobs:
         echo "🚀 Loco Automation Platform v${{ github.event.release.tag_name }} has been released!"
         echo "📦 Available on:"
         echo "  - GitHub Releases: https://github.com/${{ github.repository }}/releases/tag/${{ github.event.release.tag_name }}"
-        echo "  - Docker Hub: locoautomation/loco-cli:${{ github.event.release.tag_name }}"
-        echo "  - Winget: winget install LocoAutomation.Loco"
+        echo "  - Docker Hub: locoautomation/loco:${{ github.event.release.tag_name }}"
         echo ""
         echo "📊 Release Summary:"
         echo "${{ github.event.release.body }}"

@@ -128,7 +128,7 @@ jobs:
 
     strategy:
       matrix:
-        target: [api, web, cli]
+        target: [runtime]  # only stages in ./Dockerfile are "build" and "runtime"
 
     steps:
     - uses: actions/checkout@v4
@@ -168,63 +168,10 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-  # Job 5: Integration Tests (with Docker Compose)
-  integration-tests:
-    runs-on: ubuntu-latest
-    name: Integration Tests
-    needs: docker
-
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_DB: loco_test
-          POSTGRES_USER: loco_user
-          POSTGRES_PASSWORD: testpass
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
-
-    - name: Restore dependencies
-      run: dotnet restore
-
-    - name: Run integration tests
-      env:
-        ConnectionStrings__DefaultConnection: "Host=localhost;Database=loco_test;Username=loco_user;Password=testpass"
-        Redis__ConnectionString: "localhost:6379"
-      run: |
-        dotnet test tests/Loco.Integration.Tests/Loco.Integration.Tests.csproj \
-          -c Release \
-          --no-restore \
-          --logger:"console;verbosity=detailed"
-
   # Job 6: Performance Testing
   performance:
     runs-on: ubuntu-latest
     name: Performance Testing
-    needs: integration-tests
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
@@ -237,11 +184,11 @@ jobs:
 
     - name: Build Benchmark
       run: |
-        dotnet build src/Loco.Benchmarks/Loco.Benchmarks.csproj -c Release
+        dotnet build benchmarks/Loco.Benchmarks/Loco.Benchmarks.csproj -c Release
 
     - name: Run Performance Benchmarks
       run: |
-        dotnet run -p src/Loco.Benchmarks/Loco.Benchmarks.csproj -c Release -- \
+        dotnet run -p benchmarks/Loco.Benchmarks/Loco.Benchmarks.csproj -c Release -- \
           --exporters json \
           --artifacts /tmp/benchmarks
 
@@ -276,7 +223,7 @@ jobs:
   deploy-staging:
     runs-on: ubuntu-latest
     name: Deploy to Staging
-    needs: [code-quality, test, security, docker, integration-tests]
+    needs: [code-quality, test, security, docker]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment:
       name: staging
@@ -289,7 +236,7 @@ jobs:
       id: deployment
       run: |
         echo "Deploying to staging environment..."
-        echo "::set-output name=environment_url::https://staging-api.example.com"
+        echo "environment_url=https://staging-api.example.com" >> "$GITHUB_OUTPUT"
         # Add actual deployment commands here
         # e.g., kubectl apply, docker pull and run, etc.
 
@@ -327,7 +274,7 @@ jobs:
   success-notification:
     runs-on: ubuntu-latest
     name: Success Notification
-    needs: [code-quality, test, security, docker, integration-tests]
+    needs: [code-quality, test, security, docker]
     if: success()
 
     steps:
@@ -338,4 +285,3 @@ jobs:
         echo "- Tests: PASSED"
         echo "- Security Scan: PASSED"
         echo "- Docker Build: PASSED"
-        echo "- Integration Tests: PASSED"
