@@ -41,6 +41,8 @@
     <!-- OpenAPI/Swagger -->
     <PackageReference Include="Swashbuckle.AspNetCore" />
     <PackageReference Include="Swashbuckle.AspNetCore.Annotations" />
+    <!-- Built-in OpenAPI support; provides RouteHandlerBuilder.WithOpenApi() used by Versioning/ApiVersioningSetup.cs -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
 
     <!-- gRPC Support (Phase 1B) -->
     <PackageReference Include="Grpc.AspNetCore" />
@@ -49,8 +51,13 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
 
+    <!-- API Versioning (maintained Asp.Versioning packages; used by Versioning/ApiVersioningSetup.cs) -->
+    <PackageReference Include="Asp.Versioning.Mvc" />
+    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" />
+
     <!-- OpenTelemetry -->
     <PackageReference Include="OpenTelemetry" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
@@ -72,6 +79,55 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Loco.Core\Loco.Core.csproj" />
+  </ItemGroup>
+
+  <!--
+    EXCLUDED FROM COMPILATION — unfinished features whose backing subsystems do not
+    exist anywhere in this repository (verified by full-text search of src/):
+
+    - Endpoints\OAuthEndpoints.cs
+        Depends on Loco.Core.DataAccess and Loco.Core.Security (namespaces that do not
+        exist) and on IOAuthUserRepository / IOAuthClientManager /
+        IOAuthAuthorizationCodeManager / IJwtTokenManager, none of which are defined
+        in Loco.Core or Loco.Api. There is no OAuth 2.0 server implementation to wire
+        these endpoints to.
+    - Endpoints\WorkflowEndpoints.cs and Endpoints\MinimalWorkflowEndpoints.cs
+        Depend on a "Phase 2/3" data-access layer that was never implemented:
+        IWorkflowRepository, IExecutionHistoryRepository and IWorkflowService are not
+        defined anywhere, and neither are the Loco.Core.Data / Loco.Core.DataAccess /
+        Loco.Core.Execution namespaces they import. The real, tested workflow surface
+        is Controllers\WorkflowsController.cs backed by IAutomationEngine + IRuleStore.
+    - Controllers\BpmnController.cs
+        Depends on Loco.Core.Bpmn (IBpmnWorkflowParser, BpmnWorkflowDefinition), which
+        does not exist. Loco.Core has no BPMN parser at all.
+    - Controllers\SchedulingController.cs
+        Its only dependency, IJobScheduler, has exactly one implementation
+        (Loco.Core.Scheduling.HangfireJobScheduler), which requires a Hangfire server
+        and storage registration that exists nowhere in the product (no AddHangfire
+        call in src/). The controller itself only needs a ProducesResponseType typo
+        fix, but it cannot be honestly served until Hangfire hosting is wired.
+    - Services\WorkflowEngineGrpcService.cs and Services\WorkflowEngineGrpcClient.cs
+        The gRPC surface presupposes an execution-tracking engine API —
+        IAutomationEngine.ExecuteAsync / GetExecutionStatusAsync /
+        GetExecutionLogsAsync, returning execution ids, progress and log streams.
+        The real IAutomationEngine exposes only StartAsync / StopAsync /
+        ExecuteFlowAsync(flowId) -> bool and AddFlow; Core has no execution
+        store, status store or log store to back the RPCs. Protos\workflow.proto
+        (and the divergent copy in Loco.Core\Grpc) remain in the tree as the
+        contract draft for whoever builds that engine API first.
+
+    These files are kept in the tree as design drafts. Remove an entry from this list
+    only when the missing subsystem it names actually exists and the file compiles
+    against real implementations.
+  -->
+  <ItemGroup>
+    <Compile Remove="Endpoints\OAuthEndpoints.cs" />
+    <Compile Remove="Endpoints\WorkflowEndpoints.cs" />
+    <Compile Remove="Endpoints\MinimalWorkflowEndpoints.cs" />
+    <Compile Remove="Controllers\BpmnController.cs" />
+    <Compile Remove="Controllers\SchedulingController.cs" />
+    <Compile Remove="Services\WorkflowEngineGrpcService.cs" />
+    <Compile Remove="Services\WorkflowEngineGrpcClient.cs" />
   </ItemGroup>
 
 </Project>

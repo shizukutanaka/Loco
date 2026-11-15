@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Logging;
-using Loco.Core.ErrorHandling;
 using Loco.Core.Exceptions;
 
 namespace Loco.Api.Filters;
@@ -36,8 +35,7 @@ public class LocoExceptionFilter : IExceptionFilter
             Detail = locoException.Message,
             Status = statusCode,
             Instance = context.HttpContext.Request.Path,
-            TraceId = context.HttpContext.TraceIdentifier,
-            Extensions = locoException.Context?.Count > 0 ? new Dictionary<string, object?>
+            Extensions = locoException.Context != null ? new Dictionary<string, object?>
             {
                 { "context", locoException.Context }
             } : null
@@ -58,7 +56,7 @@ public class LocoExceptionFilter : IExceptionFilter
             ActionException => StatusCodes.Status400BadRequest,
             EngineException => StatusCodes.Status500InternalServerError,
             ResourceException => StatusCodes.Status404NotFound,
-            TimeoutException => StatusCodes.Status504GatewayTimeout,
+            Loco.Core.Exceptions.TimeoutException => StatusCodes.Status504GatewayTimeout,
             SecurityException => StatusCodes.Status403Forbidden,
             LocoConfigurationException => StatusCodes.Status500InternalServerError,
             _ => StatusCodes.Status500InternalServerError
@@ -74,7 +72,7 @@ public class LocoExceptionFilter : IExceptionFilter
             ActionException => "Action Error",
             EngineException => "Engine Error",
             ResourceException => "Resource Not Found",
-            TimeoutException => "Operation Timeout",
+            Loco.Core.Exceptions.TimeoutException => "Operation Timeout",
             SecurityException => "Security Error",
             LocoConfigurationException => "Configuration Error",
             _ => "Loco Error"
@@ -96,7 +94,11 @@ public class ValidationExceptionFilter : IExceptionFilter
 
     public void OnException(ExceptionContext context)
     {
-        if (context.Exception is not ValidationException validationException)
+        // NOTE: This filter previously targeted a "ValidationException" type with an
+        // Errors property. No such type exists in the repository; the real
+        // validation exception is Loco.Core.Exceptions.WorkflowValidationException,
+        // which carries ValidationErrors (string[]).
+        if (context.Exception is not WorkflowValidationException validationException)
         {
             return;
         }
@@ -109,8 +111,10 @@ public class ValidationExceptionFilter : IExceptionFilter
             Detail = validationException.Message,
             Status = StatusCodes.Status400BadRequest,
             Instance = context.HttpContext.Request.Path,
-            TraceId = context.HttpContext.TraceIdentifier,
-            Errors = validationException.Errors
+            Errors = new Dictionary<string, string[]>
+            {
+                ["Validation"] = validationException.ValidationErrors
+            }
         });
 
         context.ExceptionHandled = true;
@@ -148,7 +152,6 @@ public class ArgumentExceptionFilter : IExceptionFilter
             Detail = isDevelopment ? context.Exception.Message : "The provided argument is invalid",
             Status = StatusCodes.Status400BadRequest,
             Instance = context.HttpContext.Request.Path,
-            TraceId = context.HttpContext.TraceIdentifier,
             Extensions = isDevelopment ? new Dictionary<string, object?>
             {
                 { "exceptionType", context.Exception.GetType().Name },
@@ -213,7 +216,6 @@ public class NotFoundFilter : IExceptionFilter
             Detail = context.Exception.Message,
             Status = StatusCodes.Status404NotFound,
             Instance = context.HttpContext.Request.Path,
-            TraceId = context.HttpContext.TraceIdentifier
         });
 
         context.ExceptionHandled = true;
@@ -234,7 +236,7 @@ public class TimeoutExceptionFilter : IExceptionFilter
 
     public void OnException(ExceptionContext context)
     {
-        if (context.Exception is not TimeoutException)
+        if (context.Exception is not System.TimeoutException)
         {
             return;
         }
@@ -247,7 +249,6 @@ public class TimeoutExceptionFilter : IExceptionFilter
             Detail = "The operation took too long to complete",
             Status = StatusCodes.Status504GatewayTimeout,
             Instance = context.HttpContext.Request.Path,
-            TraceId = context.HttpContext.TraceIdentifier
         })
         {
             StatusCode = StatusCodes.Status504GatewayTimeout
@@ -284,7 +285,7 @@ public class GlobalExceptionFilter : IExceptionFilter
             ArgumentNullException or ArgumentException => StatusCodes.Status400BadRequest,
             UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
             KeyNotFoundException => StatusCodes.Status404NotFound,
-            TimeoutException => StatusCodes.Status504GatewayTimeout,
+            System.TimeoutException => StatusCodes.Status504GatewayTimeout,
             InvalidOperationException => StatusCodes.Status400BadRequest,
             _ => StatusCodes.Status500InternalServerError
         };
@@ -295,7 +296,6 @@ public class GlobalExceptionFilter : IExceptionFilter
             Detail = isDevelopment ? context.Exception.Message : "An internal error occurred",
             Status = statusCode,
             Instance = context.HttpContext.Request.Path,
-            TraceId = context.HttpContext.TraceIdentifier,
             Extensions = isDevelopment ? new Dictionary<string, object?>
             {
                 { "stackTrace", context.Exception.StackTrace },

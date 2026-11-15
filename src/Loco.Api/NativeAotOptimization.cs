@@ -1,4 +1,7 @@
 using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Loco.Api;
 
@@ -119,14 +122,25 @@ public static class NativeAotOptimization
 /// <summary>
 /// JSON Serializer Context for Native AOT
 /// Enables source-generated serialization (no reflection)
+///
+/// NOTE: This class previously declared a hand-written GetTypeInfo override that
+/// threw NotImplementedException and registered no [JsonSerializable] types, so the
+/// source generator produced nothing and the class could not compile
+/// (JsonSerializerContext.GeneratedSerializerOptions was left unimplemented).
+/// The override is removed and the basic container types are registered; add a
+/// [JsonSerializable] entry here for every DTO type that must be serialized
+/// through this context under Native AOT.
 /// </summary>
 [JsonSourceGenerationOptions(
     GenerationMode = JsonSourceGenerationMode.Serialization | JsonSourceGenerationMode.Metadata,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     PropertyNameCaseInsensitive = true)]
+[JsonSerializable(typeof(string))]
+[JsonSerializable(typeof(string[]))]
+[JsonSerializable(typeof(Dictionary<string, string>))]
+[JsonSerializable(typeof(Dictionary<string, object>))]
 public partial class DefaultJsonSerializerContext : JsonSerializerContext
 {
-    public override JsonTypeInfo GetTypeInfo(Type type) => throw new NotImplementedException();
 }
 
 /// <summary>

@@ -39,6 +39,10 @@
     <PackageVersion Include="AspNetCore.HealthChecks.System" Version="9.0.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Versioning" Version="5.1.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Versioning.ApiExplorer" Version="5.1.0" />
+    <!-- Asp.Versioning is the maintained successor of Microsoft.AspNetCore.Mvc.Versioning.
+         Loco.Api/Versioning/ApiVersioningSetup.cs is written against the Asp.Versioning namespace. -->
+    <PackageVersion Include="Asp.Versioning.Mvc" Version="8.1.0" />
+    <PackageVersion Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.0" />
     <!-- OpenTelemetry - New for Observability -->
     <PackageVersion Include="OpenTelemetry" Version="1.11.2" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.11.0" />

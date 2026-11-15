@@ -1,7 +1,10 @@
 #nullable enable
 
+using System.Reflection;
 using Asp.Versioning;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace Loco.Api.Versioning;
 
@@ -290,40 +293,32 @@ public static class ApiVersioningExtensions
             services.BuildServiceProvider().GetRequiredService<ILogger<ApiVersionRegistry>>()));
         services.AddSingleton<VersionMappingHelper>();
 
-        // Configure Asp.Versioning based on strategy
-        var versioningBuilder = services.AddApiVersioning(options =>
+        // Configure Asp.Versioning based on strategy.
+        //
+        // NOTE: This previously called AddUrlSegmentApiVersioning() /
+        // AddQueryStringApiVersioning() / AddHeaderApiVersioning() /
+        // AddMediaTypeApiVersioning() on the versioning builder. None of those
+        // methods exist in Asp.Versioning 8; the version reader is selected via
+        // options.ApiVersionReader, as done below.
+        services.AddApiVersioning(options =>
         {
             options.AssumeDefaultVersionWhenUnspecified = config.AssumeDefaultVersion;
             options.ReportApiVersions = config.ReportApiVersions;
-            options.DefaultApiVersion = new ApiVersion(ParseVersion(config.DefaultVersion));
+            var (major, minor) = ParseVersion(config.DefaultVersion);
+            options.DefaultApiVersion = new ApiVersion(major, minor);
+            options.ApiVersionReader = config.Strategy switch
+            {
+                VersioningStrategy.UrlPath => new UrlSegmentApiVersionReader(),
+                VersioningStrategy.QueryString => new QueryStringApiVersionReader("api-version"),
+                VersioningStrategy.Header => new HeaderApiVersionReader("X-API-Version"),
+                VersioningStrategy.MediaType => new MediaTypeApiVersionReader("version"),
+                VersioningStrategy.Combined => ApiVersionReader.Combine(
+                    new UrlSegmentApiVersionReader(),
+                    new QueryStringApiVersionReader("api-version"),
+                    new HeaderApiVersionReader("X-API-Version")),
+                _ => new UrlSegmentApiVersionReader()
+            };
         });
-
-        // Configure strategy-specific settings
-        switch (config.Strategy)
-        {
-            case VersioningStrategy.UrlPath:
-                versioningBuilder.AddUrlSegmentApiVersioning();
-                break;
-
-            case VersioningStrategy.QueryString:
-                versioningBuilder.AddQueryStringApiVersioning();
-                break;
-
-            case VersioningStrategy.Header:
-                versioningBuilder.AddHeaderApiVersioning();
-                break;
-
-            case VersioningStrategy.MediaType:
-                versioningBuilder.AddMediaTypeApiVersioning();
-                break;
-
-            case VersioningStrategy.Combined:
-                versioningBuilder
-                    .AddUrlSegmentApiVersioning()
-                    .AddQueryStringApiVersioning()
-                    .AddHeaderApiVersioning();
-                break;
-        }
 
         return services;
     }
@@ -470,7 +465,7 @@ public class ApiVersioningExamples
     /// </summary>
     [ApiController]
     [Route("api/v{version:apiVersion}/products")]
-    [Deprecated(ReplacementVersion = "3.0", MigrationGuide = "https://docs.example.com/migration/v2-to-v3")]
+    [DeprecatedApi(ReplacementVersion = "3.0", MigrationGuide = "https://docs.example.com/migration/v2-to-v3")]
     public class ProductsV2Controller : ControllerBase
     {
         /// <summary>
@@ -478,7 +473,7 @@ public class ApiVersioningExamples
         /// </summary>
         [HttpGet]
         [MapToApiVersion("2.0")]
-        [Deprecated(ReplacementVersion = "3.0")]
+        [DeprecatedApi(ReplacementVersion = "3.0")]
         public IActionResult GetProducts()
         {
             return Ok(new[] {

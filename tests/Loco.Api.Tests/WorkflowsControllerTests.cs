@@ -2,6 +2,7 @@ using Xunit;
 using Moq;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Loco.Core.Interfaces;
 using Loco.Core.Models;
@@ -447,8 +448,12 @@ namespace Loco.Api.Tests
         public async Task WorkflowOperation_WithException_ThrowsAndLogsError()
         {
             // Arrange
+            // NOTE: This setup previously used IAutomationEngine.ExecuteAsync, a
+            // method that does not exist on the interface (the whole Api test
+            // project failed to compile because of it). The real execution
+            // entry point is ExecuteFlowAsync, which ExecuteWorkflow now calls.
             var workflowId = "workflow-1";
-            _mockEngine.Setup(x => x.ExecuteAsync(It.IsAny<string>()))
+            _mockEngine.Setup(x => x.ExecuteFlowAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new InvalidOperationException("Test error"));
 
             // Act & Assert - Exception should propagate

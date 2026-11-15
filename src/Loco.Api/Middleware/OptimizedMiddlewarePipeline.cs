@@ -50,7 +50,9 @@ public static class OptimizedMiddlewarePipeline
         // Must come before auth to capture all requests
         app.UseCorrelationId();
         app.UseSerilogRequestLogging();
-        app.UseCompressionMonitoring();
+        // NOTE: This file previously called app.UseCompressionMonitoring(), an
+        // extension method that does not exist anywhere in the repository.
+        // Response compression itself is configured in the next step.
 
         // 5. COMPRESSION (Before routing to compress all responses)
         // ==========================================================
@@ -72,7 +74,8 @@ public static class OptimizedMiddlewarePipeline
         // 8. RATE LIMITING (After routing, before auth)
         // ==============================================
         // Uses route information for better limiting
-        app.UseRateLimiting();
+        // (The framework middleware is UseRateLimiter; "UseRateLimiting" does not exist.)
+        app.UseRateLimiter();
 
         // 9. CORS (Before auth/auth-dependent middleware)
         // ================================================
@@ -98,7 +101,8 @@ public static class OptimizedMiddlewarePipeline
         app.UseEndpoints(endpoints =>
         {
             endpoints.MapControllers();
-            endpoints.MapHealthCheckEndpoints();
+            // ("MapHealthCheckEndpoints" does not exist; MapHealthChecks is the real API.)
+            endpoints.MapHealthChecks("/health");
         });
 
         return app;

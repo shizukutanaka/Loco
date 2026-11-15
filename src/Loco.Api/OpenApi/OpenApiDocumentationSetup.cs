@@ -1,6 +1,8 @@
 #nullable enable
 
 using System.Reflection;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
@@ -87,24 +89,29 @@ public class OpenApiSchemaAttribute : Attribute
     public bool Deprecated { get; set; }
 
     /// <summary>
-    /// Minimum value (for numbers)
+    /// Minimum value (for numbers). decimal to match
+    /// Microsoft.OpenApi.Models.OpenApiSchema.Minimum, which is decimal?.
     /// </summary>
-    public double? Minimum { get; set; }
+    public decimal? Minimum { get; set; }
 
     /// <summary>
-    /// Maximum value (for numbers)
+    /// Maximum value (for numbers). decimal to match OpenApiSchema.Maximum.
     /// </summary>
-    public double? Maximum { get; set; }
+    public decimal? Maximum { get; set; }
 
     /// <summary>
-    /// Minimum length (for strings)
+    /// Minimum length (for strings). 0 means "not set".
+    /// This must be a non-nullable int: nullable types are not legal
+    /// named attribute argument types (CS0655), so the previous int?
+    /// declaration made every [OpenApiSchema(MinLength = ...)] usage
+    /// fail to compile.
     /// </summary>
-    public int? MinLength { get; set; }
+    public int MinLength { get; set; }
 
     /// <summary>
-    /// Maximum length (for strings)
+    /// Maximum length (for strings). 0 means "not set".
     /// </summary>
-    public int? MaxLength { get; set; }
+    public int MaxLength { get; set; }
 
     /// <summary>
     /// Pattern (regex for strings)
@@ -159,6 +166,12 @@ public class OpenApiSecurityAttribute : Attribute
     public OpenApiSecurityAttribute(string schemeName)
     {
         SchemeName = schemeName;
+    }
+
+    public OpenApiSecurityAttribute(string schemeName, string[] scopes)
+    {
+        SchemeName = schemeName;
+        Scopes = scopes;
     }
 }
 
@@ -488,8 +501,8 @@ public class AutoDocumentingSwaggerGenerator
                     Deprecated = propAttribute?.Deprecated ?? false,
                     Minimum = propAttribute?.Minimum,
                     Maximum = propAttribute?.Maximum,
-                    MinLength = propAttribute?.MinLength,
-                    MaxLength = propAttribute?.MaxLength,
+                    MinLength = propAttribute is { MinLength: > 0 } ? propAttribute.MinLength : null,
+                    MaxLength = propAttribute is { MaxLength: > 0 } ? propAttribute.MaxLength : null,
                     Pattern = propAttribute?.Pattern
                 };
             }
@@ -518,9 +531,21 @@ public class AutoDocumentingSwaggerGenerator
             }
         };
 
-        document.SecurityRequirement = new Dictionary<string, IList<string>>
+        // OpenApiDocument exposes SecurityRequirements (a list of
+        // OpenApiSecurityRequirement), not a singular dictionary property.
+        document.SecurityRequirements = new List<OpenApiSecurityRequirement>
         {
-            ["Bearer"] = new List<string>()
+            new OpenApiSecurityRequirement
+            {
+                [new OpenApiSecurityScheme
+                {
+                    Reference = new OpenApiReference
+                    {
+                        Type = ReferenceType.SecurityScheme,
+                        Id = "Bearer"
+                    }
+                }] = new List<string>()
+            }
         };
     }
 
@@ -618,9 +643,22 @@ public class OpenApiAttributeOperationFilter : IOperationFilter
         var secAttr = methodInfo.GetCustomAttribute<OpenApiSecurityAttribute>();
         if (secAttr != null)
         {
-            var requirement = new Dictionary<string, IList<string>>();
-            requirement[secAttr.SchemeName] = secAttr.Scopes?.ToList() ?? new List<string>();
-            operation.Security = new List<Dictionary<string, IList<string>>> { requirement };
+            // OpenApiOperation.Security is a list of OpenApiSecurityRequirement,
+            // not a list of dictionaries.
+            operation.Security = new List<OpenApiSecurityRequirement>
+            {
+                new OpenApiSecurityRequirement
+                {
+                    [new OpenApiSecurityScheme
+                    {
+                        Reference = new OpenApiReference
+                        {
+                            Type = ReferenceType.SecurityScheme,
+                            Id = secAttr.SchemeName
+                        }
+                    }] = secAttr.Scopes?.ToList() ?? new List<string>()
+                }
+            };
         }
 
         // Apply response attributes
@@ -674,8 +712,14 @@ public class OpenApiAttributeSchemaFilter : ISchemaFilter
                         new Microsoft.OpenApi.Any.OpenApiString(propAttr.Example) : null;
                     propSchema.Minimum = propAttr.Minimum;
                     propSchema.Maximum = propAttr.Maximum;
-                    propSchema.MinLength = propAttr.MinLength;
-                    propSchema.MaxLength = propAttr.MaxLength;
+                    if (propAttr.MinLength > 0)
+                    {
+                        propSchema.MinLength = propAttr.MinLength;
+                    }
+                    if (propAttr.MaxLength > 0)
+                    {
+                        propSchema.MaxLength = propAttr.MaxLength;
+                    }
                     propSchema.Pattern = propAttr.Pattern;
                 }
             }
