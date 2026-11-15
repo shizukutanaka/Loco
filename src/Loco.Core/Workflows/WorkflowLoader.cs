@@ -15,14 +15,14 @@ namespace Loco.Core.Workflows
     public class WorkflowLoader
     {
         private readonly ILogger? _logger;
-        private readonly WorkflowValidator _validator;
+        private readonly MainWorkflowValidator _validator;
         private readonly VariableResolver _variableResolver;
         private readonly string? _environment;
 
         public WorkflowLoader(ILogger? logger = null, Dictionary<string, string>? variables = null, string? environment = null)
         {
             _logger = logger;
-            _validator = new WorkflowValidator();
+            _validator = new MainWorkflowValidator(logger);
             _variableResolver = new VariableResolver(variables);
             _environment = environment;
         }
@@ -118,16 +118,16 @@ namespace Loco.Core.Workflows
         {
             try
             {
-                // Validate workflow
-                var visualWorkflow = new VisualWorkflow 
-                { 
-                    Id = definition.Id,
-                    Name = definition.Name,
-                    Description = definition.Description,
-                    Nodes = new List<WorkflowNode>(),
-                    Connections = new List<WorkflowConnection>()
-                };
-                var validationResult = _validator.Validate(visualWorkflow);
+                // Validate the definition itself (steps-based), using the same
+                // validator as the CLI's --dry-run path, so a workflow that
+                // passes validation there can also load for execution.
+                //
+                // This previously constructed a VisualWorkflow with an empty
+                // Nodes list and validated that instead. The graph validator
+                // therefore failed every workflow with "Workflow must have at
+                // least one node", and no workflow could ever execute through
+                // this loader.
+                var validationResult = _validator.Validate(definition);
                 if (!validationResult.IsValid)
                 {
                     _logger?.LogError("Workflow validation failed: {Errors}", string.Join(", ", validationResult.Errors));
