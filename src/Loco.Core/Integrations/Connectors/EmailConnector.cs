@@ -1,11 +1,11 @@
 // Uncle Bob: "Make it readable. The code is read more often than it is written."
 // John Carmack: "If you're going to have to maintain it, write it well."
 
+using Loco.Core.Integrations.Core;
+using Loco.Core.Practical;
 using System.Net;
 using System.Net.Mail;
 using System.Text;
-using Loco.Core.Integrations.Core;
-using Loco.Core.Practical;
 
 namespace Loco.Core.Integrations.Connectors;
 

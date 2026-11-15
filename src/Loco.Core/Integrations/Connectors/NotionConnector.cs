@@ -1,7 +1,7 @@
+using Loco.Core.Integrations.Core;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using Loco.Core.Integrations.Core;
 
 namespace Loco.Core.Integrations.Connectors;
 

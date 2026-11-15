@@ -41,12 +41,12 @@ namespace Loco.Core.Workflows
         public T? GetVariable<T>(string name, T? defaultValue = default)
         {
             ThrowIfDisposed();
-            
+
             if (_variables.TryGetValue(name, out var value))
             {
                 if (value is T typedValue)
                     return typedValue;
-                
+
                 // Try to convert
                 try
                 {
@@ -57,7 +57,7 @@ namespace Loco.Core.Workflows
                     return defaultValue;
                 }
             }
-            
+
             return defaultValue;
         }
 
@@ -103,13 +103,13 @@ namespace Loco.Core.Workflows
         public T? GetMetadata<T>(string key, T? defaultValue = default)
         {
             ThrowIfDisposed();
-            
+
             if (_metadata.TryGetValue(key, out var value))
             {
                 if (value is T typedValue)
                     return typedValue;
             }
-            
+
             return defaultValue;
         }
 

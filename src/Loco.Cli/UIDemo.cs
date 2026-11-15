@@ -1,7 +1,7 @@
+using Loco.Cli.UI;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Loco.Cli.UI;
 
 namespace Loco.Cli
 {

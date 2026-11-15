@@ -1,11 +1,11 @@
 // John Carmack: "The best code is the code that doesn't exist"
 // Rob Pike: "Measure. Don't tune for speed until you've measured"
 
+using Loco.Core.Integrations.Core;
+using Loco.Core.Practical;
 using System.Data;
 using System.Data.Common;
 using System.Text.Json;
-using Loco.Core.Integrations.Core;
-using Loco.Core.Practical;
 
 namespace Loco.Core.Integrations.Connectors;
 

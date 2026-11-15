@@ -1,10 +1,10 @@
+using Loco.Api.Filters;
+using Loco.Api.HealthChecks;
+using Loco.Api.Middleware;
 using Loco.Core;
 using Loco.Core.Configuration;
 using Loco.Core.Interfaces;
 using Loco.Core.Storage;
-using Loco.Api.Filters;
-using Loco.Api.HealthChecks;
-using Loco.Api.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;

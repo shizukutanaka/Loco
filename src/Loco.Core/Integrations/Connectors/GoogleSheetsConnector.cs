@@ -1,10 +1,10 @@
 // John Carmack: "The best code is no code at all"
 // Rob Pike: "Clear is better than clever"
 
+using Loco.Core.Integrations.Core;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using Loco.Core.Integrations.Core;
 
 namespace Loco.Core.Integrations.Connectors;
 

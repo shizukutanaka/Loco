@@ -1,8 +1,8 @@
-using System.Text.Json.Serialization;
 using Loco.Core.DurableExecution;
 using Loco.Core.Examples;
 using Loco.Core.Models;
 using Loco.Core.Workflows;
+using System.Text.Json.Serialization;
 
 namespace Loco.Core.Serialization;
 

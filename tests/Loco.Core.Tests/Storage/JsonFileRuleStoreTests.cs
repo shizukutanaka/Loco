@@ -1,11 +1,11 @@
+using FluentAssertions;
+using Loco.Core.Models;
+using Loco.Core.Storage;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using Loco.Core.Models;
-using Loco.Core.Storage;
 using Xunit;
-using FluentAssertions;
 
 namespace Loco.Core.Tests.Storage;
 

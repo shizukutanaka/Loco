@@ -2,12 +2,12 @@
 // Discrete event simulation for workflow what-if scenarios and outcome prediction
 // Simulate workflow executions, analyze different configurations, predict outcomes
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.Intelligence;
 

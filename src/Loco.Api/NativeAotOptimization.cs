@@ -29,7 +29,7 @@ public static class NativeAotOptimization
     ///   <InvariantGlobalization>false</InvariantGlobalization>
     /// </PropertyGroup>
     /// </summary>
-    
+
     /// <summary>
     /// Recommended RuntimeConfig for Native AOT
     /// Handles compatibility issues with reflection-based libraries
@@ -57,7 +57,7 @@ public static class NativeAotOptimization
             services.AddSingleton<IWorkflowService, WorkflowService>();
             services.AddScoped<IWorkflowRepository, WorkflowRepository>();
             services.AddScoped<IExecutionEngine, WorkflowExecutionEngine>();
-            
+
             // Add other services...
         }
     }
@@ -68,7 +68,7 @@ public static class NativeAotOptimization
     public static class BuildConfiguration
     {
         public const string PublishProfile = "linux-x64-aot";
-        
+
         // Publish command for Native AOT:
         // dotnet publish -c Release -r linux-x64 /p:PublishAot=true
         // 
@@ -83,16 +83,16 @@ public static class NativeAotOptimization
     public static void VerifyNativeAotCompatibility()
     {
         var apiAssembly = typeof(Program).Assembly;
-        
+
         // Check for problematic reflection patterns
         var reflectionIssues = new List<string>();
-        
+
         foreach (var type in apiAssembly.GetTypes())
         {
             // Check for dynamic Activator.CreateInstance
             var methods = type.GetMethods(
                 BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance);
-            
+
             foreach (var method in methods)
             {
                 var il = method.GetMethodBody();
@@ -103,7 +103,7 @@ public static class NativeAotOptimization
                 }
             }
         }
-        
+
         if (reflectionIssues.Any())
         {
             Console.WriteLine("⚠️  Native AOT compatibility issues detected:");
@@ -154,10 +154,10 @@ public static class NativeAotExtensions
     {
         // Configure JSON serialization for Native AOT
         NativeAotOptimization.RuntimeConfiguration.ConfigureJsonSerialization(services);
-        
+
         // Configure reflection-based services with explicit registration
         NativeAotOptimization.RuntimeConfiguration.ConfigureReflectionServices(services);
-        
+
         return services;
     }
 
@@ -169,7 +169,7 @@ public static class NativeAotExtensions
         {
             NativeAotOptimization.VerifyNativeAotCompatibility();
         }
-        
+
         return builder;
     }
 }

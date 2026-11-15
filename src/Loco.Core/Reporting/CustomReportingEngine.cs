@@ -2,13 +2,13 @@
 // Flexible report generation with multiple formats and distribution
 // Supports custom templates, scheduled execution, and advanced analytics
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.Reporting;
 

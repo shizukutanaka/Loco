@@ -2,12 +2,12 @@
 // AI-driven workflow analysis with optimization recommendations and intelligent insights
 // Identifies improvement opportunities, suggests optimizations, and provides workflow intelligence
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.Intelligence;
 

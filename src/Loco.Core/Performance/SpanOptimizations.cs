@@ -61,14 +61,14 @@ public static class SpanOptimizations
     {
         var pool = ArrayPool<byte>.Shared;
         var buffer = pool.Rent(data.Length);
-        
+
         try
         {
             data.Span.CopyTo(buffer);
-            
+
             // 処理ロジック (例: UTF-8デコード)
             await Task.Delay(1, ct); // 非同期処理のシミュレーション
-            
+
             return System.Text.Encoding.UTF8.GetString(buffer, 0, data.Length);
         }
         finally
@@ -87,12 +87,12 @@ public static class SpanOptimizations
         CancellationToken ct = default)
     {
         var owner = MemoryPool<byte>.Shared.Rent(size);
-        
+
         try
         {
             // 非同期初期化処理
             await Task.Delay(1, ct);
-            
+
             return owner;
         }
         catch
@@ -110,7 +110,7 @@ public static class SpanOptimizations
     {
         // スタック割り当て (ヒープアロケーション0)
         Span<char> buffer = stackalloc char[512];
-        
+
         if (input.Length > buffer.Length)
         {
             throw new ArgumentException(
@@ -119,7 +119,7 @@ public static class SpanOptimizations
 
         // ゼロコピーでデータ処理
         input.ToUpperInvariant(buffer);
-        
+
         return new string(buffer[..input.Length]);
     }
 
@@ -181,7 +181,7 @@ public static class SpanOptimizations
         try
         {
             await processor(array, ct);
-            
+
             // 必要なサイズだけコピーして返す
             var result = new byte[size];
             Array.Copy(array, result, size);

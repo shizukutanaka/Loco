@@ -1,11 +1,11 @@
 // John Carmack: "Simple code is not necessarily easy to write"
 // Rob Pike: "Design the data structures and the code will follow"
 
+using Loco.Core.Practical;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Loco.Core.Practical;
 
 namespace Loco.Core.AI;
 

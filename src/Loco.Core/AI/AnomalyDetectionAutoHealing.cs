@@ -2,12 +2,12 @@
 // Machine learning-based anomaly detection with automatic mitigation
 // Detects and fixes issues before they impact users
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.AI;
 

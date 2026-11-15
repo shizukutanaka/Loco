@@ -2,12 +2,12 @@
 // Flexible report generation with insights, scheduling, and multi-format export
 // Custom reports, intelligent insights, and automated report distribution
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.Analytics;
 

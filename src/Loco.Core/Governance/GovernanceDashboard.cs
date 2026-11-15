@@ -2,12 +2,12 @@
 // Comprehensive governance visibility and monitoring platform
 // Real-time governance metrics, compliance status, and alerting
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.Governance;
 

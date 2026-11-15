@@ -1,12 +1,12 @@
+using Loco.Core;
+using Loco.Core.Configuration;
+using Loco.Core.Workflows;
+using Microsoft.Extensions.Logging;
 using System;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.IO;
 using System.Threading.Tasks;
-using Loco.Core;
-using Loco.Core.Configuration;
-using Loco.Core.Workflows;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Cli.Commands
 {

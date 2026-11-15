@@ -1,12 +1,12 @@
 // John Carmack: "Efficient code is not about being clever; it's about being clear"
 // Rob Pike: "When in doubt, use brute force"
 
+using Loco.Core.Integrations.Core;
+using Loco.Core.Practical;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using Loco.Core.Integrations.Core;
-using Loco.Core.Practical;
 
 namespace Loco.Core.Integrations.Connectors;
 

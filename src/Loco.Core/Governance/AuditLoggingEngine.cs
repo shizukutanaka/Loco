@@ -2,12 +2,12 @@
 // Enterprise-grade audit trail, activity logging, and forensic analysis
 // Complete visibility into all platform activities with tamper-proof logging
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.Governance;
 

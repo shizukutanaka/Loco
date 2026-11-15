@@ -1,9 +1,9 @@
 // Phase 2 optimization: Trace context propagation for distributed tracing
 // Automatically propagates W3C Trace Context across service boundaries
 
-using System.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using OpenTelemetry.Trace;
+using System.Diagnostics;
 
 namespace Loco.Api.Middleware;
 

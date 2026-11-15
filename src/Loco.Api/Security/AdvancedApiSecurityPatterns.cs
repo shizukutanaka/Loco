@@ -1,9 +1,9 @@
 #nullable enable
 
+using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Api.Security;
 

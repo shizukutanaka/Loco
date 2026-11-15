@@ -2,13 +2,13 @@
 // Based on External Secrets Operator (ESO), Vault Secrets Operator (VSO)
 // Research: Continuous sync, multi-provider support, secret rotation
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.AIPlatform;
 

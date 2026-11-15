@@ -2,12 +2,12 @@
 // Predictive execution time estimation, anomaly detection, and bottleneck identification
 // Uses historical execution data to optimize future workflow performance
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.AI;
 

@@ -2,12 +2,12 @@
 // Complete GraphQL schema, resolvers, and subscriptions for external clients
 // Enables real-time updates, complex queries, and simplified mobile integrations
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Api.GraphQL;
 

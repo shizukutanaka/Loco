@@ -1,9 +1,9 @@
 #nullable enable
 
+using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Api.Gateway;
 

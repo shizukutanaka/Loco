@@ -1,10 +1,10 @@
 #nullable enable
 
-using System.Reflection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using System.Reflection;
 
 namespace Loco.Api.OpenApi;
 

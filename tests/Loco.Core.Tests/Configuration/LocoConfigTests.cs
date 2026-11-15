@@ -1,7 +1,7 @@
-using System;
-using Loco.Core.Configuration;
-using Xunit;
 using FluentAssertions;
+using Loco.Core.Configuration;
+using System;
+using Xunit;
 
 namespace Loco.Core.Tests.Configuration;
 

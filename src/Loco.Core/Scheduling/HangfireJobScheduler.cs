@@ -1,6 +1,6 @@
 using Hangfire;
-using Microsoft.Extensions.Logging;
 using Loco.Core.Workflows;
+using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.Scheduling;
 

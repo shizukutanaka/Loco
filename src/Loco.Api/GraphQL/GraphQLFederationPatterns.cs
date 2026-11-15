@@ -1,11 +1,11 @@
 #nullable enable
 
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Api.GraphQL;
 

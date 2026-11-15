@@ -1,8 +1,8 @@
+using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.Triggers;
 
@@ -443,4 +443,3 @@ public class EventTriggerStats
     public int QueuedEvents { get; set; }
     public int ContinuousHits { get; set; }
 }
-

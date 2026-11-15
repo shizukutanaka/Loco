@@ -2,12 +2,12 @@
 // Advanced machine learning with trend detection, pattern recognition, and anomaly identification
 // Time-series analysis, seasonal decomposition, and predictive anomaly detection
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.Analytics;
 

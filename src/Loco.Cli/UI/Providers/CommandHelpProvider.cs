@@ -1,6 +1,6 @@
+using Loco.Cli.UI.Models;
 using System;
 using System.Collections.Generic;
-using Loco.Cli.UI.Models;
 
 namespace Loco.Cli.UI.Providers;
 

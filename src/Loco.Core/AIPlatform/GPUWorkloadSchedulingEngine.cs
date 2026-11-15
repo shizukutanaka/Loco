@@ -19,6 +19,7 @@
 //  policy-driven substrate governed by queues, not as pets hand-assigned to projects."
 // =============================================================================
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -27,7 +28,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.AIPlatform
 {

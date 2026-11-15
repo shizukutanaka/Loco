@@ -2,12 +2,12 @@
 // High-performance distributed caching for workflow execution and metrics
 // Enables horizontal scaling and reduces database load
 
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Logging;
 
 namespace Loco.Core.Caching;
 

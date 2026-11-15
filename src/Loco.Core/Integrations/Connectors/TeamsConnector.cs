@@ -1,10 +1,10 @@
 // John Carmack: "Focus on the work that matters most"
 // Rob Pike: "Don't communicate by sharing memory, share memory by communicating"
 
+using Loco.Core.Integrations.Core;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using Loco.Core.Integrations.Core;
 
 namespace Loco.Core.Integrations.Connectors;
 
