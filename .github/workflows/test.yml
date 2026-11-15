@@ -46,6 +46,22 @@ jobs:
           --logger "trx;LogFileName=integration-results.trx" \
           --results-directory="./test-results"
 
+    - name: Collect Test Outputs
+      if: always()
+      run: |
+        # VSTest writes logger/collector outputs into a per-run subdirectory
+        # of --results-directory (for example
+        # ./test-results/<run-id>/coverage.cobertura.xml), but the Codecov,
+        # badge and test-reporter steps below read flat paths such as
+        # ./test-results/coverage.cobertura.xml and ./test-results/*.trx,
+        # which therefore never existed. Copy the outputs to the flat
+        # locations those steps expect.
+        coverage_file="$(find ./test-results -name 'coverage.cobertura.xml' | head -n 1)"
+        if [ -n "$coverage_file" ] && [ "$coverage_file" != "./test-results/coverage.cobertura.xml" ]; then
+          cp "$coverage_file" ./test-results/coverage.cobertura.xml
+        fi
+        find ./test-results -mindepth 2 -name '*.trx' -exec cp -f {} ./test-results/ \;
+
     - name: Upload Test Results
       if: always()
       uses: actions/upload-artifact@v5
@@ -64,7 +80,7 @@ jobs:
         fail-on-error: true
 
     - name: Upload Coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         files: ./test-results/coverage.cobertura.xml
         flags: unittests
