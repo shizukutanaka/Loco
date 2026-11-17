@@ -40,8 +40,11 @@ jobs:
     - name: Run code analysis
       run: dotnet build -c Release --no-restore /p:EnforceCodeStyleInBuild=true
 
-    - name: SonarCloud Scan (if main branch)
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    - name: SonarCloud Scan (opt-in, main branch)
+      # SonarCloud is an external service: it requires a SONAR_TOKEN secret
+      # and a project created on sonarcloud.io by the repository owner.
+      # It runs only when the ENABLE_SONARCLOUD repository variable is 'true'.
+      if: vars.ENABLE_SONARCLOUD == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push'
       uses: SonarSource/sonarcloud-github-action@master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -89,6 +92,11 @@ jobs:
   security:
     runs-on: ubuntu-latest
     name: Security Analysis
+    # Uploading SARIF to the GitHub Security tab requires security-events: write;
+    # without it the upload-sarif step fails with "Resource not accessible".
+    permissions:
+      contents: read
+      security-events: write
 
     steps:
     - uses: actions/checkout@v4
@@ -107,7 +115,7 @@ jobs:
         output: 'trivy-results.sarif'
 
     - name: Upload Trivy results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v2
+      uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: 'trivy-results.sarif'
 
@@ -193,7 +201,7 @@ jobs:
           --artifacts /tmp/benchmarks
 
     - name: Upload benchmark results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: benchmark-results
         path: /tmp/benchmarks/

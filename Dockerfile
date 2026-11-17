@@ -9,38 +9,55 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS build
 WORKDIR /build
 
 # Install build dependencies (minimal)
-RUN apk add --no-cache git curl gnupg
+# gcompat is required on musl: Grpc.Tools ships its protoc and
+# grpc_csharp_plugin binaries for linux_x64 as glibc ELF executables
+# (no musl build exists in the package), so without the glibc
+# compatibility layer the publish step below fails with MSB6003
+# ("protoc ... No such file or directory") when MSBuild tries to
+# exec them on Alpine.
+RUN apk add --no-cache git curl gnupg gcompat
 
 # Copy solution and project files
 COPY ["*.sln", "."]
+# Copy the repo-root build configuration. Directory.Packages.props enables
+# central package management: every PackageReference is versionless and the
+# versions -- including prerelease pins such as
+# OpenTelemetry.Instrumentation.GrpcNetClient 1.11.0-beta.2, which has no
+# stable release on nuget.org -- are defined only there. Without these files
+# the restore below floats every reference to the lowest stable version and
+# fails (NU1103 / NU1107). NuGet.config pins the package sources and
+# Directory.Build.props carries the shared MSBuild properties, so the
+# restore evaluates exactly as it does in a full checkout.
+COPY ["Directory.Build.props", "."]
+COPY ["Directory.Packages.props", "."]
+COPY ["NuGet.config", "."]
 COPY ["src/Loco.Api/Loco.Api.csproj", "src/Loco.Api/"]
 COPY ["src/Loco.Core/Loco.Core.csproj", "src/Loco.Core/"]
-COPY ["src/Loco.VisualEditor/Loco.VisualEditor.csproj", "src/Loco.VisualEditor/"]
 
 # Restore dependencies (layer caching for faster builds)
-RUN dotnet restore "src/Loco.Api/Loco.Api.csproj" \
-    && dotnet restore "src/Loco.Core/Loco.Core.csproj" \
-    && dotnet restore "src/Loco.VisualEditor/Loco.VisualEditor.csproj"
+# Note: src/Loco.VisualEditor is a React/TypeScript frontend (no .csproj)
+# and is not part of this .NET build; Loco.Api depends only on Loco.Core.
+# The RID is restored explicitly: the publish step below is self-contained,
+# and a RID-less restore makes it fail with NETSDK1047.
+RUN dotnet restore "src/Loco.Api/Loco.Api.csproj" -r linux-musl-x64 \
+    && dotnet restore "src/Loco.Core/Loco.Core.csproj" -r linux-musl-x64
 
 # Copy source code
 COPY . .
-
-# Build (with Release configuration for optimization)
-RUN dotnet build "src/Loco.Api/Loco.Api.csproj" \
-    -c Release \
-    -o /build/output \
-    --no-restore \
-    --verbosity minimal
 
 # Publish with aggressive optimizations
 # PublishTrimmed: Remove unused code (20-30% size reduction)
 # PublishReadyToRun: Precompile IL to native (faster startup)
 # TrimMode=link: Link-time trimming for better optimization
+# Publish performs the build itself with the same RID. A separate
+# "dotnet build" step combined with "publish --no-build" breaks
+# ReadyToRun / static-web-assets resolution, so build and publish
+# stay in a single command here.
 RUN dotnet publish "src/Loco.Api/Loco.Api.csproj" \
     -c Release \
+    -r linux-musl-x64 \
     -o /build/publish \
     --no-restore \
-    --no-build \
     -p:PublishSingleFile=false \
     -p:PublishReadyToRun=true \
     -p:PublishTrimmed=true \
