@@ -15,32 +15,31 @@ RUN apk add --no-cache git curl gnupg
 COPY ["*.sln", "."]
 COPY ["src/Loco.Api/Loco.Api.csproj", "src/Loco.Api/"]
 COPY ["src/Loco.Core/Loco.Core.csproj", "src/Loco.Core/"]
-COPY ["src/Loco.VisualEditor/Loco.VisualEditor.csproj", "src/Loco.VisualEditor/"]
 
 # Restore dependencies (layer caching for faster builds)
-RUN dotnet restore "src/Loco.Api/Loco.Api.csproj" \
-    && dotnet restore "src/Loco.Core/Loco.Core.csproj" \
-    && dotnet restore "src/Loco.VisualEditor/Loco.VisualEditor.csproj"
+# Note: src/Loco.VisualEditor is a React/TypeScript frontend (no .csproj)
+# and is not part of this .NET build; Loco.Api depends only on Loco.Core.
+# The RID is restored explicitly: the publish step below is self-contained,
+# and a RID-less restore makes it fail with NETSDK1047.
+RUN dotnet restore "src/Loco.Api/Loco.Api.csproj" -r linux-musl-x64 \
+    && dotnet restore "src/Loco.Core/Loco.Core.csproj" -r linux-musl-x64
 
 # Copy source code
 COPY . .
-
-# Build (with Release configuration for optimization)
-RUN dotnet build "src/Loco.Api/Loco.Api.csproj" \
-    -c Release \
-    -o /build/output \
-    --no-restore \
-    --verbosity minimal
 
 # Publish with aggressive optimizations
 # PublishTrimmed: Remove unused code (20-30% size reduction)
 # PublishReadyToRun: Precompile IL to native (faster startup)
 # TrimMode=link: Link-time trimming for better optimization
+# Publish performs the build itself with the same RID. A separate
+# "dotnet build" step combined with "publish --no-build" breaks
+# ReadyToRun / static-web-assets resolution, so build and publish
+# stay in a single command here.
 RUN dotnet publish "src/Loco.Api/Loco.Api.csproj" \
     -c Release \
+    -r linux-musl-x64 \
     -o /build/publish \
     --no-restore \
-    --no-build \
     -p:PublishSingleFile=false \
     -p:PublishReadyToRun=true \
     -p:PublishTrimmed=true \
