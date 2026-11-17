@@ -76,23 +76,20 @@ docker build --target api --target web --target cli -t loco:latest .
 
 ### Services
 
-#### Core Services
-- **PostgreSQL 15** - Primary database (port 5432)
-- **Redis 7** - Distributed cache (port 6379)
-- **RabbitMQ 3** - Message queue (ports 5672, 15672)
+Loco is self-contained: the API keeps its data in a JSON file on a named
+volume and needs no database, cache, message queue or search engine.
+The compose stack therefore has exactly two services:
 
-#### Observability Stack
-- **Elasticsearch 8.10** - Log storage & search (port 9200)
-- **Kibana 8.10** - Log visualization (port 5601)
-- **Prometheus** - Metrics collection (port 9090)
-- **Grafana** - Metrics visualization (port 3000)
-- **Jaeger** - Distributed tracing (port 16686)
-
-#### Application Services
 - **Loco API** - REST API (port 5000)
-- **Loco Web** - Web UI (port 5001)
-- **Loco CLI** - CLI container (for scheduled jobs)
-- **Nginx** - Reverse proxy (ports 80, 443)
+- **Jaeger** - Distributed tracing (port 16686); the API exports traces
+  to it via OpenTelemetry (OTLP gRPC on port 4317)
+
+> Earlier versions of this guide also listed PostgreSQL, Redis,
+> RabbitMQ, Elasticsearch/Kibana, Prometheus, Grafana, a web UI service
+> and Nginx as part of the stack. None of them were ever connected to
+> the API — the compose entries passed connection settings that no code
+> read, or mounted files that do not exist — and they have been removed
+> from docker-compose.yml.
 
 ### Quick Start
 
@@ -113,12 +110,12 @@ docker-compose down -v
 
 #### Production Environment
 ```bash
-# Use production override
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-
-# Scale services
-docker-compose up -d --scale loco-api=3 --scale loco-web=2
+# Run with the production environment setting
+ENVIRONMENT=Production docker-compose up -d
 ```
+
+Note: the API is stateful — its rules and JWT secret live as files on
+the `loco_data` volume — so run a single `loco-api` replica per volume.
 
 ### Environment Variables
 
@@ -128,23 +125,11 @@ Create `.env` file in project root:
 # Environment
 ENVIRONMENT=Development
 
-# Database
-POSTGRES_PASSWORD=secure_password_here
-POSTGRES_DB=loco
-POSTGRES_USER=loco_user
-
-# RabbitMQ
-RABBITMQ_USER=admin
-RABBITMQ_PASSWORD=secure_password_here
-
-# Grafana
-GRAFANA_USER=admin
-GRAFANA_PASSWORD=secure_password_here
-
-# Application
-ASPNETCORE_ENVIRONMENT=Development
-API_PORT=5000
-WEB_PORT=5001
+# JWT signing secret (optional). When unset, the API generates a
+# per-installation secret on first start and persists it in the
+# loco_data volume (jwt-secret.key), so tokens stay valid across
+# restarts. Set this to pin your own value instead.
+JWT_SECRET_KEY=
 ```
 
 ### Health Checks
@@ -155,27 +140,24 @@ All services include health checks:
 # Check service health
 docker-compose ps
 
-# Check individual service
-docker exec loco-postgres pg_isready -U loco_user
-docker exec loco-redis redis-cli ping
-docker exec loco-rabbitmq rabbitmq-diagnostics ping
+# Check the API health endpoint
+curl -f http://localhost:5000/health
 ```
 
 ### Networking
 
 Services communicate via `loco-network` bridge network:
-- Internal DNS: `service-name` (e.g., `postgres:5432`)
+- Internal DNS: `service-name` (e.g., `jaeger:4317` for trace export)
 - External access via exposed ports
 - Isolated from other compose stacks
 
 ### Data Persistence
 
 Volumes for data persistence:
-- `postgres_data` - Database files
-- `redis_data` - Cache data
-- `elasticsearch_data` - Log storage
-- `prometheus_data` - Metrics
-- `grafana_data` - Grafana config
+- `loco_data` - The API's data directory (`/data` in the container):
+  `rules.json` (the rule store) and `jwt-secret.key` (the persisted JWT
+  signing secret). Deleting this volume resets the installation to a
+  fresh state.
 
 ## GitHub Actions CI/CD
 
@@ -230,12 +212,11 @@ Builds in parallel, caches layers.
 
 #### 5. Integration Tests
 ```yaml
-- Start PostgreSQL service
-- Start Redis service
 - Run integration tests
 ```
 
-With real database and cache.
+The API is self-contained (file-based storage), so no backing services
+need to be started for it.
 
 #### 6. Performance Testing
 ```yaml
@@ -453,23 +434,14 @@ http://localhost:16686
 2. Select operation (WorkflowExecution)
 3. View spans and timings
 
-### Log Aggregation (Elasticsearch/Kibana)
+### Log Aggregation
 
-**Access Kibana:**
-```
-http://localhost:5601
-```
+There is no Elasticsearch/Kibana in the stack: the API writes its logs
+to stdout (and Serilog files where configured), so use the container
+logs directly:
 
-**Create index pattern:**
-1. Management → Index Patterns → Create index pattern
-2. Pattern: `loco-*`
-3. Time field: `@timestamp`
-
-**Query logs:**
-```
-level: "Error"
-service: "loco-api"
-status: 500
+```bash
+docker-compose logs -f loco-api
 ```
 
 ## Security Best Practices
@@ -568,11 +540,8 @@ docker inspect loco-api
 ### Dependency Issues
 
 ```bash
-# Check service connectivity
-docker-compose exec loco-api curl -f http://postgres:5432
-
-# Verify health checks
-docker-compose exec postgres pg_isready -U loco_user
+# Check the tracing backend is reachable from the API container
+docker-compose exec loco-api curl -f http://jaeger:16686/
 ```
 
 ### Performance Issues
@@ -596,7 +565,7 @@ The deployment infrastructure provides:
 ✅ Complete docker-compose orchestration
 ✅ Comprehensive CI/CD pipeline
 ✅ Multi-environment deployment strategies
-✅ Observability with ELK + Prometheus + Jaeger
+✅ Observability with Jaeger tracing and structured logging
 ✅ Security hardening and best practices
 ✅ Automated testing and quality gates
 

@@ -27,7 +27,7 @@ namespace Loco.Api.Tests
             // Setup JWT configuration
             var jwtSection = new Mock<IConfigurationSection>();
             jwtSection.Setup(x => x["SecretKey"])
-                .Returns("DefaultSecretKeyChangeInProduction12345");
+                .Returns("unit-test-only-secret-key-0123456789abcdef");
             jwtSection.Setup(x => x["Issuer"])
                 .Returns("https://loco.local");
             jwtSection.Setup(x => x["Audience"])

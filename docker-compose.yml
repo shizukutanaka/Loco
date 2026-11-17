@@ -1,106 +1,20 @@
 version: '3.8'
 
+# Loco is a self-contained application: the API persists its rules in a
+# JSON file (JsonFileRuleStore) and has no database, cache, message queue
+# or search engine. The PostgreSQL, Redis, RabbitMQ, Elasticsearch and
+# Kibana services that used to be defined here were removed: no code in
+# the API ever read the connection settings compose passed for them, so
+# they only looked like part of the architecture. The stack is now just
+# the API plus Jaeger, which the API really does export traces to.
+#
 # The only image built from this repository is the Loco API: the root
 # Dockerfile has exactly two stages, "build" and "runtime", and the
 # runtime stage serves Loco.Api on port 5000. There is no web or CLI
 # stage (the CLI ships as the single-file binary from the release
-# workflow), so this file defines no web/cli services. The Prometheus,
-# Grafana and Nginx services that used to be listed here were removed
-# with them: they bind-mounted ./monitoring/* and ./nginx/* files that
-# do not exist anywhere in this repository, so they could never start
-# (and Nginx also depended on the nonexistent web service).
+# workflow), so this file defines no web/cli services.
 
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    container_name: loco-postgres
-    environment:
-      POSTGRES_DB: loco
-      POSTGRES_USER: loco_user
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-loco_password}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    networks:
-      - loco-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U loco_user"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Redis Cache
-  redis:
-    image: redis:7-alpine
-    container_name: loco-redis
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    ports:
-      - "6379:6379"
-    networks:
-      - loco-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Elasticsearch for logging and search
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
-    container_name: loco-elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    ports:
-      - "9200:9200"
-    networks:
-      - loco-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-
-  # Kibana for log visualization
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.10.2
-    container_name: loco-kibana
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-    ports:
-      - "5601:5601"
-    networks:
-      - loco-network
-    depends_on:
-      - elasticsearch
-
-  # RabbitMQ for message queuing
-  rabbitmq:
-    image: rabbitmq:3.12-management-alpine
-    container_name: loco-rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-admin}
-    ports:
-      - "5672:5672"   # AMQP port
-      - "15672:15672" # Management UI
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    networks:
-      - loco-network
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-
   # Jaeger for distributed tracing
   jaeger:
     image: jaegertracing/all-in-one:latest
@@ -130,34 +44,27 @@ services:
     container_name: loco-api
     environment:
       - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT:-Development}
-      - ConnectionStrings__DefaultConnection=Host=postgres;Database=loco;Username=loco_user;Password=${POSTGRES_PASSWORD:-loco_password}
-      - Redis__ConnectionString=redis:6379
-      - RabbitMQ__HostName=rabbitmq
-      - RabbitMQ__UserName=${RABBITMQ_USER:-admin}
-      - RabbitMQ__Password=${RABBITMQ_PASSWORD:-admin}
-      - Elasticsearch__Uri=http://elasticsearch:9200
+      # Self-contained file storage on the named volume below, so rules
+      # survive container recreation (previously the store defaulted to a
+      # file inside the container's writable layer and was lost).
+      - RULE_STORE_PATH=/data/rules.json
+      # JWT signing secret (Jwt:SecretKey). Optional: when left empty the
+      # API generates a per-installation secret on first start and
+      # persists it next to the rule store (/data/jwt-secret.key), so
+      # issued tokens stay valid across restarts. Set JWT_SECRET_KEY in
+      # the environment (or a .env file) to pin your own value instead.
+      - Jwt__SecretKey=${JWT_SECRET_KEY:-}
       # Tracing: the API exports traces with the OpenTelemetry OTLP
       # exporter (gRPC) and reads the destination from the
       # "OpenTelemetry:OtlpEndpoint" configuration key (Program.cs).
-      # The legacy Jaeger agent variables (Jaeger__AgentHost /
-      # Jaeger__AgentPort, UDP 6831) were never read by any code, so
-      # traces silently went to the appsettings default
-      # (http://localhost:4317, i.e. inside the API container itself).
       # Jaeger all-in-one accepts OTLP gRPC on port 4317 by default.
       - OpenTelemetry__OtlpEndpoint=http://jaeger:4317
+    volumes:
+      - loco_data:/data
     ports:
       - "5000:5000"
     networks:
       - loco-network
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
     restart: unless-stopped
 
 networks:
@@ -165,7 +72,4 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_data:
-  redis_data:
-  elasticsearch_data:
-  rabbitmq_data:
+  loco_data:

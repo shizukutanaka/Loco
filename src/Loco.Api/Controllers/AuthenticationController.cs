@@ -135,7 +135,16 @@ public class AuthenticationController : ControllerBase
         // child section to exist in the configuration provider chain, which
         // throws NullReferenceException for IConfiguration implementations
         // that only surface values through the indexer.
-        var secretKey = jwtSettings["SecretKey"] ?? "DefaultSecretKeyChangeInProduction12345";
+        // There is deliberately no fallback value here: Program startup
+        // resolves the secret (Jwt__SecretKey environment variable, or the
+        // persisted per-installation secret file) and publishes it into
+        // configuration. A missing value means startup resolution was
+        // bypassed, which must fail loudly rather than sign tokens with a
+        // shared, well-known key.
+        var secretKey = jwtSettings["SecretKey"]
+            ?? throw new InvalidOperationException(
+                "Jwt:SecretKey is not configured. It is resolved at startup by JwtSecretResolver; " +
+                "set the Jwt__SecretKey environment variable or let startup persist a per-installation secret.");
         var issuer = jwtSettings["Issuer"] ?? "https://loco.local";
         var audience = jwtSettings["Audience"] ?? "loco-api";
 
