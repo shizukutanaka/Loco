@@ -13,6 +13,18 @@ RUN apk add --no-cache git curl gnupg
 
 # Copy solution and project files
 COPY ["*.sln", "."]
+# Copy the repo-root build configuration. Directory.Packages.props enables
+# central package management: every PackageReference is versionless and the
+# versions -- including prerelease pins such as
+# OpenTelemetry.Instrumentation.GrpcNetClient 1.11.0-beta.2, which has no
+# stable release on nuget.org -- are defined only there. Without these files
+# the restore below floats every reference to the lowest stable version and
+# fails (NU1103 / NU1107). NuGet.config pins the package sources and
+# Directory.Build.props carries the shared MSBuild properties, so the
+# restore evaluates exactly as it does in a full checkout.
+COPY ["Directory.Build.props", "."]
+COPY ["Directory.Packages.props", "."]
+COPY ["NuGet.config", "."]
 COPY ["src/Loco.Api/Loco.Api.csproj", "src/Loco.Api/"]
 COPY ["src/Loco.Core/Loco.Core.csproj", "src/Loco.Core/"]
 
