@@ -136,8 +136,15 @@ services:
       - RabbitMQ__UserName=${RABBITMQ_USER:-admin}
       - RabbitMQ__Password=${RABBITMQ_PASSWORD:-admin}
       - Elasticsearch__Uri=http://elasticsearch:9200
-      - Jaeger__AgentHost=jaeger
-      - Jaeger__AgentPort=6831
+      # Tracing: the API exports traces with the OpenTelemetry OTLP
+      # exporter (gRPC) and reads the destination from the
+      # "OpenTelemetry:OtlpEndpoint" configuration key (Program.cs).
+      # The legacy Jaeger agent variables (Jaeger__AgentHost /
+      # Jaeger__AgentPort, UDP 6831) were never read by any code, so
+      # traces silently went to the appsettings default
+      # (http://localhost:4317, i.e. inside the API container itself).
+      # Jaeger all-in-one accepts OTLP gRPC on port 4317 by default.
+      - OpenTelemetry__OtlpEndpoint=http://jaeger:4317
     ports:
       - "5000:5000"
     networks:
