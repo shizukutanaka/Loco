@@ -9,7 +9,13 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS build
 WORKDIR /build
 
 # Install build dependencies (minimal)
-RUN apk add --no-cache git curl gnupg
+# gcompat is required on musl: Grpc.Tools ships its protoc and
+# grpc_csharp_plugin binaries for linux_x64 as glibc ELF executables
+# (no musl build exists in the package), so without the glibc
+# compatibility layer the publish step below fails with MSB6003
+# ("protoc ... No such file or directory") when MSBuild tries to
+# exec them on Alpine.
+RUN apk add --no-cache git curl gnupg gcompat
 
 # Copy solution and project files
 COPY ["*.sln", "."]
