@@ -1,5 +1,15 @@
 version: '3.8'
 
+# The only image built from this repository is the Loco API: the root
+# Dockerfile has exactly two stages, "build" and "runtime", and the
+# runtime stage serves Loco.Api on port 5000. There is no web or CLI
+# stage (the CLI ships as the single-file binary from the release
+# workflow), so this file defines no web/cli services. The Prometheus,
+# Grafana and Nginx services that used to be listed here were removed
+# with them: they bind-mounted ./monitoring/* and ./nginx/* files that
+# do not exist anywhere in this repository, so they could never start
+# (and Nginx also depended on the nonexistent web service).
+
 services:
   # PostgreSQL Database
   postgres:
@@ -8,7 +18,7 @@ services:
     environment:
       POSTGRES_DB: loco
       POSTGRES_USER: loco_user
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-loco_password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -110,49 +120,17 @@ services:
     networks:
       - loco-network
 
-  # Prometheus for metrics
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: loco-prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    ports:
-      - "9090:9090"
-    networks:
-      - loco-network
-
-  # Grafana for metrics visualization
-  grafana:
-    image: grafana/grafana:latest
-    container_name: loco-grafana
-    environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
-      - GF_INSTALL_PLUGINS=redis-datasource
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
-    ports:
-      - "3000:3000"
-    networks:
-      - loco-network
-    depends_on:
-      - prometheus
-
   # Loco API Service
+  # Built from the root Dockerfile's final ("runtime") stage, which
+  # listens on port 5000 (ASPNETCORE_URLS=http://+:5000).
   loco-api:
     build:
       context: .
-      target: api
+      target: runtime
     container_name: loco-api
     environment:
       - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT:-Development}
-      - ConnectionStrings__DefaultConnection=Host=postgres;Database=loco;Username=loco_user;Password=${POSTGRES_PASSWORD:-changeme}
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=loco;Username=loco_user;Password=${POSTGRES_PASSWORD:-loco_password}
       - Redis__ConnectionString=redis:6379
       - RabbitMQ__HostName=rabbitmq
       - RabbitMQ__UserName=${RABBITMQ_USER:-admin}
@@ -161,7 +139,7 @@ services:
       - Jaeger__AgentHost=jaeger
       - Jaeger__AgentPort=6831
     ports:
-      - "5000:80"
+      - "5000:5000"
     networks:
       - loco-network
     depends_on:
@@ -175,58 +153,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # Loco Web Service
-  loco-web:
-    build:
-      context: .
-      target: web
-    container_name: loco-web
-    environment:
-      - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT:-Development}
-      - ApiUrl=http://loco-api
-      - ConnectionStrings__DefaultConnection=Host=postgres;Database=loco;Username=loco_user;Password=${POSTGRES_PASSWORD:-changeme}
-      - Redis__ConnectionString=redis:6379
-    ports:
-      - "5001:80"
-    networks:
-      - loco-network
-    depends_on:
-      - loco-api
-    restart: unless-stopped
-
-  # Loco CLI Service (for scheduled jobs)
-  loco-cli:
-    build:
-      context: .
-      target: cli
-    container_name: loco-cli
-    environment:
-      - DOTNET_ENVIRONMENT=${ENVIRONMENT:-Development}
-      - ApiUrl=http://loco-api
-      - ConnectionStrings__DefaultConnection=Host=postgres;Database=loco;Username=loco_user;Password=${POSTGRES_PASSWORD:-changeme}
-    networks:
-      - loco-network
-    depends_on:
-      - loco-api
-    restart: unless-stopped
-    command: ["health"] # Default command, can be overridden
-
-  # Nginx Reverse Proxy
-  nginx:
-    image: nginx:alpine
-    container_name: loco-nginx
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/sites-enabled:/etc/nginx/sites-enabled:ro
-    ports:
-      - "80:80"
-      - "443:443"
-    networks:
-      - loco-network
-    depends_on:
-      - loco-api
-      - loco-web
-
 networks:
   loco-network:
     driver: bridge
@@ -236,5 +162,3 @@ volumes:
   redis_data:
   elasticsearch_data:
   rabbitmq_data:
-  prometheus_data:
-  grafana_data:
