@@ -1,6 +1,7 @@
 using Loco.Api.Filters;
 using Loco.Api.HealthChecks;
 using Loco.Api.Middleware;
+using Loco.Api.Security;
 using Loco.Core;
 using Loco.Core.Configuration;
 using Loco.Core.Interfaces;
@@ -68,8 +69,21 @@ builder.Services.AddCors(options =>
 });
 
 // Configure Authentication
+//
+// The signing secret is never a shipped constant (a fixed value in
+// appsettings.json would be public and shared by every installation).
+// JwtSecretResolver prefers an explicitly configured secret
+// (Jwt:SecretKey, e.g. the Jwt__SecretKey environment variable) and
+// otherwise generates a per-installation secret persisted next to the
+// rule store, so issued tokens stay valid across restarts.
 var jwtSettings = builder.Configuration.GetSection("Jwt");
-var secretKey = jwtSettings.GetValue<string>("SecretKey") ?? "DefaultSecretKeyChangeInProduction12345";
+var ruleStorePath = builder.Configuration.GetValue<string>("RULE_STORE_PATH") ?? "rules.json";
+var secretKey = JwtSecretResolver.Resolve(
+    jwtSettings.GetValue<string>("SecretKey"),
+    JwtSecretResolver.GetSecretFilePath(ruleStorePath));
+// Publish the resolved secret back into configuration so token issuance
+// (AuthenticationController) uses the same key as token validation.
+builder.Configuration["Jwt:SecretKey"] = secretKey;
 var issuer = jwtSettings.GetValue<string>("Issuer") ?? "https://loco.local";
 var audience = jwtSettings.GetValue<string>("Audience") ?? "loco-api";
 
@@ -264,8 +278,6 @@ builder.Services.AddSingleton<Loco.Core.Workflows.WorkflowMetricsCollector>();
 builder.Services.AddSingleton<LocoConfig>();
 builder.Services.AddSingleton<IRuleStore>(sp =>
 {
-    var ruleStorePath = builder.Configuration.GetValue<string>("RULE_STORE_PATH")
-        ?? "rules.json";
     return new JsonFileRuleStore(
         ruleStorePath,
         sp.GetService<ILogger<JsonFileRuleStore>>());

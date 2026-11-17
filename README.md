@@ -235,11 +235,12 @@ Full OpenAPI documentation available at `http://localhost:5000/swagger/index.htm
 ASPNETCORE_URLS=http://0.0.0.0:5000
 ASPNETCORE_ENVIRONMENT=Production
 
-# Security
-JWT_SECRET=your-secret-key
-JWT_EXPIRATION_HOURS=24
+# Security (optional: when unset, a per-installation secret is
+# generated on first start and persisted next to the rule store,
+# so issued tokens stay valid across restarts)
+Jwt__SecretKey=your-own-secret-at-least-32-characters-long
 
-# Database
+# File storage (the API is self-contained; rules live in a JSON file)
 RULE_STORE_PATH=/var/lib/loco/rules.json
 
 # Logging

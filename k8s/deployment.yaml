@@ -23,7 +23,6 @@ data:
   ASPNETCORE_ENVIRONMENT: "Production"
   ASPNETCORE_URLS: "http://+:5000"
   ASPNETCORE_FORWARDEDHEADERSENABLED: "true"
-  ConnectionStrings__DefaultConnection: "Data Source=/data/loco.db;Cache=Shared"
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger-collector:4317"
   OTEL_SERVICE_NAME: "loco-workflow-api"
   Logging__LogLevel__Default: "Information"
@@ -37,10 +36,15 @@ metadata:
   name: loco-secrets
   namespace: loco
 type: Opaque
+# The keys use the exact configuration names the API reads
+# (Jwt__SecretKey maps to Jwt:SecretKey). Set Jwt__SecretKey to your own
+# random value of at least 32 characters before applying this manifest:
+# the previous literal value was a publicly known placeholder shared by
+# every installation and has been removed.
 stringData:
-  JWT_SECRET_KEY: "YourSuperSecretKeyThatMustBeAtLeast32CharactersLongForHS256!!!"
-  JWT_ISSUER: "https://loco.local"
-  JWT_AUDIENCE: "loco-api"
+  Jwt__SecretKey: "REPLACE-WITH-YOUR-OWN-RANDOM-SECRET-32-CHARS-OR-MORE"
+  Jwt__Issuer: "https://loco.local"
+  Jwt__Audience: "loco-api"
 
 ---
 # PersistentVolumeClaim for SQLite database
@@ -130,11 +134,11 @@ spec:
             name: loco-config
 
         env:
-        - name: JWT_SECRET_KEY
+        - name: Jwt__SecretKey
           valueFrom:
             secretKeyRef:
               name: loco-secrets
-              key: JWT_SECRET_KEY
+              key: Jwt__SecretKey
 
         resources:
           requests:

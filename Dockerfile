@@ -87,6 +87,12 @@ RUN addgroup -g 1000 appuser && \
 COPY --from=build --chown=appuser:appuser /build/publish .
 COPY --from=build --chown=appuser:appuser /build/src/Loco.Api/appsettings*.json ./
 
+# Data directory for the self-contained file storage (rule store and the
+# persisted JWT secret). docker-compose mounts the loco_data named volume
+# here; creating it appuser-owned in the image makes a fresh named volume
+# inherit that ownership so the non-root process can write to it.
+RUN mkdir -p /data && chown appuser:appuser /data
+
 # Health check (responds to liveness probes)
 # 30s interval, 3s timeout, 5s initial delay, 3 retries before unhealthy
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
