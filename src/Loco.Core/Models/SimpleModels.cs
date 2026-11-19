@@ -137,7 +137,7 @@ namespace Loco.Core.Models
                 if (!success)
                 {
                     context.Logger?.LogWarning("Action failed in flow {FlowName}: {ActionName}", Name, action.Name);
-                    break;
+                    throw new InvalidOperationException($"Step '{action.Name}' (ID: {action.Id}) failed; remaining steps were not run.");
                 }
             }
 

@@ -391,11 +391,9 @@ namespace Loco.Core.Workflows
 
         public Task<bool> ExecuteAsync(IActionContext context)
         {
-            context.Logger?.LogInformation("Executing step: {StepName} (Type: {StepType})", _step.Name, _step.Type);
-            Console.WriteLine($"[{_step.Type.ToUpper()}] {_step.Name}");
-            // For now, just log that we executed the step
-            // In a full implementation, this would dispatch to appropriate action executors
-            return Task.FromResult(true);
+            context.Logger?.LogError("Unsupported step type '{StepType}' in step {StepName}; nothing was executed", _step.Type, _step.Name);
+            Console.WriteLine($"[{_step.Type.ToUpper()}] {_step.Name}: step type '{_step.Type}' is not supported (supported: log, delay, file, process, command, http, api)");
+            return Task.FromResult(false);
         }
     }
 
