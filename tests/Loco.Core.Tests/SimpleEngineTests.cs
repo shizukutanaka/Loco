@@ -1,3 +1,4 @@
+using Loco.Core.Interfaces;
 using Loco.Core;
 using Loco.Core.Configuration;
 using Loco.Core.Models;
@@ -34,6 +35,67 @@ namespace Loco.Core.Tests
 
             // Assert
             Assert.True(result);
+        }
+
+        private sealed class RecordingAction : IAction
+        {
+            private readonly bool _result;
+            public string Id { get; }
+            public string Name { get; }
+            public bool Executed { get; private set; }
+
+            public RecordingAction(string id, bool result)
+            {
+                Id = id;
+                Name = id;
+                _result = result;
+            }
+
+            public Task<bool> ExecuteAsync(IActionContext context)
+            {
+                Executed = true;
+                return Task.FromResult(_result);
+            }
+        }
+
+        [Fact]
+        public async Task ExecuteFlowAsync_WhenAStepFails_ReturnsFalseAndStopsLaterSteps()
+        {
+            using var engine = new SimpleLightEngine(null);
+            var failing = new RecordingAction("failing", result: false);
+            var after = new RecordingAction("after", result: true);
+            var flow = new SimpleFlow("Failing Flow", "", "failing-flow");
+            flow.Actions.Add(new RecordingAction("before", result: true));
+            flow.Actions.Add(failing);
+            flow.Actions.Add(after);
+            engine.AddFlow(flow);
+
+            var result = await engine.ExecuteFlowAsync("failing-flow");
+
+            Assert.False(result);
+            Assert.True(failing.Executed);
+            Assert.False(after.Executed);
+        }
+
+        [Fact]
+        public async Task ExecuteFlowAsync_WithUnsupportedStepType_ReturnsFalse()
+        {
+            var flow = new Loco.Core.Workflows.WorkflowLoader().LoadFromJson("""
+                {
+                  "id": "unsupported-step",
+                  "name": "Unsupported step",
+                  "steps": [
+                    { "id": "s1", "name": "Notify", "type": "notification", "message": "done" }
+                  ]
+                }
+                """);
+            Assert.NotNull(flow);
+            using var engine = new SimpleLightEngine(null);
+            engine.AddFlow(flow!);
+
+            var result = await engine.ExecuteFlowAsync("unsupported-step");
+
+            Assert.False(result);
         }
 
         [Fact]

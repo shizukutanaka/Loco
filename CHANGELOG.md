@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `loco workflow <file>` now exits 1 and stops at the first failed step. Previously a failed step (or a step type the sequential engine does not implement, such as `notification`, `env`, `network`) was logged and the run still printed `✓ Workflow completed successfully` with exit code 0.
+
 ### Added
 - **Advanced Performance Optimizer** (620+ lines):
   - `AdvancedPerformanceOptimizer`: Battery-aware workflow execution optimization
